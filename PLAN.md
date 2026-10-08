@@ -5,7 +5,7 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-10-08
-**Current milestone:** M0 – Foundation (in progress – next: ESLint)
+**Current milestone:** M0 – Foundation (in progress – next: Angular Material)
 
 ---
 
@@ -59,7 +59,10 @@ professionally and presentable in a CV/portfolio.
 - Angular 22.2 CLI project. Starter template removed: `App` renders an `<h1>` and a
   `<router-outlet>`; no routes yet. Only test is the CLI's `should create the app` smoke test.
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
-- No linting, no CI, no deployment, no UI library.
+- ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
+  generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
+  rules incl. accessibility. No custom rules beyond the `app` selector prefix.
+- No CI, no deployment, no UI library.
 - Angular CLI MCP server configured in `.mcp.json` (docs search, best practices).
 
 ---
@@ -79,7 +82,7 @@ Tasks in order:
 
 - [x] Remove the starter template from `app.html`; update or replace `app.spec.ts` (it asserts the
       starter heading)
-- [ ] ESLint (`ng add angular-eslint`) including the template accessibility rules. Before writing
+- [x] ESLint (`ng add angular-eslint`) including the template accessibility rules. Before writing
       more code, so the rules catch problems from the start.
 - [ ] Angular Material (`ng add @angular/material`): a custom theme (colours, typography), light/dark
       following the system setting, minimal global styles. Check the contrast of the chosen
