@@ -33,9 +33,14 @@ professionally and presentable in a CV/portfolio.
 
 **How we work:**
 
-- **The developer writes the code.** Claude acts as a guide: explains concepts, breaks tasks into
-  steps, points to the right docs (angular.dev), answers questions and reviews code. Claude does
-  **not** write or edit application code unless explicitly asked. Claude maintains this file.
+- **The developer writes the application code.** Claude acts as a guide: explains concepts, breaks
+  tasks into steps, points to the right docs (angular.dev), answers questions and reviews code.
+  Claude does **not** write or edit application code unless explicitly asked. Claude maintains this
+  file.
+- **Claude writes the tests** (unit and component tests, `*.spec.ts`) when the developer's code for a
+  task is ready for review; the developer reviews them and asks about anything unclear. If a test
+  exposes a bug, or the code is hard to test, Claude points it out in the review instead of changing
+  the application code (D16).
 - **When the developer is stuck:** explain the concept and show a small example of a _similar, not
   identical_ case, which the developer adapts. Don't hand over the finished solution unless asked.
 - One Claude Code session per task or self-contained piece of work.
@@ -68,14 +73,18 @@ Detail decreases with distance: **Now** has concrete tasks, **Next** has outline
 
 Goal: a clean, mobile-first app shell to build features in.
 
+Tasks in order:
+
 - [ ] Remove the starter template from `app.html`; update or replace `app.spec.ts` (it asserts the
       starter heading)
-- [ ] App shell: header/navigation + `<router-outlet>`, one placeholder page loaded with a lazy route
-      (`loadComponent`)
+- [ ] ESLint (`ng add angular-eslint`) including the template accessibility rules. Before writing
+      more code, so the rules catch problems from the start.
 - [ ] Angular Material (`ng add @angular/material`): a custom theme (colours, typography), light/dark
       following the system setting, minimal global styles. Check the contrast of the chosen
-      colours.
-- [ ] ESLint (`ng add angular-eslint`) including the template accessibility rules
+      colours. Before the shell, so the header can use Material components (e.g. `mat-toolbar`)
+      from the start.
+- [ ] App shell: header/navigation + `<router-outlet>`, one placeholder page loaded with a lazy route
+      (`loadComponent`)
 - [ ] Short README: what the project is and how to run it
 
 **Done when:** `lint`, `test` and `build` pass, and the shell looks right at phone width (≈375px).
@@ -105,13 +114,14 @@ Goal: something actually useful – a list of my shows with progress, entered by
       Signal Forms in v22; fall back to native elements where they don't.
 - [ ] Delete with confirmation (Material dialog)
 - [ ] Custom pipe that formats progress as `S02E05`
-- [ ] Unit tests – mainly for the service/state logic, plus a component test or two
+- [ ] Tests alongside each task – mainly unit tests for the service/state logic, plus a component
+      test or two. Claude writes them, the developer reviews them (D16).
 
 **Done when:** I can enter my ~10 current shows on a phone-sized screen, update progress in one tap,
 and the data survives a reload.
 **Angular concepts:** components, `input()`/`output()`/`model()`, `@if`/`@for`, `signal`/
 `computed`/`effect`, Signal Forms, services and DI (incl. providing an abstraction), route
-parameters (component input binding), pipes, testing with TestBed + Vitest.
+parameters (component input binding), pipes, reading tests written with TestBed + Vitest.
 
 ### NEXT
 
@@ -211,23 +221,24 @@ Other dependencies:
 Decisions we have actually made. Add new ones at the bottom with a date; if a decision is
 reversed, mark it as superseded instead of deleting it.
 
-| #   | Date       | Decision                                                                                                                          | Reason                                                                                                                                                                                                              |
-| --- | ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | 2026-10-08 | The developer writes the code; Claude guides and reviews.                                                                         | Learning project – Angular is learned by writing it.                                                                                                                                                                |
-| D2  | 2026-10-08 | Start with manual entry + localStorage; external data (TMDB) comes in M3.                                                         | First Angular steps without HTTP/API key concerns; produces real data early.                                                                                                                                        |
-| D3  | 2026-10-08 | Mobile-first. Expected ~95% of use on the phone.                                                                                  | That is where the app will be used ("where did I stop?" on the couch). Makes hosting + PWA (M2) a priority right after M1.                                                                                          |
-| D4  | 2026-10-08 | ~~Own SCSS, no UI component library.~~ **Superseded by D10.**                                                                     | Styling turned out not to be a learning goal.                                                                                                                                                                       |
-| D5  | 2026-10-08 | Track progress as a pointer to the last watched episode (season + episode), not per-episode history.                              | Answers "where did I stop?" with a fraction of the complexity.                                                                                                                                                      |
-| D6  | 2026-10-08 | Storage is accessed through an abstraction, not directly from components.                                                         | localStorage → HTTP API later should be a change in one place.                                                                                                                                                      |
-| D7  | 2026-10-08 | TV series only for now; movies are a Later feature.                                                                               | Keep the first data model small.                                                                                                                                                                                    |
-| D8  | 2026-10-08 | TMDB will be the source of show data and watch providers; region Norway (`NO`).                                                   | Free for non-commercial use; covers search, seasons/episodes, images, ratings, IMDb ids and per-country watch providers.                                                                                            |
-| D9  | 2026-10-08 | Direct streaming-service account integration is out of scope.                                                                     | See §4, "Explicitly out of scope".                                                                                                                                                                                  |
-| D10 | 2026-10-08 | Angular Material as the UI component library, themed in SCSS.                                                                     | Styling isn't a learning goal (the developer already knows SCSS well), so a library saves time on UI. Accessible out of the box, mobile-friendly, and the most common UI library in professional Angular codebases. |
-| D11 | 2026-10-08 | Go live on the phone right after M1 (M2), before TMDB integration.                                                                | Real use early shapes the later milestones; deploying is simpler before any API key exists.                                                                                                                         |
-| D12 | 2026-10-08 | The home screen is "Continue watching" (shows being watched, most recently updated first, one-tap progress).                      | Built around the main use case: "where did I stop?".                                                                                                                                                                |
-| D13 | 2026-10-08 | UI language is English.                                                                                                           | Simplest, and readable for anyone looking at the portfolio. i18n is not planned.                                                                                                                                    |
-| D14 | 2026-10-08 | M1 data model is minimal: title, status (Want to watch / Watching / Finished / Dropped), streaming service, last watched episode. | Add fields (rating, notes, …) only when real use shows they're missing.                                                                                                                                             |
-| D15 | 2026-10-08 | When the developer is stuck, Claude explains the concept and shows a similar example to adapt, not the solution itself.           | Balances learning with not getting stuck for too long.                                                                                                                                                              |
+| #   | Date       | Decision                                                                                                                                                         | Reason                                                                                                                                                                                                              |
+| --- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | 2026-10-08 | The developer writes the code; Claude guides and reviews. Tests are the exception, see D16.                                                                      | Learning project – Angular is learned by writing it.                                                                                                                                                                |
+| D2  | 2026-10-08 | Start with manual entry + localStorage; external data (TMDB) comes in M3.                                                                                        | First Angular steps without HTTP/API key concerns; produces real data early.                                                                                                                                        |
+| D3  | 2026-10-08 | Mobile-first. Expected ~95% of use on the phone.                                                                                                                 | That is where the app will be used ("where did I stop?" on the couch). Makes hosting + PWA (M2) a priority right after M1.                                                                                          |
+| D4  | 2026-10-08 | ~~Own SCSS, no UI component library.~~ **Superseded by D10.**                                                                                                    | Styling turned out not to be a learning goal.                                                                                                                                                                       |
+| D5  | 2026-10-08 | Track progress as a pointer to the last watched episode (season + episode), not per-episode history.                                                             | Answers "where did I stop?" with a fraction of the complexity.                                                                                                                                                      |
+| D6  | 2026-10-08 | Storage is accessed through an abstraction, not directly from components.                                                                                        | localStorage → HTTP API later should be a change in one place.                                                                                                                                                      |
+| D7  | 2026-10-08 | TV series only for now; movies are a Later feature.                                                                                                              | Keep the first data model small.                                                                                                                                                                                    |
+| D8  | 2026-10-08 | TMDB will be the source of show data and watch providers; region Norway (`NO`).                                                                                  | Free for non-commercial use; covers search, seasons/episodes, images, ratings, IMDb ids and per-country watch providers.                                                                                            |
+| D9  | 2026-10-08 | Direct streaming-service account integration is out of scope.                                                                                                    | See §4, "Explicitly out of scope".                                                                                                                                                                                  |
+| D10 | 2026-10-08 | Angular Material as the UI component library, themed in SCSS.                                                                                                    | Styling isn't a learning goal (the developer already knows SCSS well), so a library saves time on UI. Accessible out of the box, mobile-friendly, and the most common UI library in professional Angular codebases. |
+| D11 | 2026-10-08 | Go live on the phone right after M1 (M2), before TMDB integration.                                                                                               | Real use early shapes the later milestones; deploying is simpler before any API key exists.                                                                                                                         |
+| D12 | 2026-10-08 | The home screen is "Continue watching" (shows being watched, most recently updated first, one-tap progress).                                                     | Built around the main use case: "where did I stop?".                                                                                                                                                                |
+| D13 | 2026-10-08 | UI language is English.                                                                                                                                          | Simplest, and readable for anyone looking at the portfolio. i18n is not planned.                                                                                                                                    |
+| D14 | 2026-10-08 | M1 data model is minimal: title, status (Want to watch / Watching / Finished / Dropped), streaming service, last watched episode.                                | Add fields (rating, notes, …) only when real use shows they're missing.                                                                                                                                             |
+| D15 | 2026-10-08 | When the developer is stuck, Claude explains the concept and shows a similar example to adapt, not the solution itself.                                          | Balances learning with not getting stuck for too long.                                                                                                                                                              |
+| D16 | 2026-10-08 | Claude writes the unit and component tests (`*.spec.ts`) as the work progresses; the developer reviews them. Application code is still written by the developer. | Keeps the tests up to date without slowing down the Angular learning. The developer's test experience is e2e (Cypress, Playwright), so reviewing the tests is a way to learn the unit-test style.                   |
 
 ## 7. Open questions
 
