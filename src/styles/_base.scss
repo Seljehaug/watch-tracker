@@ -1,0 +1,10 @@
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

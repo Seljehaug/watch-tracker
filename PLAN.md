@@ -5,7 +5,7 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-10-08
-**Current milestone:** M0 – Foundation (in progress – next: global styles – dark theme + reset)
+**Current milestone:** M0 – Foundation (in progress – next: app shell)
 
 ---
 
@@ -62,6 +62,11 @@ professionally and presentable in a CV/portfolio.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
   rules incl. accessibility. No custom rules beyond the `app` selector prefix.
+- Global styles in `src/styles/`, pulled together by `src/styles.scss`: `_tokens.scss` (design
+  tokens from DESIGN.md §1 as CSS custom properties on `:root`, `color-scheme: dark`),
+  `_reset.scss` (trimmed Josh Comeau reset + `padding: 0` on everything) and `_base.scss` (body
+  colours/font, `:focus-visible` ring). Font tokens are `font` shorthands: `font: var(--font-body)`.
+  Inter via `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - No CI, no deployment, no UI library.
 - Angular CLI MCP server configured in `.mcp.json` (docs search, best practices).
 
@@ -84,10 +89,10 @@ Tasks in order:
       starter heading)
 - [x] ESLint (`ng add angular-eslint`) including the template accessibility rules. Before writing
       more code, so the rules catch problems from the start.
-- [ ] Global styles (no UI library, D18): the tokens from `docs/design/DESIGN.md` §1 as CSS custom
+- [x] Global styles (no UI library, D18): the tokens from `docs/design/DESIGN.md` §1 as CSS custom
       properties (colours, font sizes, spacing, radius), `color-scheme: dark`, Inter (D20), a small
-      reset (copied and trimmed from Josh Comeau's "modern CSS reset", source linked in the file)
-      and visible focus styles. Dark mode only for now (D19). Before the shell, so the header is
+      reset (copied and trimmed from Josh Comeau's "modern CSS reset", source linked in the file,
+      plus `padding: 0` on everything) and visible focus styles. Dark mode only for now (D19). Before the shell, so the header is
       built on the tokens from the start.
 - [ ] App shell: header/navigation + `<router-outlet>`, one placeholder page loaded with a lazy route
       (`loadComponent`)

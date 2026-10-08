@@ -60,8 +60,9 @@ selects and steppers** instead. Cards may keep `--color-border` – they are not
 
 ### Typography
 
-- Font: **Inter** (Fontsource, weights 400 / 500 / 600 / 700).
-  `font-family: Inter, system-ui, sans-serif;`
+- Font: **Inter**, self-hosted with the variable Fontsource package `@fontsource-variable/inter`
+  (one file covers weights 400–700). The variable package registers the family as
+  `'Inter Variable'`, not `Inter`: `font-family: 'Inter Variable', system-ui, sans-serif;`
 - Episode numbers (`S02 E05`) and counts use `font-variant-numeric: tabular-nums`.
 - Inputs are **16px** minimum – smaller makes iOS Safari zoom in on focus.
 
