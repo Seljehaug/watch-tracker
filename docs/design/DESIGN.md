@@ -26,17 +26,18 @@ the content max width, which is tied to the screen rather than the text (D28).
 
 ### Colour
 
-| Token                | Value     | Use                                                   |
-| -------------------- | --------- | ----------------------------------------------------- |
-| `--color-background` | `#0E0E10` | Page background; text and icons on `--color-accent`   |
-| `--color-surface`    | `#17171A` | Cards, inputs, dialogs                                |
-| `--color-border`     | `#71717A` | Borders – strong enough for form controls (3:1, §1.1) |
-| `--color-text`       | `#F4F4F5` | Body text, headings                                   |
-| `--color-text-muted` | `#A1A1AA` | Secondary text: meta lines, hints                     |
-| `--color-accent`     | `#F5B841` | Main action, active tab, links, focus, brand mark     |
+| Token                | Value     | Use                                                                   |
+| -------------------- | --------- | --------------------------------------------------------------------- |
+| `--color-background` | `#0E0E10` | Page background; text and icons on `--color-accent`                   |
+| `--color-surface`    | `#17171A` | Cards, inputs, dialogs                                                |
+| `--color-border`     | `#71717A` | Borders – strong enough for form controls (3:1, §1.1)                 |
+| `--color-divider`    | `#2C2C33` | Decorative lines: header border, separators (no contrast requirement) |
+| `--color-text`       | `#F4F4F5` | Body text, headings                                                   |
+| `--color-text-muted` | `#A1A1AA` | Secondary text: meta lines, hints                                     |
+| `--color-accent`     | `#F5B841` | Main action, active tab, links, focus, brand mark                     |
 
 **Not tokens yet.** The mockups also use a red for errors and destructive buttons, soft accent and
-red tints, a dialog backdrop, a lighter "raised" surface and a faint divider. Add them as tokens
+red tints, a dialog backdrop and a lighter "raised" surface. Add them as tokens
 when a component needs them (M1) – the values are in the mockups – and check the contrast first.
 
 `color-scheme: dark` is set on `:root` in `_base.scss`. It is not a theme switch: it makes native UI
@@ -44,12 +45,13 @@ when a component needs them (M1) – the values are in the mockups – and check
 
 ### 1.1 Contrast (WCAG 2.x, measured)
 
-| Pair                                                        | Ratio       | Requirement    |
-| ----------------------------------------------------------- | ----------- | -------------- |
-| text on background / surface                                | 17.5 / 16.3 | 4.5:1 ✔        |
-| text-muted on background / surface                          | 7.5 / 7.0   | 4.5:1 ✔        |
-| accent and background (accent text, or dark text on accent) | 10.8        | 4.5:1 ✔        |
-| border vs background / surface                              | 4.0 / 3.7   | 3:1 non-text ✔ |
+| Pair                                                        | Ratio       | Requirement     |
+| ----------------------------------------------------------- | ----------- | --------------- |
+| text on background / surface                                | 17.5 / 16.3 | 4.5:1 ✔         |
+| text-muted on background / surface                          | 7.5 / 7.0   | 4.5:1 ✔         |
+| accent and background (accent text, or dark text on accent) | 10.8        | 4.5:1 ✔         |
+| border vs background / surface                              | 4.0 / 3.7   | 3:1 non-text ✔  |
+| divider vs background / surface                             | 1.4 / 1.3   | decorative only |
 
 ### Typography
 
@@ -96,7 +98,7 @@ accessibility and behaviour notes are requirements (see the intro, D26).
 ### App header
 
 Brand mark (30×30, accent background, TV icon 20px in the background colour) + "Watch Tracker"
-(17px / 600). Bottom border. On desktop, the "Add show" button sits on the right.
+(17px / 600). Bottom border in `--color-divider`, across the full width. On desktop, the "Add show" button sits on the right.
 
 ### Status tabs (`Watching · Want to watch · Finished · Dropped`)
 

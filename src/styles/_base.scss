@@ -10,7 +10,39 @@ body {
   font-size: var(--font-size-medium);
 }
 
+.container {
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+  padding-inline: var(--spacing-1);
+}
+
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+// Margins / spacing
+.spacing-half { margin: var(--spacing-half); }
+.spacing-1 { margin: var(--spacing-1); }
+.spacing-2 { margin: var(--spacing-2); }
+
+.spacing-top-half { margin-top: var(--spacing-half); }
+.spacing-top-1 { margin-top: var(--spacing-1); }
+.spacing-top-2 { margin-top: var(--spacing-2); }
+
+.spacing-bottom-half { margin-bottom: var(--spacing-half); }
+.spacing-bottom-1 { margin-bottom: var(--spacing-1); }
+.spacing-bottom-2 { margin-bottom: var(--spacing-2); }
+
+.spacing-left-half { margin-left: var(--spacing-half); }
+.spacing-left-1 { margin-left: var(--spacing-1); }
+.spacing-left-2 { margin-left: var(--spacing-2); }
+
+.spacing-right-half { margin-right: var(--spacing-half); }
+.spacing-right-1 { margin-right: var(--spacing-1); }
+.spacing-right-2 { margin-right: var(--spacing-2); }
