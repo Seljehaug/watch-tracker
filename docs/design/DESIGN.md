@@ -83,6 +83,8 @@ selects and steppers** instead. Cards may keep `--color-border` – they are not
 - Radius: **8px** poster/small · **10px** inputs · **12px** buttons · **14px** cards (16 on
   desktop) · **18px** FAB · **20px** dialog · **999px** pill tabs.
 - Touch targets: **≥ 44px** high; primary buttons 52px, the "next episode" button 48px, FAB 60px.
+- Icon sizes: **16 · 20 · 24** (small · medium · large, default medium), e.g.
+  `--icon-size-sm` / `-md` / `-lg`. See "Icons" for which icon uses which size.
 - Shadow: only on floating elements – FAB `0 8px 24px rgb(0 0 0 / 0.45)`, dialog
   `0 -8px 40px rgb(0 0 0 / 0.5)`.
 - Max content width on desktop: **1120px**, centred.
@@ -101,7 +103,7 @@ Built on native elements. Names are suggestions for Angular components/directive
 
 ### App header
 
-Brand mark (30×30, radius 8, accent background, TV icon in on-accent) + "Watch Tracker"
+Brand mark (30×30, radius 8, accent background, TV icon 20px in on-accent) + "Watch Tracker"
 (17px / 600). Bottom border `--color-border`. On desktop, the "Add show" button sits on the right.
 
 ### Status tabs (`Watching · Want to watch · Finished · Dropped`)
@@ -196,10 +198,32 @@ Inside a tab with no shows: just "Nothing here yet." in muted text.
 
 ### Icons
 
-Simple inline stroke SVGs (24×24 viewBox, `stroke="currentColor"`, width 2–2.6, round caps):
-TV (brand), check, plus, minus, chevron-left, chevron-down, trash, alert-circle. Always
-`aria-hidden="true"`; the button or link carries the label. No emoji, no streaming-service logos –
-services are plain text.
+Simple inline stroke SVGs: TV (brand), check, plus, minus, chevron-left, chevron-down, trash,
+alert-circle – one file each in [`icons/`](icons/). All icons share the same attributes, so a new
+icon must follow them too:
+
+- `viewBox="0 0 24 24"` – every icon is drawn on a 24×24 grid. Icons from a library with another
+  grid (e.g. 16 or 512) have to be redrawn or scaled to it first.
+- `fill="none"`, `stroke="currentColor"`, `stroke-linecap="round"`, `stroke-linejoin="round"`.
+- `stroke-width="2.2"` for every icon (D24). The mockups make check (2.6) and plus (2.4) heavier on
+  accent buttons, but plus is 2.2 in the stepper next to minus – the weight depends on where the
+  icon sits, not on the icon. If icons on accent buttons should be heavier, the button sets it
+  (e.g. a `--icon-stroke-width` custom property the icon reads, default 2.2) – decide in M1.
+
+Always `aria-hidden="true"`; the button or link carries the label. No emoji, no streaming-service
+logos – services are plain text.
+
+Sizes come from a fixed scale (D23) instead of the mockups' 16–26px values:
+
+| Size            | Used for                                                                      |
+| --------------- | ----------------------------------------------------------------------------- |
+| **small** 16px  | Alert icon next to error messages                                             |
+| **medium** 20px | Default: brand mark, "next episode" check, stepper, back link, select chevron |
+| **large** 24px  | Trash icon in the delete dialog, plus icon in the FAB                         |
+
+The stroke widths are in viewBox units, so they scale with the icon. The large TV icon in the
+empty state (46px with stroke 1.6 in the mockup) is more an illustration than an icon – decide how
+to size it when building the empty state (M1).
 
 ---
 
@@ -231,5 +255,6 @@ ignore them. Show titles in the mockups are sample data.
 
 The mockups are a visual reference only; their markup differs from this file in a few places.
 Follow this file: status tabs are router links (not `aria-pressed` buttons), "Delete show" is a
-button (not a link), the save bar sits inside the `<form>`, card titles are `<h2>`s, and inputs,
-selects and steppers use `--color-border-strong`.
+button (not a link), the save bar sits inside the `<form>`, card titles are `<h2>`s, inputs,
+selects and steppers use `--color-border-strong`, and icons use the 16 · 20 · 24 size scale and one
+stroke width (2.2).
