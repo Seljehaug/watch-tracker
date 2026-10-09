@@ -1,7 +1,13 @@
+// Native UI (scrollbars, select menus, date pickers, autofill) in dark mode.
+:root {
+  color-scheme: dark;
+}
+
 body {
-  background-color: var(--color-bg);
+  background-color: var(--color-background);
   color: var(--color-text);
-  font: var(--font-body);
+  font-family: var(--font-family);
+  font-size: var(--font-size-medium);
 }
 
 :focus-visible {

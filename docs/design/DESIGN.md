@@ -1,8 +1,13 @@
 # Watch Tracker – Design
 
 > The visual design for the app: the **Cinema** direction, chosen 2026-10-08 from three options
-> explored in Claude Design. Read this before any UI task. The mockups in [`mockups/`](mockups/) are
-> the reference for layout; this file is the reference for values. If they disagree, this file wins.
+> explored in Claude Design. Read this before any UI task.
+>
+> **Rules vs examples (D26).** The rules are §1 (use the tokens – no one-off colours, sizes or
+> spacing), the accessibility requirements (WCAG AA, touch targets, focus) and the semantics and
+> behaviour notes in §2 (links vs buttons, labels, focus handling). Everything else – the
+> measurements in §2 and the [`mockups/`](mockups/) – is examples and inspiration, not an answer
+> key: the developer makes the visual choices within the rules.
 >
 > This is a design spec, not application code – the developer turns it into `styles.scss` and
 > components (see `PLAN.md`, M0 "Global styles" and M1).
@@ -14,80 +19,65 @@
 
 ## 1. Design tokens
 
-All values as CSS custom properties on `:root`, so light mode can later be one extra block of
-overrides (D19). Names are a suggestion.
+Kept small on purpose (D27): a token is added when the app needs the value, not up front. They are
+CSS custom properties on `:root` in `src/styles/_tokens.scss`. Sizes are in `rem` (1rem = 16px by
+default), so they follow the user's browser font size. Exceptions in `px`: borders, outlines and
+the content max width, which is tied to the screen rather than the text (D28).
 
 ### Colour
 
-| Token                   | Value                     | Use                                                    |
-| ----------------------- | ------------------------- | ------------------------------------------------------ |
-| `--color-bg`            | `#0E0E10`                 | Page background                                        |
-| `--color-surface`       | `#17171A`                 | Cards, inputs, inactive tabs, dialog                   |
-| `--color-surface-2`     | `#232328`                 | Poster placeholder, raised elements on a surface       |
-| `--color-border`        | `#2C2C33`                 | Card outlines, dividers (decorative only)              |
-| `--color-border-strong` | `#71717A`                 | Form control borders (must meet 3:1, see §1.1)         |
-| `--color-text`          | `#F4F4F5`                 | Body text, headings                                    |
-| `--color-text-muted`    | `#A1A1AA`                 | Secondary text: meta lines, hints, labels              |
-| `--color-accent`        | `#F5B841`                 | Primary buttons, active tab, links, focus, brand mark  |
-| `--color-on-accent`     | `#1C1404`                 | Text/icons on `--color-accent`                         |
-| `--color-accent-soft`   | `rgb(245 184 65 / 0.12)`  | Background of the "next episode" button                |
-| `--color-accent-line`   | `rgb(245 184 65 / 0.35)`  | Border of the "next episode" button                    |
-| `--color-danger`        | `#FF8A8A`                 | Error text, "Delete show" button, invalid input border |
-| `--color-danger-soft`   | `rgb(255 138 138 / 0.12)` | Icon background in the delete dialog                   |
-| `--color-danger-solid`  | `#C62828`                 | Destructive button background (white text)             |
-| `--color-overlay`       | `rgb(0 0 0 / 0.62)`       | Backdrop behind dialogs (`dialog::backdrop`)           |
+| Token                | Value     | Use                                                   |
+| -------------------- | --------- | ----------------------------------------------------- |
+| `--color-background` | `#0E0E10` | Page background; text and icons on `--color-accent`   |
+| `--color-surface`    | `#17171A` | Cards, inputs, dialogs                                |
+| `--color-border`     | `#71717A` | Borders – strong enough for form controls (3:1, §1.1) |
+| `--color-text`       | `#F4F4F5` | Body text, headings                                   |
+| `--color-text-muted` | `#A1A1AA` | Secondary text: meta lines, hints                     |
+| `--color-accent`     | `#F5B841` | Main action, active tab, links, focus, brand mark     |
 
-Also set `color-scheme: dark` on `:root`, so native controls (select menus, scrollbars, date
-pickers) render dark.
+**Not tokens yet.** The mockups also use a red for errors and destructive buttons, soft accent and
+red tints, a dialog backdrop, a lighter "raised" surface and a faint divider. Add them as tokens
+when a component needs them (M1) – the values are in the mockups – and check the contrast first.
+
+`color-scheme: dark` is set on `:root` in `_base.scss`. It is not a theme switch: it makes native UI
+(scrollbars, select menus, date pickers, autofill) render dark.
 
 ### 1.1 Contrast (WCAG 2.x, measured)
 
-| Pair                                   | Ratio           | Requirement     |
-| -------------------------------------- | --------------- | --------------- |
-| text on bg / on surface                | 17.5 / 16.3     | 4.5:1 ✔         |
-| text-muted on bg / surface / surface-2 | 7.5 / 7.0 / 6.1 | 4.5:1 ✔         |
-| accent on bg                           | 10.8            | 4.5:1 ✔         |
-| on-accent on accent                    | 10.3            | 4.5:1 ✔         |
-| accent on accent-soft (on surface)     | 7.9             | 4.5:1 ✔         |
-| danger on surface                      | 7.9             | 4.5:1 ✔         |
-| white on danger-solid                  | 5.6             | 4.5:1 ✔         |
-| border-strong vs bg / surface          | 4.0 / 3.7       | 3:1 non-text ✔  |
-| border vs surface                      | 1.3             | decorative only |
-
-`--color-border` is too faint to identify an input on its own (WCAG 1.4.11 needs 3:1 for the
-boundary of a control). The mockups use it on inputs; **use `--color-border-strong` for inputs,
-selects and steppers** instead. Cards may keep `--color-border` – they are not controls.
+| Pair                                                        | Ratio       | Requirement    |
+| ----------------------------------------------------------- | ----------- | -------------- |
+| text on background / surface                                | 17.5 / 16.3 | 4.5:1 ✔        |
+| text-muted on background / surface                          | 7.5 / 7.0   | 4.5:1 ✔        |
+| accent and background (accent text, or dark text on accent) | 10.8        | 4.5:1 ✔        |
+| border vs background / surface                              | 4.0 / 3.7   | 3:1 non-text ✔ |
 
 ### Typography
 
 - Font: **Inter**, self-hosted with the variable Fontsource package `@fontsource-variable/inter`
-  (one file covers weights 400–700). The variable package registers the family as
-  `'Inter Variable'`, not `Inter`: `font-family: 'Inter Variable', system-ui, sans-serif;`
+  (one file covers weights 400–700). It registers the family as `'Inter Variable'`, not `Inter` –
+  hence `--font-family: 'Inter Variable', system-ui, sans-serif`.
+- Line height (1.5 on `body`, from the reset) and weights (400 / 600 / 700) are set where needed,
+  not tokens.
 - Episode numbers (`S02 E05`) and counts use `font-variant-numeric: tabular-nums`.
-- Inputs are **16px** minimum – smaller makes iOS Safari zoom in on focus.
+- Inputs are at least `1rem` – smaller makes iOS Safari zoom in on focus.
 
-| Token           | Size / line-height / weight               | Use                                       |
-| --------------- | ----------------------------------------- | ----------------------------------------- |
-| `--font-h1`     | 28px / 1.15 / 700, letter-spacing -0.02em | Page title (34px on desktop)              |
-| `--font-h2`     | 21px / 1.25 / 700                         | Dialog title, empty-state title           |
-| `--font-body-l` | 16px / 1.25 / 600                         | Show title, buttons                       |
-| `--font-body`   | 15px / 1.5 / 400                          | Body text, progress value (600)           |
-| `--font-label`  | 14px / 1.4 / 600                          | Form labels, tabs                         |
-| `--font-small`  | 13px / 1.4 / 400                          | Meta lines, hints, error messages         |
-| `--font-tiny`   | 12px / 1.4 / 400                          | "Last watched" label in front of progress |
+| Token                | Value             | Use                                            |
+| -------------------- | ----------------- | ---------------------------------------------- |
+| `--font-size-small`  | `0.875rem` (14px) | Secondary text: labels, meta lines, hints      |
+| `--font-size-medium` | `1rem` (16px)     | Body text (default on `body`), buttons, inputs |
+| `--font-size-big`    | `1.75rem` (28px)  | Page title                                     |
 
-### Spacing, radius, sizes
+### Spacing, shape, sizes
 
-- Spacing scale (px): **4 · 6 · 8 · 10 · 12 · 14 · 16 · 20 · 24 · 32 · 48**.
-  Page gutter 20px on phone (cards list 16px), 24px on desktop.
-- Radius: **8px** poster/small · **10px** inputs · **12px** buttons · **14px** cards (16 on
-  desktop) · **18px** FAB · **20px** dialog · **999px** pill tabs.
-- Touch targets: **≥ 44px** high; primary buttons 52px, the "next episode" button 48px, FAB 60px.
-- Icon sizes: **16 · 20 · 24** (small · medium · large, default medium), e.g.
-  `--icon-size-sm` / `-md` / `-lg`. See "Icons" for which icon uses which size.
-- Shadow: only on floating elements – FAB `0 8px 24px rgb(0 0 0 / 0.45)`, dialog
-  `0 -8px 40px rgb(0 0 0 / 0.5)`.
-- Max content width on desktop: **1120px**, centred.
+| Token                                                          | Value                         | Use                                                                       |
+| -------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------- |
+| `--spacing-half` / `--spacing-1` / `--spacing-2`               | `0.5rem` / `1rem` / `2rem`    | Margins, padding, gaps; page gutter is `--spacing-1`                      |
+| `--radius`                                                     | `0.75rem` (12px)              | Everything rounded. Pill tabs use `border-radius: 999px` in the component |
+| `--icon-size-small` / `--icon-size-medium` / `--icon-size-big` | `1rem` / `1.25rem` / `1.5rem` | Icons (16 / 20 / 24px), see "Icons"                                       |
+| `--touch-target`                                               | `2.75rem` (44px)              | Minimum height of anything interactive                                    |
+| `--content-max-width`                                          | `1280px`                      | Content width on desktop, centred (D28)                                   |
+
+Shadows: none yet – only floating elements (FAB, dialog) get one, added when they are built.
 
 ### Focus
 
@@ -99,12 +89,14 @@ Visible focus on every interactive element:
 
 ## 2. Components
 
-Built on native elements. Names are suggestions for Angular components/directives.
+Built on native elements. Names are suggestions for Angular components/directives. The
+measurements below describe the mockups and are examples, not requirements; the semantics,
+accessibility and behaviour notes are requirements (see the intro, D26).
 
 ### App header
 
-Brand mark (30×30, radius 8, accent background, TV icon 20px in on-accent) + "Watch Tracker"
-(17px / 600). Bottom border `--color-border`. On desktop, the "Add show" button sits on the right.
+Brand mark (30×30, accent background, TV icon 20px in the background colour) + "Watch Tracker"
+(17px / 600). Bottom border. On desktop, the "Add show" button sits on the right.
 
 ### Status tabs (`Watching · Want to watch · Finished · Dropped`)
 
@@ -112,7 +104,7 @@ A row of pill-shaped **router links** in `<nav aria-label="Show status">`, one r
 (e.g. `/shows/watching`), each with a count (tabular, 75% opacity). Links rather than toggle
 buttons, so the back button works, a reload keeps the tab, and the `<nav>` holds what it is meant
 for. The active link gets `aria-current="page"` (`routerLinkActive` + `ariaCurrentWhenActive`).
-Active: accent background, on-accent text. Inactive: surface background, border, text colour.
+Active: accent background, dark text. Inactive: surface background, border, text colour.
 Height 40px, gap 8px. On phone the row scrolls horizontally (scrollbar hidden); on desktop it
 wraps next to the title. Changing tab changes the page title:
 Watching → "Continue watching", others → the tab name. Subtitle: "6 shows in progress",
@@ -122,7 +114,7 @@ Watching → "Continue watching", others → the tab name. Subtitle: "6 shows in
 
 `<article>`, surface background, 1px border, radius 14, padding 12, gap 12. Three parts:
 
-1. **Poster slot** 46×64 (52×74 desktop), radius 8, surface-2, show initials in muted 15/700.
+1. **Poster slot** 46×64 (52×74 desktop), a lighter surface, show initials in muted 15/700.
    Placeholder until TMDB posters arrive in M3 – keep the slot so nothing else moves.
 2. **Text column** (`min-width: 0`, ellipsis on overflow):
    - Title – an `<h2>` containing a link to `/shows/:id/edit`, 16/600. The heading lets
@@ -142,8 +134,8 @@ Content per status:
 
 ### "Next episode" button
 
-The one-tap action from D12. 48px high, padding 0 14, radius 12, accent-soft background,
-accent-line border, accent text 15/700 tabular, check icon + `E06`.
+The one-tap action from D12. 48px high, padding 0 14, a soft accent tint as background
+and border, accent text 15/700 tabular, check icon + `E06`.
 **Needs an `aria-label`** with the full meaning, e.g. "Mark S02 E06 of Severance as watched" – the
 visible text alone is too short. Tapping it bumps the episode, sets "updated" to now and moves
 the card to the top. On a _Want to watch_ card it sets status Watching at S01 E01.
@@ -158,8 +150,8 @@ Replaced by the header "Add show" button on desktop.
 ### Form field (label · control · hint/error)
 
 Reusable wrapper (M1 task): `<label>` 14/600, gap 8px to the control, hint or error 13px below.
-Control: 50px high, radius 10, surface background, `--color-border-strong` border, 16px text.
-Error: border and message in `--color-danger`, an alert icon, `aria-invalid="true"` and the
+Control: 50px high, radius 10, surface background, `--color-border` border, 16px text.
+Error: border and message in red, an alert icon, `aria-invalid="true"` and the
 message linked with `aria-describedby`. Example message: "Title is required."
 Selects use `appearance: none` with a chevron icon overlaid (`pointer-events: none`).
 Optional fields say so in the label: "Where I watch it (optional)".
@@ -184,14 +176,14 @@ submit the form.
 ### Delete dialog
 
 Native `<dialog>` opened with `showModal()`, shown as a bottom sheet on phone (12px from the
-sides, 16px from the bottom, radius 20, surface). Danger-soft icon tile, title
+sides, 16px from the bottom, radius 20, surface). Icon tile with a soft red tint, title
 "Delete Severance?", text "The show and your progress (S02 E07) will be removed. This can't be
-undone." Buttons stacked: "Delete show" (danger-solid, white) above "Cancel" (outlined).
-Backdrop `--color-overlay`. Focus goes to Cancel when it opens; Escape closes it.
+undone." Buttons stacked: "Delete show" (solid red, white text) above "Cancel" (outlined).
+Dark translucent backdrop. Focus goes to Cancel when it opens; Escape closes it.
 
 ### Empty state
 
-Centred in the list area: 96×96 accent-soft tile with the TV icon in accent, title
+Centred in the list area: 96×96 soft accent tile with the TV icon in accent, title
 "Nothing on the go yet", text "Add the shows you're watching, and you'll always know where you
 stopped – and where to pick up.", accent button "Add your first show". No FAB on this screen.
 Inside a tab with no shows: just "Nothing here yet." in muted text.
@@ -219,9 +211,9 @@ Sizes come from a fixed scale (D23) instead of the mockups' 16–26px values:
 | --------------- | ----------------------------------------------------------------------------- |
 | **small** 16px  | Alert icon next to error messages                                             |
 | **medium** 20px | Default: brand mark, "next episode" check, stepper, back link, select chevron |
-| **large** 24px  | Trash icon in the delete dialog, plus icon in the FAB                         |
+| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB                         |
 
-The stroke widths are in viewBox units, so they scale with the icon. The large TV icon in the
+The stroke widths are in viewBox units, so they scale with the icon. The big TV icon in the
 empty state (46px with stroke 1.6 in the mockup) is more an illustration than an icon – decide how
 to size it when building the empty state (M1).
 
@@ -229,9 +221,14 @@ to size it when building the empty state (M1).
 
 ## 3. Layout and responsiveness
 
+Screen range (D28): the layout **must work from 320px** wide with no horizontal scrolling (WCAG
+1.4.10 Reflow – also what a 1280px window looks like at 400% zoom), is **designed for phones of
+375–430px** (most phones in Norway are 390–430), and the content stops growing at **1280px**
+(`--content-max-width`), centred on wider screens.
+
 - **Phone (design width 390px, must work at 320px):** single column, header → title →
   scrolling tab row → card list → FAB.
-- **Desktop:** content max 1120px centred; title and tabs on one row (wrapping when narrow); cards
+- **Desktop:** content max 1280px centred; title and tabs on one row (wrapping when narrow); cards
   in a grid `repeat(auto-fill, minmax(min(320px, 100%), 1fr))` with 14px gap; "Add show" in the
   header instead of the FAB.
 - No fixed heights on content; use `min-width: 0` on flex children that truncate text.
@@ -256,5 +253,5 @@ ignore them. Show titles in the mockups are sample data.
 The mockups are a visual reference only; their markup differs from this file in a few places.
 Follow this file: status tabs are router links (not `aria-pressed` buttons), "Delete show" is a
 button (not a link), the save bar sits inside the `<form>`, card titles are `<h2>`s, inputs,
-selects and steppers use `--color-border-strong`, and icons use the 16 · 20 · 24 size scale and one
+selects and steppers use `--color-border` (the strong grey), and icons use the 16 · 20 · 24 size scale and one
 stroke width (2.2).

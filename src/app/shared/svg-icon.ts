@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 
-export type IconSize = 'small' | 'medium' | 'large';
+export type IconSize = 'small' | 'medium' | 'big';
 
 export type IconName =
   'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'minus' | 'plus' | 'trash' | 'tv';
@@ -55,7 +55,7 @@ export type IconName =
   `,
   styles: `
     :host {
-      --size: var(--icon-size-md);
+      --size: var(--icon-size-medium);
 
       display: inline-flex;
       flex-shrink: 0;
@@ -64,10 +64,10 @@ export type IconName =
     }
 
     :host(.small) {
-      --size: var(--icon-size-sm);
+      --size: var(--icon-size-small);
     }
-    :host(.large) {
-      --size: var(--icon-size-lg);
+    :host(.big) {
+      --size: var(--icon-size-big);
     }
 
     svg {

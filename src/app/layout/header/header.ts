@@ -5,8 +5,10 @@ import { SvgIcon } from '../../shared/svg-icon';
   imports: [SvgIcon],
   selector: 'app-header',
   template: `
-    <app-svg-icon name="tv" size="large" />
-    <h1>Watch Tracker</h1>
+    <header class="app-header">
+      <app-svg-icon name="tv" size="big" />
+      <h1>Watch Tracker</h1>
+    </header>
   `,
 })
 export class Header {}
