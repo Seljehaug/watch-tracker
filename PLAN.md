@@ -5,7 +5,8 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-10-09
-**Current milestone:** M1 – My shows (next: data model). M0 done 2026-10-09.
+**Current milestone:** M1 – My shows (next: the signal-based store + storage). Data model done
+2026-10-09; M0 done 2026-10-09.
 
 ---
 
@@ -72,6 +73,10 @@ professionally and presentable in a CV/portfolio.
   (`IconName` union) rendered by a `@switch` with `@default never` (D25), `size` input
   (`small | medium | big`) mapped to `--icon-size-*` tokens via a host class (D23, D27), one stroke
   width 2.2 (D24), `aria-hidden="true"` on the host.
+- Data model in `src/app/shows/`, one file per concept: `show-status.ts` and `streaming-service.ts`
+  (an `as const` list of `{ id, label }` plus the id union derived with `(typeof X)[number]['id']`,
+  D31) and `tracked-show.ts` (`TrackedShow` + `EpisodeRef`, `readonly` fields, optional `service`
+  and `lastWatched`, ISO-string timestamps – D29, D30). Types only, no runtime state.
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
@@ -124,7 +129,7 @@ still reach into components).
 
 Goal: something actually useful – a list of my shows with progress, entered by hand.
 
-- [ ] Data model: a `TrackedShow` type – title, status, streaming service (where _I_ watch it),
+- [x] Data model: a `TrackedShow` type – title, status, streaming service (where _I_ watch it),
       last watched episode (season + episode, empty = not started), timestamps, id. Nothing more
       until real use shows a need (D14).
   - Statuses: **Want to watch / Watching / Finished / Dropped**. "Caught up, waiting for a new
@@ -134,6 +139,10 @@ Goal: something actually useful – a list of my shows with progress, entered by
 - [ ] A signal-based service holding the list (add / update / remove), with storage behind an
       abstraction so localStorage can later be swapped for an HTTP API in one place. Version the
       storage key/format so the data can be migrated later.
+  - Data read back from storage is just a string: `JSON.parse` returns `any`, and casting it to
+    `TrackedShow[]` lies to the compiler – every guarantee the model gives us is gone from that
+    point on. The storage layer has to validate what it reads (unknown statuses and service ids,
+    missing fields, an old format version) and decide what to do with data that does not fit.
 - [ ] Home screen "Continue watching": shows with status Watching, most recently updated first,
       each with a thumb-friendly "watched next episode" action. Empty state.
 - [ ] The other statuses one tap away: status tabs as router links, one route per status
@@ -283,6 +292,9 @@ reversed, mark it as superseded instead of deleting it.
 | D26 | 2026-10-09 | DESIGN.md is a set of rules, not an answer key: the tokens (§1), the accessibility requirements and the semantics/behaviour notes are rules; the measurements in §2 and the mockups are examples and inspiration. Claude points to the rules and reviews against them; the developer makes the visual choices. Refines D22.                                                                                                                                                                                          | The developer wants to design within a small set of rules rather than reproduce a ready-made answer. The tokens already give consistency; exact per-component values add little and take the design choices away.                                                                                                                                                                                                                                              |
 | D27 | 2026-10-09 | A small token set, added to only when the app needs a value: 6 colours (background, surface, border, text, text-muted, accent) – `--color-divider` added the same day for decorative lines, font family + 3 font sizes, 3 spacings (`--spacing-half`, `-1`, `-2`), one radius, 3 icon sizes, touch target and content width. Names use whole words (`small · medium · big`), sizes are in rem. Red, tints, backdrop, shadows etc. come back as tokens when a component needs them. Replaces the token list from D22. | ~50 tokens with steps 1–2px apart, component names (`--radius-fab`) and unclear names (`surface-2`, `danger-solid`) were hard to choose from. Fewer, plainer tokens are easier to use; rem follows the user's font size (WCAG 1.4.4). Text on accent reuses the background colour (10.8:1), and the one border colour meets 3:1 for form controls.                                                                                                             |
 | D28 | 2026-10-09 | Screen range: the layout must work from 320px wide (no horizontal scrolling), is designed for phones of 375–430px, and the content stops at 1280px (`--content-max-width: 1280px`), centred on wider screens.                                                                                                                                                                                                                                                                                                        | 320px is the WCAG 1.4.10 Reflow requirement (a 1280px window at 400% zoom). Most phones in Norway are 390–430px wide (StatCounter, 2026). 1280px is a common container width (Tailwind `max-w-7xl`), fits the smallest common laptop (1366px) with margin, and keeps card lists readable on 1920px screens. In px rather than rem: the width is tied to the screen, not the text (as in Bootstrap and GOV.UK); it makes no difference on phones or under zoom. |
+| D29 | 2026-10-09 | `TrackedShow` progress is a single nested value – `lastWatched: { season, episode } | undefined` – so "not started" is one state and a season without an episode cannot occur. |
+| D30 | 2026-10-09 | Timestamps are stored as ISO strings (`new Date().toISOString()`), converted to `Date` only where they are formatted. They survive the JSON round trip to localStorage and stay readable in devtools. |
+| D31 | 2026-10-09 | Streaming services are a fixed `as const` list of `{ id, label }` – the stable id is stored, the label is used in the UI, so a service rename is not a data migration. Statuses follow the same pattern (ids, union type derived from the list). |
 
 ## 7. Open questions
 
