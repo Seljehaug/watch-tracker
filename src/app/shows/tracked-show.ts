@@ -17,3 +17,5 @@ export interface TrackedShow {
   readonly addedAt: string;
   readonly updatedAt: string;
 }
+
+export type NewShow = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>
