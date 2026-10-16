@@ -1,6 +1,21 @@
 import { TestBed } from '@angular/core/testing';
+import { ShowStorage } from './show-storage';
 import { ShowStore } from './show-store';
-import type { NewShow } from './tracked-show';
+import type { NewShow, TrackedShow } from './tracked-show';
+
+// Stands in for localStorage: the tests never touch the real browser storage,
+// and each test starts from an empty, isolated store.
+class InMemoryShowStorage extends ShowStorage {
+  saved: TrackedShow[] = [];
+
+  load(): TrackedShow[] {
+    return this.saved;
+  }
+
+  save(shows: TrackedShow[]): void {
+    this.saved = shows;
+  }
+}
 
 const aShow = (overrides: Partial<NewShow> = {}): NewShow => ({
   title: 'Test Show',
@@ -10,12 +25,16 @@ const aShow = (overrides: Partial<NewShow> = {}): NewShow => ({
 
 describe('ShowStore', () => {
   let store: ShowStore;
+  let storage: InMemoryShowStorage;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-01T12:00:00.000Z'));
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [{ provide: ShowStorage, useClass: InMemoryShowStorage }],
+    });
     store = TestBed.inject(ShowStore);
+    storage = TestBed.inject(ShowStorage) as InMemoryShowStorage;
   });
 
   afterEach(() => {
@@ -145,10 +164,13 @@ describe('ShowStore', () => {
     });
 
     it('sorts by updatedAt, most recent first', () => {
-      const timestamps = store.watching().map((show) => show.updatedAt);
-      const sorted = [...timestamps].sort((a, b) => b.localeCompare(a));
+      const oldest = store.add(aShow({ title: 'Oldest' }));
+      vi.setSystemTime(new Date('2026-11-01T13:00:00.000Z'));
+      const middle = store.add(aShow({ title: 'Middle' }));
+      vi.setSystemTime(new Date('2026-11-01T14:00:00.000Z'));
+      const newest = store.add(aShow({ title: 'Newest' }));
 
-      expect(timestamps).toEqual(sorted);
+      expect(store.watching().map((show) => show.id)).toEqual([newest.id, middle.id, oldest.id]);
     });
 
     it('moves a show to the front when it is updated', () => {
@@ -162,6 +184,49 @@ describe('ShowStore', () => {
       store.update(first.id, { status: 'watching' });
 
       expect(store.watching()[0].id).toBe(first.id);
+    });
+  });
+
+  describe('persistence', () => {
+    it('starts from whatever storage returns', () => {
+      const stored: TrackedShow = {
+        id: 'from-storage',
+        title: 'Loaded from storage',
+        status: 'finished',
+        addedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      };
+      const seeded = new InMemoryShowStorage();
+      seeded.saved = [stored];
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [{ provide: ShowStorage, useValue: seeded }],
+      });
+
+      expect(TestBed.inject(ShowStore).shows()).toEqual([stored]);
+    });
+
+    it('saves the new list after add', () => {
+      const added = store.add(aShow());
+
+      expect(storage.saved).toContainEqual(added);
+    });
+
+    it('saves the new list after remove', () => {
+      const added = store.add(aShow());
+
+      store.remove(added.id);
+
+      expect(storage.saved).toEqual([]);
+    });
+
+    it('saves the new list after update', () => {
+      const added = store.add(aShow({ title: 'Before' }));
+
+      store.update(added.id, { title: 'After' });
+
+      expect(storage.saved[0].title).toBe('After');
     });
   });
 });

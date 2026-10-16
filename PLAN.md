@@ -4,9 +4,10 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-10-09
-**Current milestone:** M1 – My shows (next: the signal-based store + storage). Data model done
-2026-10-09; M0 done 2026-10-09.
+**Last updated:** 2026-10-16
+**Current milestone:** M1 – My shows (next: Home "Continue watching" with the one-tap action, and
+the show card). Data model and the store with localStorage behind an abstraction done 2026-10-16;
+M0 done 2026-10-09.
 
 ---
 
@@ -77,6 +78,21 @@ professionally and presentable in a CV/portfolio.
   (an `as const` list of `{ id, label }` plus the id union derived with `(typeof X)[number]['id']`,
   D31) and `tracked-show.ts` (`TrackedShow` + `EpisodeRef`, `readonly` fields, optional `service`
   and `lastWatched`, ISO-string timestamps – D29, D30). Types only, no runtime state.
+- `ShowStore` (`src/app/shows/show-store.ts`): a private writable signal holding the list, exposed
+  read-only as `shows` (D32), plus a `watching` computed that filters by status and sorts on
+  `updatedAt` descending. `add`/`remove`/`update` all go through one private `updateAndSave`, so a
+  change cannot skip persistence. `add` generates the id and timestamps and returns the new show;
+  `update` takes `Partial<NewShow>`, so callers cannot touch id/addedAt/updatedAt.
+- Storage behind an abstraction (D6): `ShowStorage` is an `abstract class` – both the type and the
+  DI token, since a TS interface does not exist at runtime – implemented by
+  `LocalStorageShowStorage` and wired in `app.config.ts` with `useClass`. The payload is a
+  versioned envelope `{ version: 1, shows }`. `load()` parses defensively and runs every row
+  through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
+  no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
+  `isEpisodeRef`, `isTrackedShow`.
+- Tests: 32, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+  system clock) and `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
+  version, invalid rows).
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
@@ -136,7 +152,7 @@ Goal: something actually useful – a list of my shows with progress, entered by
     season" is _derived_ later from TMDB data, not a status.
   - Streaming service: fixed list (Netflix, Prime Video, HBO Max, Viaplay, Disney+, NRK TV, TV 2
     Play, …, Other); optional.
-- [ ] A signal-based service holding the list (add / update / remove), with storage behind an
+- [x] A signal-based service holding the list (add / update / remove), with storage behind an
       abstraction so localStorage can later be swapped for an HTTP API in one place. Version the
       storage key/format so the data can be migrated later.
   - Data read back from storage is just a string: `JSON.parse` returns `any`, and casting it to

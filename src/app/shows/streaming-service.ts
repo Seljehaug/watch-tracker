@@ -16,3 +16,7 @@ export type StreamingService = (typeof STREAMING_SERVICES)[number]['id'];
 export function streamingServiceDisplayName(id: StreamingService): string {
   return STREAMING_SERVICES.find((sc) => sc.id === id)?.label ?? id;
 }
+
+export function isStreamingService(value: unknown): value is StreamingService {
+  return STREAMING_SERVICES.some((sc) => sc.id === value);
+}
