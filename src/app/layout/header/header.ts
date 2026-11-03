@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SvgIcon } from '../../shared/svg-icon';
+import { SvgIcon } from '../../shared/svg-icon/svg-icon';
 
 @Component({
   imports: [RouterLink, SvgIcon],

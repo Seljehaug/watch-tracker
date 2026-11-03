@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-10-16
+**Last updated:** 2026-11-03
 **Current milestone:** M1 – My shows (next: Home "Continue watching" with the one-tap action, and
 the show card). Data model and the store with localStorage behind an abstraction done 2026-10-16;
 M0 done 2026-10-09.
@@ -63,14 +63,14 @@ professionally and presentable in a CV/portfolio.
 
 - Angular 22.2 CLI project. `App` renders `<app-header />` and `<main class="container">` around
   the `<router-outlet>`. One route: `''` lazy-loads the placeholder page `Home` (`src/app/home/`,
-  inline template) with `loadComponent` and sets the page title via the route's `title`. Only test
-  is the CLI's `should create the app` smoke test (with `provideRouter([])`, since the header uses
-  `RouterLink`).
+  inline template) with `loadComponent` and sets the page title via the route's `title`. `Home`
+  lists `store.watching()` as plain `<article>`s (title, progress, service) – a first step towards
+  "Continue watching"; no show card, one-tap action or empty state yet.
 - `Header` (`src/app/layout/header/header.ts`, inline template and styles): `<header class="container">`
   with a `RouterLink` to `/` holding the TV icon (accent, via `color`) and the app name (not an
   `<h1>` – pages own their heading). The full-width bottom line is a border on `:host` in
   `--color-divider`.
-- `SvgIcon` (`src/app/shared/svg-icon.ts`, selector `app-svg-icon`) is done: `name` input
+- `SvgIcon` (`src/app/shared/svg-icon/svg-icon.ts`, selector `app-svg-icon`) is done: `name` input
   (`IconName` union) rendered by a `@switch` with `@default never` (D25), `size` input
   (`small | medium | big`) mapped to `--icon-size-*` tokens via a host class (D23, D27), one stroke
   width 2.2 (D24), `aria-hidden="true"` on the host.
@@ -92,7 +92,8 @@ professionally and presentable in a CV/portfolio.
   `isEpisodeRef`, `isTrackedShow`.
 - Tests: 32, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock) and `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
-  version, invalid rows).
+  version, invalid rows). The CLI's `should create the app` smoke test was deleted once these
+  existed (D17).
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
@@ -312,6 +313,7 @@ reversed, mark it as superseded instead of deleting it.
 | D30 | 2026-10-09 | Timestamps are stored as ISO strings (`new Date().toISOString()`), converted to `Date` only where they are formatted. They survive the JSON round trip to localStorage and stay readable in devtools. |
 | D31 | 2026-10-09 | Streaming services are a fixed `as const` list of `{ id, label }` – the stable id is stored, the label is used in the UI, so a service rename is not a data migration. Statuses follow the same pattern (ids, union type derived from the list). |
 | D32 | 2026-10-16 | Signal state in services uses the `_name` / `name` pair: a `private readonly _x = signal(...)` the service writes to, and a public `readonly x = this._x.asReadonly()` everyone else reads. The underscore contradicts the Google TypeScript style guide Angular defers to, but it is what dominates real signal-based Angular code, and consistency beats purity here. |
+| D33 | 2026-11-03 | Folders are organised by feature area (`shows/`, `layout/`, `shared/`), never by type (`components/`, `services/`, `directives/`). Every component gets its own folder named after it, as `ng generate component` creates it (`shows/show-card/show-card.ts` + `show-card.spec.ts`), also when its template and styles are inline. Services, models and helper functions sit flat in the area folder. `shared/` holds building blocks that know nothing about shows. `src/app/shared/svg-icon.ts` moves to `shared/svg-icon/` (the developer does it). | The Angular style guide recommends feature areas and advises against type folders: what changes together lives together, and removing a feature is removing a folder. One folder per component matches the CLI default, so generated and hand-written components look the same, and nothing has to move when a component grows from inline to separate template and style files. |
 
 ## 7. Open questions
 
