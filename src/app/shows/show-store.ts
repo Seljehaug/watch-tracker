@@ -1,5 +1,10 @@
 import { Service, computed, signal, inject } from '@angular/core';
-import type { NewShow, TrackedShow } from './tracked-show';
+import {
+  canMarkNextEpisodeAsWatched,
+  getNextEpisodeRef,
+  NewShow,
+  TrackedShow,
+} from './tracked-show';
 import { ShowStorage } from './show-storage';
 
 @Service()
@@ -41,6 +46,19 @@ export class ShowStore {
         show.id === id ? { ...show, ...changes, updatedAt: nowAsISO } : show,
       );
     });
+  }
+
+  markNextEpisodeAsWatched(showId: string): void {
+    const showToUpdate = this.shows().find((show) => show.id === showId);
+    if (!showToUpdate) {
+      console.warn('Could not mark next episode for show:', showId);
+      return;
+    }
+
+    if (canMarkNextEpisodeAsWatched(showToUpdate)) {
+      const nextEpisodeRef = getNextEpisodeRef(showToUpdate.lastWatched);
+      this.update(showId, { lastWatched: nextEpisodeRef, status: 'watching' });
+    }
   }
 
   private updateAndSave(updateFunction: (shows: TrackedShow[]) => TrackedShow[]): void {

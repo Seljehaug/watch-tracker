@@ -14,11 +14,12 @@ body{margin:0}
 a{color:inherit}a:hover{color:inherit}
 button{font:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 </style>
 </helmet>
 <div style="box-sizing: border-box; min-height: 760px; background: {{c.bg}}; color: {{c.text}}; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased">
   <header style="border-bottom: 1px solid {{c.border}}">
-    <div style="max-width: 1120px; margin: 0 auto; padding: 14px 24px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 14px 16px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap">
       <div style="display: flex; align-items: center; gap: 10px">
         <span style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: {{c.accent}}; color: {{c.onAccent}}">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"></rect><path d="M8 21h8"></path><path d="M10.5 9v4l3-2z"></path></svg>
@@ -32,7 +33,7 @@ button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offs
     </div>
   </header>
 
-  <main style="max-width: 1120px; margin: 0 auto; padding: 36px 24px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+  <main style="max-width: 1280px; margin: 0 auto; padding: 36px 16px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
     <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap">
       <div>
         <h1 style="margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em">{{heading}}</h1>
@@ -52,22 +53,18 @@ button:focus-visible,a:focus-visible{outline:2px solid currentColor;outline-offs
       <div style="padding: 48px 0; text-align: center; color: {{c.muted}}; font-size: 15px">Nothing here yet.</div>
     </sc-if>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px">
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(288px, 100%), 1fr)); gap: 16px">
       <sc-for list="{{cards}}" as="s" hint-placeholder-count="6">
         <article style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 16px; background: {{c.surface}}; border: 1px solid {{c.border}}">
           <div aria-hidden="true" style="flex: none; width: 52px; height: 74px; border-radius: 8px; background: {{c.surface2}}; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: {{c.muted}}">{{s.initials}}</div>
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
-            <a href="Edit.dc.html" style="font-size: 16px; font-weight: 600; line-height: 1.25; text-decoration: none; color: {{c.text}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.title}}</a>
-            <div style="display: flex; align-items: baseline; gap: 6px">
-              <span style="font-size: 12px; color: {{c.muted}}">{{s.progLabel}}</span>
-              <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: {{s.progColor}}">{{s.progValue}}</span>
-            </div>
+            <h2 style="margin: 0; font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><a href="Edit.dc.html" style="text-decoration: none; color: {{c.text}}">{{s.title}}</a></h2>
+            <p style="margin: 0; font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; color: {{s.progColor}}"><span class="vh">{{s.progSr}}</span><span aria-hidden="true">{{s.progValue}}</span></p>
             <div style="font-size: 13px; color: {{c.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.meta}}</div>
           </div>
           <sc-if value="{{s.hasAction}}" hint-placeholder-val="{{ true }}">
-            <button type="button" aria-label="{{s.actionAria}}" onClick="{{s.act}}" style="flex: none; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid {{c.accentLine}}; background: {{c.accentSoft}}; color: {{c.accent}}; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
-              <span>{{s.actionLabel}}</span>
+            <button type="button" aria-label="{{s.actionAria}}" onClick="{{s.act}}" style="flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border-radius: 12px; border: 1px solid {{c.accentLine}}; background: {{c.accentSoft}}; color: {{c.accent}}">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
             </button>
           </sc-if>
         </article>
@@ -111,13 +108,17 @@ class Component extends DCLogic {
   act(show) {
     var st = this.state || {};
     var shows = (st.shows || SEED).slice();
+    var tab = st.tab || 'watching';
+    // Freeze the order the list has now, so the tapped card stays where it is (D36).
+    var order = st.order || shows.filter(function (x) { return x.status === tab; }).sort(function (a, b) { return b.u - a.u; }).map(function (x) { return x.id; });
     var top = Math.max.apply(null, shows.map(function (x) { return x.u; })) + 1;
     shows = shows.map(function (x) {
       if (x.id !== show.id) return x;
       if (x.status === 'want') return Object.assign({}, x, { status: 'watching', s: 1, e: 1, u: top, ago: 'Just now' });
       return Object.assign({}, x, { e: x.e + 1, u: top, ago: 'Just now' });
     });
-    this.setState({ shows: shows, tab: 'watching' });
+    if (show.status === 'want') this.setState({ shows: shows, tab: 'watching', order: null });
+    else this.setState({ shows: shows, order: order });
   }
   renderVals() {
     var self = this;
@@ -134,19 +135,20 @@ class Component extends DCLogic {
         bg: on ? c.accent : c.surface,
         fg: on ? c.onAccent : c.text,
         bd: on ? c.accent : c.border,
-        pick: function () { self.setState({ tab: t.id }); }
+        pick: function () { self.setState({ tab: t.id, order: null }); }
       };
     });
     var cur = TABS.filter(function (t) { return t.id === tab; })[0];
     var list = shows.filter(function (x) { return x.status === tab; }).sort(function (a, b) { return b.u - a.u; });
+    if (st.order) { var order = st.order; list.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); }); }
     var cards = list.map(function (x) {
       var now = 'S' + pad(x.s) + ' E' + pad(x.e);
-      var next = 'S' + pad(x.s) + ' E' + pad(x.e + 1);
-      var card = { title: x.title, initials: initials(x.title), hasAction: false, actionLabel: '', actionAria: '', progColor: c.text, act: function () { self.act(x); } };
-      if (x.status === 'watching') { card.progLabel = 'Last watched'; card.progValue = now; card.meta = x.service + ' · ' + x.ago; card.hasAction = true; card.actionLabel = 'E' + pad(x.e + 1); card.actionAria = 'Mark ' + next + ' of ' + x.title + ' as watched'; }
-      if (x.status === 'want') { card.progLabel = ''; card.progValue = 'Not started'; card.progColor = c.muted; card.meta = x.service + ' · Added ' + x.ago.toLowerCase(); card.hasAction = true; card.actionLabel = 'E01'; card.actionAria = 'Start ' + x.title + ': mark S01 E01 as watched'; }
-      if (x.status === 'finished') { card.progLabel = 'Ended at'; card.progValue = now; card.meta = x.service + ' · Finished ' + x.ago; }
-      if (x.status === 'dropped') { card.progLabel = 'Stopped at'; card.progValue = now; card.meta = x.service + ' · Dropped ' + x.ago; }
+      var spoken = 'season ' + x.s + ', episode ' + x.e;
+      var card = { title: x.title, initials: initials(x.title), hasAction: false, actionAria: '', progValue: now, progColor: c.text, act: function () { self.act(x); } };
+      if (x.status === 'watching') { card.progSr = 'Last watched: ' + spoken; card.meta = x.service + ' · ' + x.ago; card.hasAction = true; card.actionAria = 'Mark season ' + x.s + ', episode ' + (x.e + 1) + ' of ' + x.title + ' as watched'; }
+      if (x.status === 'want') { card.progValue = 'Not started'; card.progSr = 'Not started'; card.progColor = c.muted; card.meta = x.service + ' · Added ' + x.ago.toLowerCase(); card.hasAction = true; card.actionAria = 'Start ' + x.title + ': mark season 1, episode 1 as watched'; }
+      if (x.status === 'finished') { card.progSr = 'Ended at ' + spoken; card.meta = x.service + ' · Finished ' + x.ago; }
+      if (x.status === 'dropped') { card.progSr = 'Stopped at ' + spoken; card.meta = x.service + ' · Dropped ' + x.ago; }
       return card;
     });
     return {

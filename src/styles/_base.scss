@@ -6,7 +6,7 @@
 body {
   background-color: var(--color-background);
   color: var(--color-text);
-  font-family: var(--font-family);
+  font-family: var(--font-family), sans-serif;
   font-size: var(--font-size-medium);
 }
 
@@ -27,22 +27,68 @@ a {
 }
 
 // Margins / spacing
-.spacing-half { margin: var(--spacing-half); }
-.spacing-1 { margin: var(--spacing-1); }
-.spacing-2 { margin: var(--spacing-2); }
+.spacing-half {
+  margin: var(--spacing-half);
+}
+.spacing-1 {
+  margin: var(--spacing-1);
+}
+.spacing-2 {
+  margin: var(--spacing-2);
+}
 
-.spacing-top-half { margin-top: var(--spacing-half); }
-.spacing-top-1 { margin-top: var(--spacing-1); }
-.spacing-top-2 { margin-top: var(--spacing-2); }
+.spacing-top-half {
+  margin-top: var(--spacing-half);
+}
+.spacing-top-1 {
+  margin-top: var(--spacing-1);
+}
+.spacing-top-2 {
+  margin-top: var(--spacing-2);
+}
 
-.spacing-bottom-half { margin-bottom: var(--spacing-half); }
-.spacing-bottom-1 { margin-bottom: var(--spacing-1); }
-.spacing-bottom-2 { margin-bottom: var(--spacing-2); }
+.spacing-bottom-half {
+  margin-bottom: var(--spacing-half);
+}
+.spacing-bottom-1 {
+  margin-bottom: var(--spacing-1);
+}
+.spacing-bottom-2 {
+  margin-bottom: var(--spacing-2);
+}
 
-.spacing-left-half { margin-left: var(--spacing-half); }
-.spacing-left-1 { margin-left: var(--spacing-1); }
-.spacing-left-2 { margin-left: var(--spacing-2); }
+.spacing-left-half {
+  margin-left: var(--spacing-half);
+}
+.spacing-left-1 {
+  margin-left: var(--spacing-1);
+}
+.spacing-left-2 {
+  margin-left: var(--spacing-2);
+}
 
-.spacing-right-half { margin-right: var(--spacing-half); }
-.spacing-right-1 { margin-right: var(--spacing-1); }
-.spacing-right-2 { margin-right: var(--spacing-2); }
+.spacing-right-half {
+  margin-right: var(--spacing-half);
+}
+.spacing-right-1 {
+  margin-right: var(--spacing-1);
+}
+.spacing-right-2 {
+  margin-right: var(--spacing-2);
+}
+
+// Helpers
+
+// Off screen but still read by screen readers – `display: none` and `visibility: hidden` hide it
+// from them too. https://www.a11yproject.com/posts/how-to-hide-content/
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

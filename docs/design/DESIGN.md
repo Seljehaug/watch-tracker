@@ -26,19 +26,24 @@ the content max width, which is tied to the screen rather than the text (D28).
 
 ### Colour
 
-| Token                | Value     | Use                                                                   |
-| -------------------- | --------- | --------------------------------------------------------------------- |
-| `--color-background` | `#0E0E10` | Page background; text and icons on `--color-accent`                   |
-| `--color-surface`    | `#17171A` | Cards, inputs, dialogs                                                |
-| `--color-border`     | `#71717A` | Borders – strong enough for form controls (3:1, §1.1)                 |
-| `--color-divider`    | `#2C2C33` | Decorative lines: header border, separators (no contrast requirement) |
-| `--color-text`       | `#F4F4F5` | Body text, headings                                                   |
-| `--color-text-muted` | `#A1A1AA` | Secondary text: meta lines, hints                                     |
-| `--color-accent`     | `#F5B841` | Main action, active tab, links, focus, brand mark                     |
+| Token                   | Value       | Use                                                                   |
+| ----------------------- | ----------- | --------------------------------------------------------------------- |
+| `--color-background`    | `#0E0E10`   | Page background; text and icons on `--color-accent`                   |
+| `--color-surface`       | `#17171A`   | Cards, inputs, dialogs                                                |
+| `--color-border`        | `#71717A`   | Borders – strong enough for form controls (3:1, §1.1)                 |
+| `--color-divider`       | `#2C2C33`   | Decorative lines: header border, separators (no contrast requirement) |
+| `--color-text`          | `#F4F4F5`   | Body text, headings                                                   |
+| `--color-text-muted`    | `#A1A1AA`   | Secondary text: meta lines, hints                                     |
+| `--color-accent`        | `#F5B841`   | Main action, active tab, links, focus, brand mark                     |
+| `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons ("next episode")    |
+| `--color-accent-border` | `#F5B84159` | Accent at 35%: their border (decorative, see §1.1)                    |
 
-**Not tokens yet.** The mockups also use a red for errors and destructive buttons, soft accent and
-red tints, a dialog backdrop and a lighter "raised" surface. Add them as tokens
-when a component needs them (M1) – the values are in the mockups – and check the contrast first.
+The two tints are 8-digit hex (`#RRGGBBAA`, the last pair is the opacity: `1F` ≈ 12%, `59` ≈ 35%),
+so they sit on whatever surface is behind them.
+
+**Not tokens yet.** The mockups also use a red for errors and destructive buttons, a red tint, a
+dialog backdrop and a lighter "raised" surface. Add them as tokens when a component needs them
+(M1) – the values are in the mockups – and check the contrast first.
 
 `color-scheme: dark` is set on `:root` in `_base.scss`. It is not a theme switch: it makes native UI
 (scrollbars, select menus, date pickers, autofill) render dark.
@@ -52,6 +57,11 @@ when a component needs them (M1) – the values are in the mockups – and check
 | accent and background (accent text, or dark text on accent) | 10.8        | 4.5:1 ✔         |
 | border vs background / surface                              | 4.0 / 3.7   | 3:1 non-text ✔  |
 | divider vs background / surface                             | 1.4 / 1.3   | decorative only |
+| accent icon on accent-soft (over surface)                   | 7.9         | 3:1 non-text ✔  |
+| accent-border vs surface                                    | 2.3         | decorative only |
+
+A quiet accent button is identified by its accent icon or text (7.9:1), so its tint and border
+need no contrast of their own (WCAG 1.4.11).
 
 ### Typography
 
@@ -121,27 +131,45 @@ Watching → "Continue watching", others → the tab name. Subtitle: "6 shows in
 2. **Text column** (`min-width: 0`, ellipsis on overflow):
    - Title – an `<h2>` containing a link to `/shows/:id/edit`, 16/600. The heading lets
      screen-reader users jump from show to show; it is styled as above, not as a page heading.
-   - Progress row – small muted label + value 15/600 tabular.
+   - Progress – shown **once** (D35), right under the title: the value only, 15/400 tabular in
+     the text colour – regular weight, so the title stays the strongest element on the card.
+     - No visible label ("Last watched", "Ended at"): every card in a list would repeat it, and
+       the page title / tab already says what the number means.
+     - Screen readers still need the label, and `S02 E05` read aloud is unclear: put the full
+       meaning in visually hidden text ("Last watched: season 2, episode 5") and hide the visible
+       value with `aria-hidden="true"`. This needs a global `.visually-hidden` utility class.
    - Meta line – `Service · relative time`, 13 muted.
-3. **Action** (only where it makes sense) – see next.
+3. **Action** (only where it makes sense) – the "next episode" button, alone on the right; see
+   next.
 
 Content per status:
 
-| Status        | Label        | Value               | Meta                              | Action  |
-| ------------- | ------------ | ------------------- | --------------------------------- | ------- |
-| Watching      | Last watched | `S02 E05`           | `Apple TV+ · Yesterday`           | `✓ E06` |
-| Want to watch | –            | Not started (muted) | `Netflix · Added 2 weeks ago`     | `✓ E01` |
-| Finished      | Ended at     | `S04 E10`           | `HBO Max · Finished in March`     | none    |
-| Dropped       | Stopped at   | `S01 E04`           | `Prime Video · Dropped last year` | none    |
+| Status        | Visible             | Screen-reader text                | Meta                              | Action |
+| ------------- | ------------------- | --------------------------------- | --------------------------------- | ------ |
+| Watching      | `S02 E05`           | Last watched: season 2, episode 5 | `Apple TV+ · Yesterday`           | `+`    |
+| Want to watch | Not started (muted) | (the visible text)                | `Netflix · Added 2 weeks ago`     | `+`    |
+| Finished      | `S04 E10`           | Ended at season 4, episode 10     | `HBO Max · Finished in March`     | none   |
+| Dropped       | `S01 E04`           | Stopped at season 1, episode 4    | `Prime Video · Dropped last year` | none   |
 
 ### "Next episode" button
 
-The one-tap action from D12. 48px high, padding 0 14, a soft accent tint as background
-and border, accent text 15/700 tabular, check icon + `E06`.
-**Needs an `aria-label`** with the full meaning, e.g. "Mark S02 E06 of Severance as watched" – the
-visible text alone is too short. Tapping it bumps the episode, sets "updated" to now and moves
-the card to the top. On a _Want to watch_ card it sets status Watching at S01 E01.
-(Season rollover – E10 → next season – is done in the edit form for now; revisit with TMDB data.)
+The one-tap action from D12: a plus button on the right of the card, centred vertically so it
+lines up with the progress row. Tapping it turns `S02 E05` into `S02 E06`, like a counter (D35).
+Plus means "increase", as in the stepper; a check would read as a state ("E06 is done"). The
+button holds no episode number, so the progress shows only once. In the mockup: 44×44, a soft
+accent tint as background and border, plus icon 20px in accent – quieter than the floating add
+button, so the two pluses are not confused. Height at least `--touch-target`.
+**Needs an `aria-label`** with the full meaning, e.g. "Mark season 2, episode 6 of Severance as
+watched" – the icon says nothing on its own. Tapping it bumps the episode and sets "updated" to
+now, but the card **stays where it is** while the page is open: the list keeps the order it had
+when the page was opened, and the most recently updated show is on top the next time it opens
+(D36). Moving the card at once makes the list jump, puts another card under the thumb (a quick
+second tap marks the wrong show) and can drop keyboard focus. On a _Want to watch_ card it sets
+status Watching at S01 E01 ("Start Ripley: mark season 1, episode 1 as watched"). Finished and
+Dropped cards have no button, and the store leaves those shows unchanged (D34).
+(Season rollover – E10 → next season – is done in the edit form for now. With TMDB's season data
+(M3), showing the _next_ episode with a check, as TV Time and Trakt do, may become the better
+pattern – see D35.)
 
 ### Floating add button (phone)
 
@@ -189,6 +217,8 @@ Centred in the list area: 96×96 soft accent tile with the TV icon in accent, ti
 "Nothing on the go yet", text "Add the shows you're watching, and you'll always know where you
 stopped – and where to pick up.", accent button "Add your first show". No FAB on this screen.
 Inside a tab with no shows: just "Nothing here yet." in muted text.
+Built (M1) with the `big` TV icon in a `--color-accent-soft` tile sized by its `--spacing-1`
+padding; the "Add your first show" button comes with the add form, when `/shows/new` exists.
 
 ### Icons
 
@@ -209,15 +239,15 @@ logos – services are plain text.
 
 Sizes come from a fixed scale (D23) instead of the mockups' 16–26px values:
 
-| Size            | Used for                                                                      |
-| --------------- | ----------------------------------------------------------------------------- |
-| **small** 16px  | Alert icon next to error messages                                             |
-| **medium** 20px | Default: brand mark, "next episode" check, stepper, back link, select chevron |
-| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB                         |
+| Size            | Used for                                                                          |
+| --------------- | --------------------------------------------------------------------------------- |
+| **small** 16px  | Alert icon next to error messages                                                 |
+| **medium** 20px | Default: brand mark, "next episode" plus, stepper, back link, select chevron      |
+| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state |
 
-The stroke widths are in viewBox units, so they scale with the icon. The big TV icon in the
-empty state (46px with stroke 1.6 in the mockup) is more an illustration than an icon – decide how
-to size it when building the empty state (M1).
+The stroke widths are in viewBox units, so they scale with the icon. The mockup's empty state
+draws the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with
+the usual stroke instead (M1), so the scale and D24 hold everywhere.
 
 ---
 
@@ -231,8 +261,10 @@ Screen range (D28): the layout **must work from 320px** wide with no horizontal 
 - **Phone (design width 390px, must work at 320px):** single column, header → title →
   scrolling tab row → card list → FAB.
 - **Desktop:** content max 1280px centred; title and tabs on one row (wrapping when narrow); cards
-  in a grid `repeat(auto-fill, minmax(min(320px, 100%), 1fr))` with 14px gap; "Add show" in the
-  header instead of the FAB.
+  in a grid `repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` with a `--spacing-1` gap; "Add
+  show" in the header instead of the FAB. With the 1248px list (1280px minus the container's
+  padding) that is 4 columns at full width, 3 at 1024px, 2 at 768px and 1 on a phone; 20rem would
+  stop at 3. In rem, so a larger browser font size gives fewer, wider columns.
 - No fixed heights on content; use `min-width: 0` on flex children that truncate text.
 
 ## 4. Mockups

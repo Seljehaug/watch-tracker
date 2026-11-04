@@ -30,6 +30,16 @@ export function isEpisodeRef(value: unknown): value is EpisodeRef {
   return true;
 }
 
+export function getNextEpisodeRef(lastWatched?: EpisodeRef): EpisodeRef {
+  if (!lastWatched) return { season: 1, episode: 1 };
+  return { season: lastWatched.season, episode: lastWatched.episode + 1 };
+}
+
+export function canMarkNextEpisodeAsWatched(show: TrackedShow): boolean {
+  const status = show.status;
+  return status === 'watching' || status === 'want-to-watch';
+}
+
 export function isTrackedShow(value: unknown): value is TrackedShow {
   if (value === null || typeof value !== 'object') return false;
   const fields = value as Record<string, unknown>;

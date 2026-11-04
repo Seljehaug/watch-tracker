@@ -39,6 +39,7 @@ describe('ShowStore', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe('add', () => {
@@ -153,6 +154,58 @@ describe('ShowStore', () => {
     });
   });
 
+  describe('markNextEpisodeAsWatched', () => {
+    it('saves the next episode as last watched', () => {
+      const added = store.add(aShow({ lastWatched: { season: 2, episode: 5 } }));
+
+      store.markNextEpisodeAsWatched(added.id);
+
+      const updated = store.shows().find((show) => show.id === added.id);
+      expect(updated?.lastWatched).toEqual({ season: 2, episode: 6 });
+    });
+
+    it('starts a want-to-watch show at S01 E01 and sets it to watching', () => {
+      const added = store.add(aShow({ status: 'want-to-watch' }));
+
+      store.markNextEpisodeAsWatched(added.id);
+
+      const updated = store.shows().find((show) => show.id === added.id);
+      expect(updated?.lastWatched).toEqual({ season: 1, episode: 1 });
+      expect(updated?.status).toBe('watching');
+    });
+
+    it.each(['finished', 'dropped'] as const)('leaves a %s show unchanged', (status) => {
+      const added = store.add(aShow({ status, lastWatched: { season: 1, episode: 3 } }));
+      vi.setSystemTime(new Date('2026-11-02T08:30:00.000Z'));
+
+      store.markNextEpisodeAsWatched(added.id);
+
+      const updated = store.shows().find((show) => show.id === added.id);
+      expect(updated).toEqual(added);
+    });
+
+    it('moves the show to the front of watching', () => {
+      const first = store.add(aShow({ title: 'First' }));
+      vi.setSystemTime(new Date('2026-11-01T13:00:00.000Z'));
+      store.add(aShow({ title: 'Second' }));
+      vi.setSystemTime(new Date('2026-11-01T14:00:00.000Z'));
+
+      store.markNextEpisodeAsWatched(first.id);
+
+      expect(store.watching()[0].id).toBe(first.id);
+    });
+
+    it('changes nothing when the id is unknown', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      store.add(aShow());
+      const before = store.shows();
+
+      store.markNextEpisodeAsWatched('no-such-id');
+
+      expect(store.shows()).toEqual(before);
+    });
+  });
+
   describe('watching', () => {
     it('only includes shows with status watching', () => {
       store.add(aShow({ title: 'Watching it', status: 'watching' }));
@@ -227,6 +280,14 @@ describe('ShowStore', () => {
       store.update(added.id, { title: 'After' });
 
       expect(storage.saved[0].title).toBe('After');
+    });
+
+    it('saves the new progress after markNextEpisodeAsWatched', () => {
+      const added = store.add(aShow());
+
+      store.markNextEpisodeAsWatched(added.id);
+
+      expect(storage.saved[0].lastWatched).toEqual({ season: 1, episode: 1 });
     });
   });
 });

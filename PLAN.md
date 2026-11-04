@@ -5,9 +5,10 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-03
-**Current milestone:** M1 – My shows (next: Home "Continue watching" with the one-tap action, and
-the show card). Data model and the store with localStorage behind an abstraction done 2026-10-16;
-M0 done 2026-10-09.
+**Current milestone:** M1 – My shows (next: the add/edit form, or the other statuses as tabs).
+Home "Continue watching" with the show card, the one-tap action and the empty state done
+2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
+done 2026-10-09.
 
 ---
 
@@ -62,10 +63,24 @@ professionally and presentable in a CV/portfolio.
 ## 3. Current state of the code
 
 - Angular 22.2 CLI project. `App` renders `<app-header />` and `<main class="container">` around
-  the `<router-outlet>`. One route: `''` lazy-loads the placeholder page `Home` (`src/app/home/`,
-  inline template) with `loadComponent` and sets the page title via the route's `title`. `Home`
-  lists `store.watching()` as plain `<article>`s (title, progress, service) – a first step towards
-  "Continue watching"; no show card, one-tap action or empty state yet.
+  the `<router-outlet>`. One route: `''` lazy-loads `Home` (`src/app/home/`, inline template) with
+  `loadComponent` and sets the page title via the route's `title`.
+- `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
+  `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
+  page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
+  puts the store's fresh data in that order, with shows that started since first (D36). With no
+  show being watched it shows the empty state instead (DESIGN.md "Empty state"; the "Add your
+  first show" button waits for `/shows/new`).
+- `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
+  responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
+  four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
+  outputs don't bubble.
+- `ShowCard` (`src/app/shows/show-card/`): an `<article>` with a 2:3 poster placeholder
+  (`aria-hidden`), the title in an `<h2>` (ellipsis), the progress once (`S02 E05` visible but
+  `aria-hidden`, "Last watched: season 2, episode 5" as `.visually-hidden` text – D35), service and
+  `updatedAt` (`DatePipe` in a `<time>`), and a plus button for Watching and Want to watch only,
+  with a full `aria-label` from a `computed` on the `show` input. Outputs `nextEpisodeWatched` (the
+  show id); it never touches the store. Columns `minmax(0, 1fr)` so the ellipsis works at 320px.
 - `Header` (`src/app/layout/header/header.ts`, inline template and styles): `<header class="container">`
   with a `RouterLink` to `/` holding the TV icon (accent, via `color`) and the app name (not an
   `<h1>` – pages own their heading). The full-width bottom line is a border on `:host` in
@@ -83,6 +98,10 @@ professionally and presentable in a CV/portfolio.
   `updatedAt` descending. `add`/`remove`/`update` all go through one private `updateAndSave`, so a
   change cannot skip persistence. `add` generates the id and timestamps and returns the new show;
   `update` takes `Partial<NewShow>`, so callers cannot touch id/addedAt/updatedAt.
+  `markNextEpisodeAsWatched(id)` bumps the episode via the pure `getNextEpisodeRef` in
+  `tracked-show.ts` and starts Want to watch shows; Finished and Dropped are left alone (D34).
+  Which statuses get the action is one pure function, `canMarkNextEpisodeAsWatched`, shared by
+  the store and the card so they cannot disagree.
 - Storage behind an abstraction (D6): `ShowStorage` is an `abstract class` – both the type and the
   DI token, since a TS interface does not exist at runtime – implemented by
   `LocalStorageShowStorage` and wired in `app.config.ts` with `useClass`. The payload is a
@@ -90,10 +109,12 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 32, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
-  system clock) and `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
-  version, invalid rows). The CLI's `should create the app` smoke test was deleted once these
-  existed (D17).
+- Tests: 51, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+  system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
+  version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
+  id, button label, no button for Finished/Dropped, screen-reader text) and `home.spec.ts` (order
+  at open, a card stays in place after a tap, new shows first, empty state). The CLI's `should
+  create the app` smoke test was deleted once these existed (D17).
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
@@ -102,8 +123,9 @@ professionally and presentable in a CV/portfolio.
   token set from DESIGN.md §1 as CSS custom properties on `:root`, sizes in rem – D27),
   `_reset.scss` (trimmed Josh Comeau reset + `padding: 0` on everything) and `_base.scss`
   (`color-scheme: dark`, body colours/font, `:focus-visible` ring, links without underline that
-  inherit the text colour, the `.container` class – max width 1280px, centred, side padding – and
-  margin utility classes `.spacing-*` on the spacing tokens). Inter via
+  inherit the text colour, the `.container` class – max width 1280px, centred, side padding –
+  margin utility classes `.spacing-*` on the spacing tokens, and `.visually-hidden`). The tokens
+  now include `--color-accent-soft` and `--color-accent-border` (8-digit hex). Inter via
   `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - No CI, no deployment, no UI library.
 - Angular CLI MCP server configured in `.mcp.json` (docs search, best practices).
@@ -160,16 +182,22 @@ Goal: something actually useful – a list of my shows with progress, entered by
     `TrackedShow[]` lies to the compiler – every guarantee the model gives us is gone from that
     point on. The storage layer has to validate what it reads (unknown statuses and service ids,
     missing fields, an old format version) and decide what to do with data that does not fit.
-- [ ] Home screen "Continue watching": shows with status Watching, most recently updated first,
+- [x] Home screen "Continue watching": shows with status Watching, most recently updated first,
       each with a thumb-friendly "watched next episode" action. Empty state.
 - [ ] The other statuses one tap away: status tabs as router links, one route per status
       (DESIGN.md, "Status tabs")
-- [ ] Show card component, reused across the lists
+- [x] Show card component, reused across the lists (`ShowCard` + `ShowList`; the status tabs will
+      reuse them)
 - [ ] Add/edit form with Signal Forms and validation (`/shows/new`, `/shows/:id/edit`): native
       `<input>`/`<select>`, plus an own form-field component (label, hint, error message) reused
-      across the fields.
+      across the fields. Then the card title becomes a link to `/shows/:id/edit` (DESIGN.md §2)
+      and the empty state gets its "Add your first show" button.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
+- [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
+      "Show card"): a custom pipe on `Intl.RelativeTimeFormat`. The value changes as time passes
+      while the input stays the same, so decide whether the pipe can be pure. Until then the card
+      shows `updatedAt` with `DatePipe` (`d MMM`).
 - [ ] Tests alongside each task – mainly unit tests for the service/state logic, plus a component
       test or two. Claude writes them, the developer reviews them (D16, D17). Delete the CLI's
       `should create the app` smoke test once real tests exist.
@@ -314,6 +342,9 @@ reversed, mark it as superseded instead of deleting it.
 | D31 | 2026-10-09 | Streaming services are a fixed `as const` list of `{ id, label }` – the stable id is stored, the label is used in the UI, so a service rename is not a data migration. Statuses follow the same pattern (ids, union type derived from the list). |
 | D32 | 2026-10-16 | Signal state in services uses the `_name` / `name` pair: a `private readonly _x = signal(...)` the service writes to, and a public `readonly x = this._x.asReadonly()` everyone else reads. The underscore contradicts the Google TypeScript style guide Angular defers to, but it is what dominates real signal-based Angular code, and consistency beats purity here. |
 | D33 | 2026-11-03 | Folders are organised by feature area (`shows/`, `layout/`, `shared/`), never by type (`components/`, `services/`, `directives/`). Every component gets its own folder named after it, as `ng generate component` creates it (`shows/show-card/show-card.ts` + `show-card.spec.ts`), also when its template and styles are inline. Services, models and helper functions sit flat in the area folder. `shared/` holds building blocks that know nothing about shows. `src/app/shared/svg-icon.ts` moves to `shared/svg-icon/` (the developer does it). | The Angular style guide recommends feature areas and advises against type folders: what changes together lives together, and removing a feature is removing a folder. One folder per component matches the CLI default, so generated and hand-written components look the same, and nothing has to move when a component grows from inline to separate template and style files. |
+| D34 | 2026-11-03 | "Next episode" (`ShowStore.markNextEpisodeAsWatched`) bumps the episode via the pure `getNextEpisodeRef` in `tracked-show.ts` (not started → S01 E01, else episode + 1 in the same season) for _Watching_ and _Want to watch_ shows, and sets them to _Watching_. _Finished_ and _Dropped_ shows are left completely unchanged – no new episode, no new status, no new `updatedAt` – and their cards have no button. Season rollover is not handled: it is done in the edit form until TMDB season data arrives (M3). | Marking an episode of a show you haven't started means you are watching it now. Finished and Dropped are the user's deliberate choices, and only the user should undo them – a stray tap should not. One pure function holds the rule, so the store and the card agree on the next episode, and M3 changes it in one place. |
+| D35 | 2026-11-03 | The show card shows progress once, right under the title: the last watched episode (`S02 E05`, or "Not started"). A plus button alone on the right of the card marks the next episode as watched – a counter. No visible "Last watched" label; screen readers get it as visually hidden text, and the button's `aria-label` says the full meaning. Replaces the mockup's "Last watched S02 E05" + "✓ E06" button (DESIGN.md §2 and the mockups updated). Revisit when TMDB data arrives (M3/M4): show the _next_ episode with a check, as TV Time and Trakt do. | Two episode numbers on one card competed, and a check reads as a state ("E06 is done"), not an action. Trackers that show the next episode know it exists; without season data we would show "S02 E11" after a 10-episode season as if it existed, while the last watched episode is always a fact the user entered (D5). Plus means "increase", as in the edit form's stepper. The label is the same on every card in a list, so it carries no information there. |
+| D36 | 2026-11-03 | A list keeps the order it had when its page was opened: tapping "next episode" updates the card in place, and the most recently updated show comes first the next time the page opens. The store's `watching` stays sorted by `updatedAt` (the truth about the data); freezing the order is the page's job, since it is about the view. Supersedes "moves the card to the top" (DESIGN.md §2, D12's "most recently updated first" now applies when the list is opened). | Re-sorting live made the tapped card jump away from the thumb and the list feel chaotic; another card ends up under the finger, so a quick second tap marks the wrong show, and moving a focused element can drop keyboard focus. Netflix's "Continue watching" also re-sorts on the next visit, not while you look at it. |
 
 ## 7. Open questions
 
