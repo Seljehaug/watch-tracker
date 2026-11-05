@@ -18,7 +18,7 @@ export interface TrackedShow {
   readonly updatedAt: string;
 }
 
-export type NewShow = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>;
+export type EditableShowFields = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>;
 
 export function isEpisodeRef(value: unknown): value is EpisodeRef {
   if (value === null || typeof value !== 'object') return false;

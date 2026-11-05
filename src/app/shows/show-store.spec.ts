@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ShowStorage } from './show-storage';
 import { ShowStore } from './show-store';
-import type { NewShow, TrackedShow } from './tracked-show';
+import type { EditableShowFields, TrackedShow } from './tracked-show';
 
 // Stands in for localStorage: the tests never touch the real browser storage,
 // and each test starts from an empty, isolated store.
@@ -17,7 +17,7 @@ class InMemoryShowStorage extends ShowStorage {
   }
 }
 
-const aShow = (overrides: Partial<NewShow> = {}): NewShow => ({
+const aShow = (overrides: Partial<EditableShowFields> = {}): EditableShowFields => ({
   title: 'Test Show',
   status: 'watching',
   ...overrides,

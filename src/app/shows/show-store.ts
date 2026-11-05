@@ -2,7 +2,7 @@ import { Service, computed, signal, inject } from '@angular/core';
 import {
   canMarkNextEpisodeAsWatched,
   getNextEpisodeRef,
-  NewShow,
+  EditableShowFields,
   TrackedShow,
 } from './tracked-show';
 import { ShowStorage } from './show-storage';
@@ -20,7 +20,7 @@ export class ShowStore {
     return [...filtered].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   });
 
-  add(newShow: NewShow): TrackedShow {
+  add(newShow: EditableShowFields): TrackedShow {
     const nowAsISO = new Date().toISOString();
 
     const newTrackedShow: TrackedShow = {
@@ -39,7 +39,7 @@ export class ShowStore {
     this.updateAndSave((shows) => shows.filter((show) => show.id !== id));
   }
 
-  update(id: string, changes: Partial<NewShow>): void {
+  update(id: string, changes: Partial<EditableShowFields>): void {
     this.updateAndSave((shows) => {
       const nowAsISO = new Date().toISOString();
       return shows.map((show) =>
