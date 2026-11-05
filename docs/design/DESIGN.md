@@ -37,13 +37,15 @@ the content max width, which is tied to the screen rather than the text (D28).
 | `--color-accent`        | `#F5B841`   | Main action, active tab, links, focus, brand mark                     |
 | `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons ("next episode")    |
 | `--color-accent-border` | `#F5B84159` | Accent at 35%: their border (decorative, see §1.1)                    |
+| `--color-danger`        | `#FF8A8A`   | Errors (message, icon, the invalid control's border); destructive     |
 
 The two tints are 8-digit hex (`#RRGGBBAA`, the last pair is the opacity: `1F` ≈ 12%, `59` ≈ 35%),
 so they sit on whatever surface is behind them.
 
-**Not tokens yet.** The mockups also use a red for errors and destructive buttons, a red tint, a
-dialog backdrop and a lighter "raised" surface. Add them as tokens when a component needs them
-(M1) – the values are in the mockups – and check the contrast first.
+**Not tokens yet.** The mockups also use a solid red for destructive buttons, a red tint, a
+dialog backdrop, a lighter "raised" surface and a heading size for dialogs and the empty state.
+Add them as tokens when a component needs them (M1) – the values are the `--mock-*` ones in
+`mockups/screens.html` – and check the contrast first.
 
 `color-scheme: dark` is set on `:root` in `_base.scss`. It is not a theme switch: it makes native UI
 (scrollbars, select menus, date pickers, autofill) render dark.
@@ -59,6 +61,7 @@ dialog backdrop and a lighter "raised" surface. Add them as tokens when a compon
 | divider vs background / surface                             | 1.4 / 1.3   | decorative only |
 | accent icon on accent-soft (over surface)                   | 7.9         | 3:1 non-text ✔  |
 | accent-border vs surface                                    | 2.3         | decorative only |
+| danger on background / surface (error text, border)         | 8.5 / 7.9   | 4.5:1 ✔         |
 
 A quiet accent button is identified by its accent icon or text (7.9:1), so its tint and border
 need no contrast of their own (WCAG 1.4.11).
@@ -84,7 +87,7 @@ need no contrast of their own (WCAG 1.4.11).
 | Token                                                          | Value                         | Use                                                                       |
 | -------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------- |
 | `--spacing-half` / `--spacing-1` / `--spacing-2`               | `0.5rem` / `1rem` / `2rem`    | Margins, padding, gaps; page gutter is `--spacing-1`                      |
-| `--radius`                                                     | `0.75rem` (12px)              | Everything rounded. Pill tabs use `border-radius: 999px` in the component |
+| `--border-radius`                                              | `0.5rem` (8px)                | Everything rounded. Pill tabs use `border-radius: 999px` in the component |
 | `--icon-size-small` / `--icon-size-medium` / `--icon-size-big` | `1rem` / `1.25rem` / `1.5rem` | Icons (16 / 20 / 24px), see "Icons"                                       |
 | `--touch-target`                                               | `2.75rem` (44px)              | Minimum height of anything interactive                                    |
 | `--content-max-width`                                          | `1280px`                      | Content width on desktop, centred (D28)                                   |
@@ -95,7 +98,7 @@ Shadows: none yet – only floating elements (FAB, dialog) get one, added when t
 
 Visible focus on every interactive element:
 `:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }`
-(the mockups use `currentColor`; accent is clearer against the dark background).
+(the original Claude Design mockups used `currentColor`; accent is clearer against the dark background).
 
 ---
 
@@ -179,10 +182,17 @@ Replaced by the header "Add show" button on desktop.
 
 ### Form field (label · control · hint/error)
 
-Reusable wrapper (M1 task): `<label>` 14/600, gap 8px to the control, hint or error 13px below.
+Reusable wrapper (M1 task): `<label>` 14/600, gap 8px to the control, hint or error below – in the
+same place: an error replaces the hint (D41).
 Control: 50px high, radius 10, surface background, `--color-border` border, 16px text.
-Error: border and message in red, an alert icon, `aria-invalid="true"` and the
-message linked with `aria-describedby`. Example message: "Title is required."
+Error: border and message in `--color-danger`, the message in `--font-size-medium` with a medium
+alert icon (D42), `aria-invalid="true"` and the message linked with `aria-describedby`. Example
+message: "Title is required."
+
+When errors show (D41): not when the user leaves a field, only after they have tried to save. From
+then on they follow the value live – a fixed field loses its error while the user types. A failed
+save moves focus to the first field with an error, once the errors are rendered, so a screen reader
+reads them with the field. The page may shift when the errors appear on save; that is accepted.
 Selects use `appearance: none` with a chevron icon overlaid (`pointer-events: none`).
 Optional fields say so in the label: "Where I watch it (optional)".
 
@@ -218,7 +228,7 @@ Centred in the list area: 96×96 soft accent tile with the TV icon in accent, ti
 stopped – and where to pick up.", accent button "Add your first show". No FAB on this screen.
 Inside a tab with no shows: just "Nothing here yet." in muted text.
 Built (M1) with the `big` TV icon in a `--color-accent-soft` tile sized by its `--spacing-1`
-padding; the "Add your first show" button comes with the add form, when `/shows/new` exists.
+padding; the "Add your first show" button comes with the add form, when `/shows/add` exists.
 
 ### Icons
 
@@ -229,7 +239,7 @@ icon must follow them too:
 - `viewBox="0 0 24 24"` – every icon is drawn on a 24×24 grid. Icons from a library with another
   grid (e.g. 16 or 512) have to be redrawn or scaled to it first.
 - `fill="none"`, `stroke="currentColor"`, `stroke-linecap="round"`, `stroke-linejoin="round"`.
-- `stroke-width="2.2"` for every icon (D24). The mockups make check (2.6) and plus (2.4) heavier on
+- `stroke-width="2.2"` for every icon (D24). The original mockups made check (2.6) and plus (2.4) heavier on
   accent buttons, but plus is 2.2 in the stepper next to minus – the weight depends on where the
   icon sits, not on the icon. If icons on accent buttons should be heavier, the button sets it
   (e.g. a `--icon-stroke-width` custom property the icon reads, default 2.2) – decide in M1.
@@ -237,16 +247,16 @@ icon must follow them too:
 Always `aria-hidden="true"`; the button or link carries the label. No emoji, no streaming-service
 logos – services are plain text.
 
-Sizes come from a fixed scale (D23) instead of the mockups' 16–26px values:
+Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px values:
 
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
-| **small** 16px  | Alert icon next to error messages                                                 |
-| **medium** 20px | Default: brand mark, "next episode" plus, stepper, back link, select chevron      |
+| **small** 16px  | Not used at the moment (the alert icon is medium since D42)                       |
+| **medium** 20px | Default: brand mark, "next episode" plus, stepper, back link, select chevron, alert icon next to error messages |
 | **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state |
 
-The stroke widths are in viewBox units, so they scale with the icon. The mockup's empty state
-draws the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with
+The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
+state drew the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with
 the usual stroke instead (M1), so the scale and D24 hold everywhere.
 
 ---
@@ -265,27 +275,18 @@ Screen range (D28): the layout **must work from 320px** wide with no horizontal 
   show" in the header instead of the FAB. With the 1248px list (1280px minus the container's
   padding) that is 4 columns at full width, 3 at 1024px, 2 at 768px and 1 on a phone; 20rem would
   stop at 3. In rem, so a larger browser font size gives fewer, wider columns.
+- **Add/edit page on tablet and desktop (D39):** one narrower form column, centred, with its max
+  width in rem. No preview of the card next to the form.
 - No fixed heights on content; use `min-width: 0` on flex children that truncate text.
 
 ## 4. Mockups
 
-[`mockups/`](mockups/) holds the source of each screen from the Claude Design canvas (a
-`.dc.html` format – they need the Claude Design runtime, so they won't render on their own;
-read them as HTML for structure and values):
+[`mockups/screens.html`](mockups/screens.html) shows every screen – Home, add/edit, the delete
+dialog and the empty state – at phone (390px), tablet (768px) and desktop (1280px) width. It is
+plain HTML that opens in any browser, uses the tokens from §1 (values that aren't tokens yet are
+named `--mock-*`), and follows this file, including D35 and D39. Like the measurements in §2,
+it is an example, not an answer key (D26). Show titles are sample data.
 
-| File              | Screen                                                   |
-| ----------------- | -------------------------------------------------------- |
-| `Main.dc.html`    | Home – "Continue watching" with tabs, cards, FAB (phone) |
-| `Edit.dc.html`    | Add/edit form with stepper and error state               |
-| `Delete.dc.html`  | Delete confirmation dialog                               |
-| `Empty.dc.html`   | First run – empty state                                  |
-| `Desktop.dc.html` | Home at desktop width                                    |
-
-The mockups include palettes for the two directions that weren't chosen (`midnight`, `plum`) –
-ignore them. Show titles in the mockups are sample data.
-
-The mockups are a visual reference only; their markup differs from this file in a few places.
-Follow this file: status tabs are router links (not `aria-pressed` buttons), "Delete show" is a
-button (not a link), the save bar sits inside the `<form>`, card titles are `<h2>`s, inputs,
-selects and steppers use `--color-border` (the strong grey), and icons use the 16 · 20 · 24 size scale and one
-stroke width (2.2).
+The original phone screens from the Claude Design canvas (`.dc.html` files, which needed the
+Claude Design runtime to render) were removed on 2026-11-04; `screens.html` replaces them, and
+they are still in the git history.

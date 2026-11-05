@@ -11,6 +11,7 @@
   --color-accent: #f5b841;
   --color-accent-soft: #f5b8411f; // accent at 12% opacity
   --color-accent-border: #f5b84159; // accent at 35% opacity
+  --color-danger: #ff8a8a; // errors and destructive actions
 
   // Typography
   --font-family: 'Inter Variable', system-ui, sans-serif;
@@ -23,11 +24,13 @@
   --spacing-1: 1rem;
   --spacing-2: 2rem;
 
-  // Shape and sizes
-  --radius: 0.75rem;
+  --content-max-width: 1280px;
+
+  --border-radius: 0.5rem;
+
+  --touch-target: 2.75rem;
+
   --icon-size-small: 1rem;
   --icon-size-medium: 1.25rem;
   --icon-size-big: 1.5rem;
-  --touch-target: 2.75rem;
-  --content-max-width: 1280px;
 }

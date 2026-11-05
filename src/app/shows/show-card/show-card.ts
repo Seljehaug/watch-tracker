@@ -23,7 +23,7 @@ import { DatePipe } from '@angular/common';
       padding: var(--spacing-1);
       background: var(--color-surface);
       border: 1px solid var(--color-divider);
-      border-radius: var(--radius);
+      border-radius: var(--border-radius);
     }
 
     // 2:3 like a TMDB poster, so nothing moves when real posters arrive (M3).
@@ -32,7 +32,7 @@ import { DatePipe } from '@angular/common';
       display: flex;
       justify-content: center;
       align-items: center;
-      border-radius: calc(var(--radius) / 2);
+      border-radius: calc(var(--border-radius) / 2);
       background: var(--color-divider);
       color: var(--color-text-muted);
       font-size: var(--font-size-small);
@@ -82,7 +82,7 @@ import { DatePipe } from '@angular/common';
       display: flex;
       justify-content: center;
       align-items: center;
-      border-radius: var(--radius);
+      border-radius: var(--border-radius);
       border: 1px solid var(--color-accent-border);
       color: var(--color-accent);
       background: var(--color-accent-soft);
@@ -151,12 +151,6 @@ export class ShowCard {
     if (!lastWatched) return 'Not started';
     return `Last watched: season ${lastWatched.season}, episode ${lastWatched.episode}`;
   });
-
-  // Finished and Dropped have no one-tap action.
-  // protected readonly canMarkNextEpisode = computed(() => {
-  //   const status = this.show().status;
-  //   return status === 'watching' || status === 'want-to-watch';
-  // });
 
   protected readonly nextEpisodeLabel = computed(() => {
     const next = getNextEpisodeRef(this.show().lastWatched);

@@ -35,7 +35,7 @@ import { SvgIcon } from '../shared/svg-icon/svg-icon';
     .empty-state-icon {
       display: flex;
       padding: var(--spacing-1);
-      border-radius: var(--radius);
+      border-radius: var(--border-radius);
       background: var(--color-accent-soft);
       color: var(--color-accent);
     }

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watch Tracker screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+<style>
+/* Tokens – a copy of src/styles/_tokens.scss (DESIGN.md §1). Google Fonts registers 'Inter', the app 'Inter Variable'. */
+:root {
+  --color-background: #0e0e10;
+  --color-surface: #17171a;
+  --color-border: #71717a;
+  --color-divider: #2c2c33;
+  --color-text: #f4f4f5;
+  --color-text-muted: #a1a1aa;
+  --color-accent: #f5b841;
+  --color-accent-soft: #f5b8411f;
+  --color-accent-border: #f5b84159;
+  --color-danger: #ff8a8a;
+  --font-family: Inter, system-ui, sans-serif;
+  --font-size-small: 0.875rem;
+  --font-size-medium: 1rem;
+  --font-size-big: 1.75rem;
+  --spacing-half: 0.5rem;
+  --spacing-1: 1rem;
+  --spacing-2: 2rem;
+  --border-radius: 0.5rem;
+  --icon-size-small: 1rem;
+  --icon-size-medium: 1.25rem;
+  --icon-size-big: 1.5rem;
+  --touch-target: 2.75rem;
+  --content-max-width: 1280px;
+
+  /* Not tokens yet (DESIGN.md §1): values from the Claude Design mockups, added as tokens when a component needs them */
+  --mock-raised: #232328;
+  --mock-danger-solid: #c62828;
+  --mock-danger-soft: #ff8a8a1f;
+  --mock-backdrop: #000000a0;
+  --mock-heading: 1.25rem;
+}
+
+/* ---------- Viewer (not part of the app) ---------- */
+* { box-sizing: border-box; }
+body { margin: 0; background: #242428; color: #d4d4d8; font-family: var(--font-family); -webkit-font-smoothing: antialiased; }
+.viewer-intro { padding: 32px 32px 0; max-width: 60rem; line-height: 1.5; }
+.viewer-intro h1 { margin: 0 0 8px; font-size: 1.5rem; color: #fafafa; }
+.viewer-intro p { margin: 0 0 12px; }
+.viewer-intro nav { display: flex; gap: 20px; flex-wrap: wrap; }
+.viewer-intro a { color: var(--color-accent); }
+.screen { padding: 40px 32px 8px; }
+.screen > h2 { margin: 0 0 4px; font-size: 1.25rem; color: #fafafa; }
+.screen > p { margin: 0 0 16px; color: #a1a1aa; max-width: 60rem; line-height: 1.5; }
+.sizes { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
+figure { margin: 0; }
+figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; }
+.frame { position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; outline: 1px solid #3f3f46; background: var(--color-background); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-medium); line-height: 1.5; }
+.frame.phone { width: 390px; height: 844px; }
+.frame.tablet { width: 768px; height: 1024px; }
+.frame.desktop { width: 1280px; height: 800px; }
+
+/* ---------- App ---------- */
+/* A small reset with no specificity, so every class below wins over it */
+:where(.frame) :where(h1, h2, p, fieldset, legend) { margin: 0; padding: 0; }
+:where(.frame) :where(fieldset) { border: 0; min-width: 0; }
+:where(.frame) :where(a) { color: inherit; text-decoration: none; }
+:where(.frame) :where(button, input, select) { font: inherit; color: inherit; }
+:where(.frame) :where(button) { cursor: pointer; background: none; border: 0; padding: 0; }
+.frame :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.container { width: 100%; max-width: var(--content-max-width); margin-inline: auto; padding-inline: var(--spacing-1); }
+
+.app-header { flex: none; border-bottom: 1px solid var(--color-divider); }
+.app-header .container { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); min-height: 4rem; }
+.brand { display: flex; align-items: center; gap: var(--spacing-half); font-weight: 600; }
+.brand-mark { display: grid; place-items: center; width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; background: var(--color-accent); color: var(--color-background); }
+.back { display: inline-flex; align-items: center; gap: 0.25rem; min-height: var(--touch-target); color: var(--color-accent); font-weight: 600; }
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-half); min-height: var(--touch-target); padding: 0 var(--spacing-1); border-radius: var(--border-radius); font-weight: 600; }
+.button-large { min-height: calc(var(--touch-target) + var(--spacing-half)); }
+.button-accent { background: var(--color-accent); color: var(--color-background); }
+.button-outline { border: 1px solid var(--color-border); }
+.button-danger { background: var(--mock-danger-solid); color: #fff; }
+
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-block: var(--spacing-1); }
+.wide .page { padding-block: var(--spacing-2); }
+.page-title { font-size: var(--font-size-big); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.subtitle { margin-top: 0.25rem; font-size: var(--font-size-small); color: var(--color-text-muted); }
+
+/* Home: title and tabs */
+.title-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--spacing-1) var(--spacing-2); margin-bottom: var(--spacing-1); }
+.phone .title-row { flex-direction: column; align-items: stretch; }
+.wide .title-row { margin-bottom: var(--spacing-2); }
+.tabs { display: flex; gap: var(--spacing-half); min-width: 0; }
+.phone .tabs { overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--spacing-1)); padding-inline: var(--spacing-1); }
+.wide .tabs { flex-wrap: wrap; }
+.tab { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); padding: 0 0.875rem; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-surface); font-size: var(--font-size-small); font-weight: 600; white-space: nowrap; }
+.tab[aria-current="page"] { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-background); }
+.tab .count { font-variant-numeric: tabular-nums; opacity: 0.75; }
+
+/* Home: cards */
+.cards { display: flex; flex-direction: column; gap: var(--spacing-half); padding-bottom: 7rem; }
+.wide .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); gap: var(--spacing-1); padding-bottom: 0; }
+.card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+.poster { flex: none; display: grid; place-items: center; width: 2.875rem; height: 4rem; border-radius: 0.5rem; background: var(--mock-raised); color: var(--color-text-muted); font-size: var(--font-size-small); font-weight: 700; }
+.wide .poster { width: 3.25rem; height: 4.625rem; }
+.card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; line-height: 1.25; }
+.card-title { font-size: var(--font-size-medium); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.progress { font-variant-numeric: tabular-nums; }
+.meta { font-size: var(--font-size-small); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-episode { flex: none; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: var(--border-radius); border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
+.fab { position: absolute; right: 1.25rem; bottom: 1.75rem; display: grid; place-items: center; width: 3.75rem; height: 3.75rem; border-radius: 1.125rem; background: var(--color-accent); color: var(--color-background); box-shadow: 0 8px 24px #00000073; }
+
+/* Add/edit form */
+.edit-form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.form-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1.5rem; padding-block: var(--spacing-1) var(--spacing-2); }
+.wide .form-body { max-width: 32rem; padding-block: 0; overflow: visible; }
+.field { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.label { font-size: var(--font-size-small); font-weight: 600; }
+.optional { font-weight: 400; color: var(--color-text-muted); }
+.control { width: 100%; height: 3.125rem; padding: 0 0.875rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); font-size: var(--font-size-medium); }
+.select { position: relative; }
+.select select { appearance: none; padding-right: 2.75rem; }
+.select svg { position: absolute; right: 0.875rem; top: 50%; translate: 0 -50%; pointer-events: none; color: var(--color-text-muted); }
+.steppers { display: flex; flex-wrap: wrap; gap: var(--spacing-1); }
+.stepper-field { display: flex; flex-direction: column; gap: 0.375rem; }
+.stepper-label { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.stepper { display: inline-flex; align-items: center; height: 3.125rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); }
+.stepper button { display: grid; place-items: center; width: var(--touch-target); height: 100%; }
+.stepper input { width: 4ch; height: 100%; border: 0; background: transparent; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; appearance: textfield; }
+.stepper input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.hint { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.hint strong { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.delete-link { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); color: var(--color-danger); font-weight: 600; }
+.actions { display: flex; gap: 0.625rem; }
+.actions .cancel { flex: 1; }
+.actions .save { flex: 2; }
+.phone .actions { flex: none; padding: 0.75rem var(--spacing-1) 1.5rem; border-top: 1px solid var(--color-divider); background: var(--color-background); }
+
+/* Delete dialog */
+.underlay { display: contents; }
+.backdrop { position: absolute; inset: 0; background: var(--mock-backdrop); }
+.dialog { position: absolute; inset: auto; margin: 0; display: flex; flex-direction: column; gap: var(--spacing-1); padding: 1.5rem 1.25rem 1.25rem; border-radius: 1.25rem; border: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-text); box-shadow: 0 -8px 40px #00000080; }
+.phone .dialog { left: 0.75rem; right: 0.75rem; bottom: 1rem; width: auto; }
+.wide .dialog { top: 50%; left: 50%; translate: -50% -50%; width: min(26rem, calc(100% - 2 * var(--spacing-1))); }
+.dialog-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 0.875rem; background: var(--mock-danger-soft); color: var(--color-danger); }
+.dialog-title { font-size: var(--mock-heading); font-weight: 700; line-height: 1.25; }
+.dialog-text { margin-top: var(--spacing-half); color: var(--color-text-muted); }
+.dialog-text strong { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.dialog-buttons { display: flex; flex-direction: column; gap: 0.625rem; margin-top: 0.25rem; }
+
+/* Empty state */
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; max-width: 24rem; margin-inline: auto; padding-bottom: 6rem; text-align: center; }
+.empty-tile { display: grid; place-items: center; padding: var(--spacing-1); border-radius: var(--border-radius); background: var(--color-accent-soft); color: var(--color-accent); }
+.empty-title { font-size: var(--mock-heading); font-weight: 700; }
+.empty-text { margin-top: var(--spacing-half); color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<header class="viewer-intro">
+  <h1>Watch Tracker – screens at phone, tablet and desktop</h1>
+  <p>
+    Examples and inspiration, not an answer key (DESIGN.md, D26). The rules are the tokens (§1), the
+    accessibility requirements and the behaviour notes; the measurements here are one way to follow them.
+    Each frame is a fixed-size picture of one width – phone 390 × 844, tablet 768 × 1024, desktop
+    1280 × 800 – not one responsive page. Values named <code>--mock-*</code> are not tokens yet.
+  </p>
+  <nav aria-label="Screens">
+    <a href="#home">Home</a>
+    <a href="#edit">Add/edit</a>
+    <a href="#delete">Delete dialog</a>
+    <a href="#empty">Empty state</a>
+  </nav>
+</header>
+
+<main>
+  <section class="screen" id="home">
+    <h2>Home – Continue watching</h2>
+    <p>Phone: one column, scrolling tab row, floating add button. Tablet and desktop: the card grid from DESIGN.md §3 (2 columns at 768px, 4 at 1280px), title and tabs on one row when they fit, and "Add show" in the header instead of the floating button.</p>
+    <div class="sizes" data-screen="home"></div>
+  </section>
+
+  <section class="screen" id="edit">
+    <h2>Add/edit show</h2>
+    <p>Phone: the action bar stays at the bottom of the screen. Tablet and desktop: one narrower column, centred (D39); the header keeps the brand, "Back" moves to the top of the column, and the buttons follow the last field instead of sitting at the bottom of the window. The steppers are as wide as their content, so − and + stay next to the number.</p>
+    <div class="sizes" data-screen="edit"></div>
+  </section>
+
+  <section class="screen" id="delete">
+    <h2>Delete dialog</h2>
+    <p>Phone: a bottom sheet. Tablet and desktop: centred over the form. The buttons stay stacked in the same order on every size, so the focus order never differs from what you see. Focus goes to Cancel when it opens (DESIGN.md §2).</p>
+    <div class="sizes" data-screen="delete"></div>
+  </section>
+
+  <section class="screen" id="empty">
+    <h2>Empty state</h2>
+    <p>No floating add button on phone and no "Add show" in the header on wider screens: the empty state's own button is the one way forward.</p>
+    <div class="sizes" data-screen="empty"></div>
+  </section>
+</main>
+
+<script>
+const SIZES = [
+  { id: 'phone', label: 'Phone · 390 × 844' },
+  { id: 'tablet', label: 'Tablet · 768 × 1024' },
+  { id: 'desktop', label: 'Desktop · 1280 × 800' },
+];
+
+// The paths of docs/design/icons/*.svg
+const ICON_PATHS = {
+  tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M10.5 9v4l3-2z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
+  chevronLeft: '<path d="M15 5l-7 7 7 7"/>',
+  chevronDown: '<path d="M6 9l6 6 6-6"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+};
+const ICON_SIZES = { small: 'var(--icon-size-small)', medium: 'var(--icon-size-medium)', big: 'var(--icon-size-big)' };
+
+function icon(name, size = 'medium') {
+  const s = ICON_SIZES[size];
+  return `<svg style="width: ${s}; height: ${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name]}</svg>`;
+}
+
+const SHOWS = [
+  { title: 'Slow Horses', service: 'Apple TV+', season: 4, episode: 3, ago: '2 hours ago' },
+  { title: 'Severance', service: 'Apple TV+', season: 2, episode: 7, ago: 'Yesterday' },
+  { title: 'The Bear', service: 'Disney+', season: 3, episode: 5, ago: '3 days ago' },
+  { title: 'Lykkeland', service: 'NRK TV', season: 2, episode: 2, ago: 'Last week' },
+  { title: 'Shōgun', service: 'Disney+', season: 1, episode: 8, ago: '2 weeks ago' },
+  { title: 'Andor', service: 'Disney+', season: 2, episode: 4, ago: '3 weeks ago' },
+];
+
+const pad = (n) => String(n).padStart(2, '0');
+const initials = (title) => title.replace(/^The /, '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+
+function header({ addButton = false } = {}) {
+  return `
+    <header class="app-header">
+      <div class="container">
+        <a class="brand" href="#home">
+          <span class="brand-mark">${icon('tv')}</span>
+          <span>Watch Tracker</span>
+        </a>
+        ${addButton ? `<a class="button button-accent" href="#edit">${icon('plus')}<span>Add show</span></a>` : ''}
+      </div>
+    </header>`;
+}
+
+function backHeader() {
+  return `
+    <header class="app-header">
+      <div class="container">
+        <a class="back" href="#home">${icon('chevronLeft')}<span>Back</span></a>
+      </div>
+    </header>`;
+}
+
+function titleRow(counts, subtitle) {
+  const tabs = [
+    ['Watching', counts[0]],
+    ['Want to watch', counts[1]],
+    ['Finished', counts[2]],
+    ['Dropped', counts[3]],
+  ];
+  return `
+    <div class="title-row">
+      <div>
+        <h1 class="page-title">Continue watching</h1>
+        <p class="subtitle">${subtitle}</p>
+      </div>
+      <nav class="tabs" aria-label="Show status">
+        ${tabs.map(([label, count], i) => `
+          <a class="tab" href="#home"${i === 0 ? ' aria-current="page"' : ''}>
+            <span>${label}</span><span class="count">${count}</span>
+          </a>`).join('')}
+      </nav>
+    </div>`;
+}
+
+function card(show) {
+  const next = show.episode + 1;
+  return `
+    <article class="card">
+      <div class="poster" aria-hidden="true">${initials(show.title)}</div>
+      <div class="card-text">
+        <h2 class="card-title"><a href="#edit">${show.title}</a></h2>
+        <p class="progress">
+          <span class="visually-hidden">Last watched: season ${show.season}, episode ${show.episode}</span>
+          <span aria-hidden="true">S${pad(show.season)} E${pad(show.episode)}</span>
+        </p>
+        <p class="meta">${show.service} · ${show.ago}</p>
+      </div>
+      <button type="button" class="next-episode" aria-label="Mark season ${show.season}, episode ${next} of ${show.title} as watched">${icon('plus')}</button>
+    </article>`;
+}
+
+function home(size) {
+  const wide = size !== 'phone';
+  return `
+    ${header({ addButton: wide })}
+    <main class="page container">
+      ${titleRow([6, 4, 3, 1], '6 shows in progress')}
+      <div class="cards">${SHOWS.map(card).join('')}</div>
+    </main>
+    ${wide ? '' : `<a class="fab" href="#edit" aria-label="Add show">${icon('plus', 'big')}</a>`}`;
+}
+
+function select(id, label, options, selected) {
+  return `
+    <div class="field">
+      <label class="label" for="${id}">${label}</label>
+      <div class="select">
+        <select class="control" id="${id}">
+          ${options.map((o) => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('')}
+        </select>
+        ${icon('chevronDown')}
+      </div>
+    </div>`;
+}
+
+function stepper(id, label, value) {
+  const name = label.toLowerCase();
+  return `
+    <div class="stepper-field">
+      <label class="stepper-label" for="${id}">${label}</label>
+      <div class="stepper">
+        <button type="button" aria-label="Decrease ${name}">${icon('minus')}</button>
+        <input id="${id}" type="number" inputmode="numeric" min="1" value="${value}">
+        <button type="button" aria-label="Increase ${name}">${icon('plus')}</button>
+      </div>
+    </div>`;
+}
+
+function editFields(uid) {
+  return `
+    <div class="field">
+      <label class="label" for="${uid}-title">Title</label>
+      <input class="control" id="${uid}-title" type="text" value="Severance">
+    </div>
+    ${select(`${uid}-status`, 'Status', ['Want to watch', 'Watching', 'Finished', 'Dropped'], 'Watching')}
+    ${select(`${uid}-service`, 'Where I watch it <span class="optional">(optional)</span>',
+      ['Not set', 'Netflix', 'Prime Video', 'HBO Max', 'Viaplay', 'Disney+', 'Apple TV+', 'NRK TV', 'TV 2 Play', 'Other'], 'Apple TV+')}
+    <fieldset class="field">
+      <legend class="label">Last watched episode</legend>
+      <div class="steppers">
+        ${stepper(`${uid}-season`, 'Season', 2)}
+        ${stepper(`${uid}-episode`, 'Episode', 7)}
+      </div>
+      <p class="hint">Shown as <strong>S02 E07</strong>. Leave empty if you haven’t started.</p>
+    </fieldset>
+    <button type="button" class="delete-link">${icon('trash')}<span>Delete show</span></button>`;
+}
+
+const actions = `
+  <div class="actions">
+    <a class="button button-large button-outline cancel" href="#home">Cancel</a>
+    <button type="submit" class="button button-large button-accent save">Save changes</button>
+  </div>`;
+
+function edit(size, uid) {
+  if (size === 'phone') {
+    return `
+      ${backHeader()}
+      <form class="edit-form">
+        <div class="form-body container">
+          <h1 class="page-title">Edit show</h1>
+          ${editFields(uid)}
+        </div>
+        ${actions}
+      </form>`;
+  }
+  return `
+    ${header()}
+    <main class="page container">
+      <form class="form-body" style="margin-inline: auto; width: 100%">
+        <div>
+          <a class="back" href="#home">${icon('chevronLeft')}<span>Back</span></a>
+          <h1 class="page-title">Edit show</h1>
+        </div>
+        ${editFields(uid)}
+        ${actions}
+      </form>
+    </main>`;
+}
+
+function deleteDialog(size, uid) {
+  return `
+    <div class="underlay" inert>${edit(size, uid)}</div>
+    <div class="backdrop"></div>
+    <dialog open class="dialog" aria-labelledby="${uid}-dialog-title" aria-describedby="${uid}-dialog-text">
+      <span class="dialog-icon">${icon('trash', 'big')}</span>
+      <div>
+        <h2 class="dialog-title" id="${uid}-dialog-title">Delete Severance?</h2>
+        <p class="dialog-text" id="${uid}-dialog-text">The show and your progress (<strong>S02 E07</strong>) will be removed. This can’t be undone.</p>
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" class="button button-large button-danger">Delete show</button>
+        <button type="button" class="button button-large button-outline">Cancel</button>
+      </div>
+    </dialog>`;
+}
+
+function empty() {
+  return `
+    ${header()}
+    <main class="page container">
+      ${titleRow([0, 0, 0, 0], '0 shows in progress')}
+      <div class="empty-state">
+        <span class="empty-tile">${icon('tv', 'big')}</span>
+        <div>
+          <h2 class="empty-title">Nothing on the go yet</h2>
+          <p class="empty-text">Add the shows you’re watching, and you’ll always know where you stopped – and where to pick up.</p>
+        </div>
+        <a class="button button-large button-accent" href="#edit">${icon('plus')}<span>Add your first show</span></a>
+      </div>
+    </main>`;
+}
+
+const SCREENS = {
+  home: (size) => home(size),
+  edit: (size, uid) => edit(size, uid),
+  delete: (size, uid) => deleteDialog(size, uid),
+  empty: () => empty(),
+};
+
+for (const section of document.querySelectorAll('[data-screen]')) {
+  const screen = section.dataset.screen;
+  section.innerHTML = SIZES.map(({ id, label }) => `
+    <figure>
+      <figcaption>${label}</figcaption>
+      <div class="frame ${id}${id === 'phone' ? '' : ' wide'}">${SCREENS[screen](id, `${screen}-${id}`)}</div>
+    </figure>`).join('');
+}
+
+// The frames are pictures: keep the forms from submitting.
+document.addEventListener('submit', (event) => event.preventDefault());
+</script>
+</body>
+</html>
