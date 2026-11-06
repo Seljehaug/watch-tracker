@@ -63,8 +63,9 @@ professionally and presentable in a CV/portfolio.
 ## 3. Current state of the code
 
 - Angular 22.2 CLI project. `App` renders `<app-header />` and `<main class="container">` around
-  the `<router-outlet>`. One route: `''` lazy-loads `Home` (`src/app/home/`, inline template) with
-  `loadComponent` and sets the page title via the route's `title`.
+  the `<router-outlet>`. Three routes, each lazy-loaded with `loadComponent` and with a page
+  `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and `shows/:showId/edit`
+  → `ShowEditor`, which gets the id through component input binding (D38).
 - `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
   `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
   page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
@@ -81,6 +82,29 @@ professionally and presentable in a CV/portfolio.
   `updatedAt` (`DatePipe` in a `<time>`), and a plus button for Watching and Want to watch only,
   with a full `aria-label` from a `computed` on the `show` input. Outputs `nextEpisodeWatched` (the
   show id); it never touches the store. Columns `minmax(0, 1fr)` so the ellipsis works at 320px.
+- `ShowEditor` (`src/app/shows/show-editor/`): Signal Forms `form()` over a `ShowEditorFormModel`
+  signal with `showFormModelSchema`, submitted through `[formRoot]`. `action` adds or updates the
+  show in the store; `onInvalid` sets `hasTriedToSave` and, once the errors are rendered, focuses
+  the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
+  a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
+  are secondary (D43, D46). Not done: edit mode does not load the show into the model
+  (`toShowEditorFormModel` is unused), and saving does not navigate away.
+- `show-form-model.ts`: the form model (`null` for an empty number, `''` for no service), mapping
+  both ways (`toShowEditorFormModel`, `toEditableShowFields`) and the schema – a required title that
+  is not only spaces, `min(1)` and an own `integer()` validator on season and episode, and "both or
+  neither" as `required` with `when` on the missing field (D44).
+- `FormFieldWrapper` (`app-form-field`, `src/app/shared/form-field/`): the label (`optional`;
+  `labelSecondary` sets the global `.label-secondary`), the projected control, and the hint or the
+  errors in the same place (D41); the page passes `showErrors`. It finds the control with
+  `contentChild(FormField)`. The `appFormFieldControl` directive on the control injects the
+  wrapper and sets `id`, `aria-invalid` and `aria-describedby` (D45).
+- `NumberStepper` (`app-number-stepper`, `src/app/shared/number-stepper/`), as decided in D43: a
+  `FormValueControl<number | null>` with − · a text input with `role="spinbutton"` · +, text ↔
+  number through `transformedValue`, the minimum from the schema, Arrow Up/Down 1, Page Up/Down 5,
+  Home to the minimum, buttons out of the Tab ring with `aria-disabled`, `focus()` for Signal
+  Forms and `touch` on blur. A polite live region reads "Season 3" / "Season empty" after a button
+  press – the label comes from the wrapper through DI – and any key clears it, so the next press is
+  read out even with the same text. Not styled yet.
 - `Header` (`src/app/layout/header/header.ts`, inline template and styles): `<header class="container">`
   with a `RouterLink` to `/` holding the TV icon (accent, via `color`) and the app name (not an
   `<h1>` – pages own their heading). The full-width bottom line is a border on `:host` in
@@ -109,12 +133,17 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 51, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+- Tests: 109, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
-  id, button label, no button for Finished/Dropped, screen-reader text) and `home.spec.ts` (order
-  at open, a card stays in place after a tap, new shows first, empty state). The CLI's `should
-  create the app` smoke test was deleted once these existed (D17).
+  id, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
+  at open, a card stays in place after a tap, new shows first, empty state),
+  `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
+  `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
+  `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
+  errors, ARIA state, announcements, label through the wrapper, focus). Component tests use a
+  test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
+  these existed (D17).
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
@@ -124,7 +153,9 @@ professionally and presentable in a CV/portfolio.
   `_reset.scss` (trimmed Josh Comeau reset + `padding: 0` on everything) and `_base.scss`
   (`color-scheme: dark`, body colours/font, `:focus-visible` ring, links without underline that
   inherit the text colour, the `.container` class – max width 1280px, centred, side padding –
-  margin utility classes `.spacing-*` on the spacing tokens, and `.visually-hidden`). The tokens
+  margin utility classes `.spacing-*` on the spacing tokens, `.visually-hidden`, `.text-muted`,
+  `.label-secondary`, form controls at least `--touch-target` high and wide, a danger border from
+  `[aria-invalid='true']`, and `cursor: not-allowed` on `[aria-disabled]` buttons). The tokens
   now include `--color-accent-soft` and `--color-accent-border` (8-digit hex). Inter via
   `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - No CI, no deployment, no UI library.
@@ -192,6 +223,9 @@ Goal: something actually useful – a list of my shows with progress, entered by
       `<input>`/`<select>`, plus an own form-field component (label, hint, error message) reused
       across the fields. Then the card title becomes a link to `/shows/:id/edit` (DESIGN.md §2)
       and the empty state gets its "Add your first show" button.
+      _Progress:_ fields, validation (D41, D44) and the season/episode steppers (D43) work; left are
+      loading the show in edit mode, what happens after a save, the card link, the empty-state
+      button and the steppers' styling.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
@@ -351,7 +385,10 @@ reversed, mark it as superseded instead of deleting it.
 | D40 | 2026-11-04 | The part of a show the user decides – title, status, service, last watched episode – is the type `EditableShowFields` (`Omit<TrackedShow, 'id' \| 'addedAt' \| 'updatedAt'>`, in `tracked-show.ts`). `ShowStore.add` takes it whole and `update` takes `Partial<EditableShowFields>`; the form maps to it with `toEditableShowFields`. Renamed from `NewShow` / `toNewShow`. | The same type feeds both adding and updating – the mapper keeps `service: undefined` precisely so an update clears it – so "new" was wrong half the time. A type is named after what it is, not when it is used: the fields the user owns, while the store owns the id and the timestamps. Not `ShowDetails` (the show page in M3), not `ShowInput` (reads as Angular's `input()`), and not separate create/update DTOs (two names for one shape). |
 | D41 | 2026-11-05 | Form errors show after the user has tried to save, not when they leave a field. From then on they follow the value live, so a fixed field loses its error while the user types. Signal Forms has no "submitted" state (22.2.1: `touched`, `dirty`, `submitting`), and `[formField]` sets `touched` on blur, so the page keeps its own signal, set in `onInvalid`; a field shows its errors when that is set and the field is invalid. A field's hint and error share one place under the control – the error replaces the hint. A failed save focuses the first field with an error (`errorSummary()[0]`, which is in DOM order) once the errors are rendered (`afterNextRender`). The shift when errors appear on save is accepted. | Errors on blur said "Title is required" to a user tabbing through an empty form before they had tried anything, and each message pushes the content below it down: typing in a field and then clicking Save blurs the field, the new error moves Save down, and the click can land outside it and be lost. On save, the shift answers the user's own action, and focus goes straight to the error. Reserving a line under every field (as Angular Material does) leaves gaps in a short phone form and still shifts for messages that wrap – "Either specify both season and episode…" does at 320px. Also what GOV.UK Design System recommends. Shifts right after user input don't count as layout shift (CLS) either. |
 | D42 | 2026-11-05 | Error messages are `--font-size-medium` with a medium (20px) `alert-circle` icon, both in `--color-danger` (8.5:1 on the background, DESIGN.md §1.1). Replaces the small (16px) icon and 13–14px text; the small icon size has no use for now. | At 16px the icon's exclamation mark was a 3.7px line and a 1.5px dot – there, but hard to make out. A visible error is the most important text on the page, not secondary text. Stays within the size scale (D23) and the one stroke width (D24); a filled icon would break `fill="none"`. If the icon is still too faint, redraw its exclamation mark or let the error line set a heavier `--icon-stroke-width` (D24). |
-| D43 | 2026-11-05 | Season and episode use a shared `NumberStepper` (`shared/number-stepper/`): − · input · +, a Signal Forms `FormValueControl<number \| null>` bound directly with `[formField]`, its lower bound read from the schema's `min()` (the `min` input), so it knows nothing about shows. The input is `type="text"` with `inputmode="numeric"` and `role="spinbutton"`; text ↔ number goes through `transformedValue`, whose parse errors become field errors. Empty (`null`) sits one step below the minimum: going down from the minimum (−, Arrow Down, Page Down) clears the field, going up from empty (+, Arrow Up, Page Up) gives the minimum, Page Up/Down step 10 and never jump past the minimum to empty, Home goes to the minimum, End does nothing (no maximum). The input is the only tab stop; the buttons have `tabindex="-1"`, `aria-label` "Decrease season" etc., and `aria-disabled` (not `disabled`) when they can do nothing; a polite live region announces the value after a button press. Each stepper sits in its own `FormFieldWrapper`, with `appFormFieldControl` on the stepper's inner input, inside the editor's `<fieldset>`/`<legend>` "Last watched episode". | Clearing with the buttons means "not started" never takes selecting or deleting text – on a phone (D3) that means opening the keyboard first. `type="number"` turns unparseable text ("1e") into `''`, which the model cannot tell from empty; text with `inputmode` gives a digit keypad and sends everything typed through `parse` (GOV.UK also advises against `type="number"`). ARIA 1.2 says the increment and decrement buttons should not be in the Tab ring, as in the APG example: the arrow keys do the same, and two tab stops replace six. A button that becomes `disabled` while focused drops focus to `<body>`. A label's `for` only works on a labelable element, not on the stepper's host, so the id has to reach the inner input; the directive there finds the wrapper through the stepper's host (element injectors follow where the stepper is written), which keeps labels, D41 errors and `aria-describedby` in one place. |
+| D43 | 2026-11-05 | Season and episode use a shared `NumberStepper` (`shared/number-stepper/`): − · input · +, a Signal Forms `FormValueControl<number \| null>` bound directly with `[formField]`, its lower bound read from the schema's `min()` (the `min` input), so it knows nothing about shows. The input is `type="text"` with `inputmode="numeric"` and `role="spinbutton"`; text ↔ number goes through `transformedValue`, whose parse errors become field errors. Empty (`null`) sits one step below the minimum: going down from the minimum (−, Arrow Down, Page Down) clears the field, going up from empty (+, Arrow Up, Page Up) gives the minimum, Page Up/Down step 5 (APG only asks for a larger step than the arrows; 10 was a lot for seasons and for episodes in 6–24-episode seasons) and never jump past the minimum to empty, Home goes to the minimum, End does nothing (no maximum). The input is the only tab stop; the buttons have `tabindex="-1"`, `aria-label` "Decrease season" etc., and `aria-disabled` (not `disabled`) when they can do nothing; a polite live region announces the value after a button press. Each stepper sits in its own `FormFieldWrapper`, with `appFormFieldControl` on the stepper's inner input, inside the editor's `<fieldset>`/`<legend>` "Last watched episode". | Clearing with the buttons means "not started" never takes selecting or deleting text – on a phone (D3) that means opening the keyboard first. `type="number"` turns unparseable text ("1e") into `''`, which the model cannot tell from empty; text with `inputmode` gives a digit keypad and sends everything typed through `parse` (GOV.UK also advises against `type="number"`). ARIA 1.2 says the increment and decrement buttons should not be in the Tab ring, as in the APG example: the arrow keys do the same, and two tab stops replace six. A button that becomes `disabled` while focused drops focus to `<body>`. A label's `for` only works on a labelable element, not on the stepper's host, so the id has to reach the inner input; the directive there finds the wrapper through the stepper's host (element injectors follow where the stepper is written), which keeps labels, D41 errors and `aria-describedby` in one place. |
+| D44 | 2026-11-05 | The "season and episode both or neither" rule sits on the field that is missing, not on the `lastWatched` group: `required()` with a `when` that reads the other field through `valueOf` (e.g. "Enter the episode too, or leave both empty."), replacing the group `validate`. Like every other error it shows only after a save attempt and then follows the value live (D41); only the missing field turns red, and a failed save focuses it. The fieldset holds just the legend and the "Shown as" preview. | The rule only fires when exactly one of the two is empty, so the problem is always one known field, and the error goes where the user fixes it (Angular's cross-field guide says the same). The existing wrapper and directive already give it the red border, `aria-invalid`, `aria-describedby` and focus. A group error marking both fields would need both inputs to carry `aria-invalid` and the error's id, which the directive cannot do without a fieldset version of the wrapper. Accepted: at 320px the message wraps under the narrow stepper. |
+| D45 | 2026-11-06 | ARIA attributes are bound with the `attr.` prefix everywhere, in templates and in `host` objects: `[attr.aria-label]`, `'[attr.aria-invalid]'`. A `false` that should remove the attribute is written `… \|\| null`. | Angular 22 also accepts `[aria-label]` in templates, but it first sends the value to a directive input with that name if the element has one, and in `host` bindings the compiler treats it as a DOM property rather than the attribute. `attr.` always sets the attribute and removes it on `null`/`undefined`, the same way in both places, so one form fits all. |
+| D46 | 2026-11-06 | No "Shown as S02 E07. Leave empty if you haven't started." preview under the steppers. The fieldset holds the legend and the two steppers, and the legend says "Last watched episode (optional)", following the rule that optional fields say so in the label. This replaces the preview in DESIGN.md §2 and the "Shown as" parts of D39 and D44. | The preview repeats what the two fields already say, and the `S02 E07` format is learnt on the card, where it is shown. "Leave empty…" only says the fields are optional, which "(optional)" already covers, and the card shows "Not started" for an empty one. Without it there is no fieldset `aria-describedby` to wire up, and nothing to talk over the stepper's live region. |
 
 ## 7. Open questions
 

@@ -23,7 +23,7 @@ import {FormField} from '@angular/forms/signals';
   `,
   template: `
     <div class="form-field">
-      <label [for]="fieldId">
+      <label [for]="fieldId" [class.label-secondary]="labelSecondary()">
         {{ label() }}
         @if(optional()) {
           <span class="text-muted">(optional)</span>
@@ -51,9 +51,9 @@ import {FormField} from '@angular/forms/signals';
 })
 export class FormFieldWrapper {
   readonly label = input.required<string>();
+  readonly labelSecondary = input<boolean>(false, { transform: booleanAttribute });
   readonly optional = input(false, { transform: booleanAttribute });
   readonly hint = input<string>();
-
   readonly showErrors = input.required<boolean>();
 
   private readonly control = contentChild.required(FormField);

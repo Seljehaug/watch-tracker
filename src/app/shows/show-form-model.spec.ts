@@ -1,5 +1,9 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { form, type FieldTree } from '@angular/forms/signals';
 import {
   EMPTY_SHOW_FORM_MODEL,
+  showFormModelSchema,
   toEditableShowFields,
   toShowEditorFormModel,
   type ShowEditorFormModel,
@@ -17,6 +21,50 @@ const aTrackedShow = (fields: EditableShowFields): TrackedShow => ({
   id: 'show-1',
   addedAt: '2026-11-01T12:00:00.000Z',
   updatedAt: '2026-11-01T12:00:00.000Z',
+});
+
+describe('showFormModelSchema', () => {
+  const showForm = (model: ShowEditorFormModel) =>
+    TestBed.runInInjectionContext(() => form(signal(model), showFormModelSchema));
+
+  const errorKinds = <T>(field: FieldTree<T>) =>
+    field()
+      .errors()
+      .map((error) => error.kind);
+
+  // D44: the error goes on the field that is missing, so only that one turns red.
+  it.each([
+    { season: 2, episode: null, seasonErrors: [], episodeErrors: ['required'] },
+    { season: null, episode: 5, seasonErrors: ['required'], episodeErrors: [] },
+  ])(
+    'puts the error on the missing field for season $season, episode $episode',
+    ({ season, episode, seasonErrors, episodeErrors }) => {
+      const lastWatched = showForm(aFormModel({ lastWatched: { season, episode } })).lastWatched;
+
+      expect(errorKinds(lastWatched.season)).toEqual(seasonErrors);
+      expect(errorKinds(lastWatched.episode)).toEqual(episodeErrors);
+    },
+  );
+
+  it.each([
+    { season: null, episode: null },
+    { season: 2, episode: 5 },
+  ])('accepts season $season, episode $episode', (lastWatched) => {
+    expect(showForm(aFormModel({ lastWatched }))().valid()).toBe(true);
+  });
+
+  it('rejects a season or episode that is not a whole number', () => {
+    const lastWatched = showForm(
+      aFormModel({ lastWatched: { season: 1.5, episode: 2 } }),
+    ).lastWatched;
+
+    expect(errorKinds(lastWatched.season)).toEqual(['notAnInteger']);
+    expect(errorKinds(lastWatched.episode)).toEqual([]);
+  });
+
+  it('rejects a title of only spaces', () => {
+    expect(errorKinds(showForm(aFormModel({ title: '   ' })).title)).toEqual(['emptyTitle']);
+  });
 });
 
 describe('toShowEditorFormModel', () => {

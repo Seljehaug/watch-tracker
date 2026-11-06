@@ -79,9 +79,6 @@ import { DatePipe } from '@angular/common';
       // TODO should have a button component with common styles?
       width: var(--increment-button-size);
       aspect-ratio: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       border-radius: var(--border-radius);
       border: 1px solid var(--color-accent-border);
       color: var(--color-accent);
@@ -90,7 +87,7 @@ import { DatePipe } from '@angular/common';
   `,
   template: `
     <article class="show-card">
-      <div class="show-image" aria-hidden="true">
+      <div class="show-image" [attr.aria-hidden]="true">
         <!-- TODO get the actual thumbnail for the tv show and show as image -->
         <div class="show-thumbnail">N/A</div>
       </div>
@@ -102,7 +99,7 @@ import { DatePipe } from '@angular/common';
           <span class="visually-hidden">
             {{ lastWatchedSpoken() }}
           </span>
-          <span class="show-last-watched" aria-hidden="true">
+          <span class="show-last-watched" [attr.aria-hidden]="true">
             {{ lastWatchedDisplay() }}
           </span>
         </p>
@@ -124,7 +121,7 @@ import { DatePipe } from '@angular/common';
         <button
           type="button"
           (click)="nextEpisodeWatched.emit(show().id)"
-          [aria-label]="nextEpisodeLabel()"
+          [attr.aria-label]="nextEpisodeLabel()"
           class="show-increment-button"
         >
           <app-svg-icon name="plus" />

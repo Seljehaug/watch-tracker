@@ -10,13 +10,15 @@ import {FormFieldWrapper} from '../../shared/form-field/form-field';
 import {FormFieldControl} from '../../shared/form-field/form-field-control';
 import {SHOW_STATUSES} from '../show-status';
 import {STREAMING_SERVICES} from '../streaming-service';
+import {NumberStepper} from '../../shared/number-stepper/number-stepper';
 
 @Component({
   imports: [
     FormRoot,
     FormField,
     FormFieldWrapper,
-    FormFieldControl
+    FormFieldControl,
+    NumberStepper
   ],
   selector: 'app-show-editor',
   styles: `
@@ -32,6 +34,15 @@ import {STREAMING_SERVICES} from '../streaming-service';
       display: inline-flex;
       flex-direction: column;
       gap: var(--spacing-2);
+    }
+
+    .last-watched-episode {
+      border: none;
+    }
+
+    .season-and-episode-steppers {
+      display: flex;
+      gap: var(--spacing-1);
     }
   `,
   template: `
@@ -59,7 +70,21 @@ import {STREAMING_SERVICES} from '../streaming-service';
           </select>
         </app-form-field>
 
-        <button type="submit">Save</button>
+        <fieldset class="last-watched-episode">
+          <legend>Last watched episode <span class="text-muted">(optional)</span></legend>
+
+          <div class="season-and-episode-steppers">
+            <app-form-field label="Season" labelSecondary [showErrors]="hasTriedToSave()">
+              <app-number-stepper [formField]="form.lastWatched.season" decreaseAriaLabel="Decrease season" increaseAriaLabel="Increase season"/>
+            </app-form-field>
+
+            <app-form-field label="Episode" labelSecondary [showErrors]="hasTriedToSave()">
+              <app-number-stepper [formField]="form.lastWatched.episode" decreaseAriaLabel="Decrease episode" increaseAriaLabel="Increase episode"/>
+            </app-form-field>
+          </div>
+        </fieldset>
+
+        <button type="submit">Save changes</button>
       </form>
     </div>
   `,

@@ -80,6 +80,7 @@ a {
 // Form
 input, select, textarea, button {
   min-height: var(--touch-target);
+  min-width: var(--touch-target);
   border-radius: var(--border-radius);
   border: 1px solid transparent;
 }
@@ -91,8 +92,33 @@ input, select {
   background-color: var(--color-surface);
 }
 
+button {
+  cursor: pointer;
+  width: fit-content;
+  padding: 0.6em 1.2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &[aria-disabled], &[disabled] {
+    cursor: not-allowed;
+  }
+}
+
+button[type="submit"] {
+  background-color: var(--color-accent);
+  color: var(--color-surface);
+  font-weight: 700;
+}
+
 select {
   //appearance: none;
+}
+
+// Labels
+.label-secondary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
 }
 
 // Validation

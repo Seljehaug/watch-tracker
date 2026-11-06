@@ -195,13 +195,28 @@ save moves focus to the first field with an error, once the errors are rendered,
 reads them with the field. The page may shift when the errors appear on save; that is accepted.
 Selects use `appearance: none` with a chevron icon overlaid (`pointer-events: none`).
 Optional fields say so in the label: "Where I watch it (optional)".
+A label inside a group that already has a heading (the stepper's "Season" and "Episode" under the
+legend "Last watched episode") is secondary: smaller and muted (`--font-size-small`,
+`--color-text-muted`), so the legend reads as the field's label. The wrapper's `labelSecondary`
+input sets the global `.label-secondary` class, which other places can reuse.
 
 ### Season / episode stepper
 
-Inside a `<fieldset>` with `<legend>` "Last watched episode", two steppers side by side
+Inside a `<fieldset>` with `<legend>` "Last watched episode (optional)", two steppers side by side
 (Season, Episode). Each: `−` button · number input · `+` button in one 50px box; buttons are
-44px wide with `aria-label` "Decrease season" etc. Empty means "not started". A live preview under
-it: "Shown as **S02 E07**. Leave empty if you haven't started."
+44px wide with `aria-label` "Decrease season" etc. Empty means "not started". No preview under it
+(D46): the mockup's "Shown as S02 E07" line is dropped.
+
+Keyboard and ARIA (D43): the input is `type="text"` with `inputmode="numeric"` and
+`role="spinbutton"`, and it is the only tab stop – the buttons have `tabindex="-1"`, as ARIA 1.2
+and the APG spinbutton example say. Arrow Up/Down step 1, Page Up/Down step 5, Home goes to the
+minimum. Empty sits one step below the minimum: going down from 1 clears the field, going up from
+empty gives 1. A button that can do nothing gets `aria-disabled`, not `disabled`, so it keeps focus.
+A polite live region announces the value after a button press.
+
+Season and episode are both filled or both empty (D44). With only one filled, the error goes on the
+empty one ("Enter the episode too, or leave both empty."), shown after a save attempt like every
+other error (D41), and only that field turns red.
 
 ### Edit / add page
 

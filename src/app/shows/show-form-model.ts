@@ -77,10 +77,13 @@ export const showFormModelSchema = schema<ShowEditorFormModel>((path) => {
 
   integer(path.lastWatched.episode, { message: 'Episode must be an integer.' });
 
-  validate(path.lastWatched, ({ value }) => {
-    if ((value().season === null && value().episode !== null) || (value().episode === null && value().season !== null))
-      return { kind: 'unspecifiedSeasonOrEpisode', message: 'Either specify both season and episode or leave both empty.'};
+  required(path.lastWatched.season, {
+    when: ({ valueOf }) => valueOf(path.lastWatched.episode) !== null,
+    message: 'Enter the season too, or clear the episode.'
+  });
 
-    return null;
+  required(path.lastWatched.episode, {
+    when: ({ valueOf }) => valueOf(path.lastWatched.season) !== null,
+    message: 'Enter the episode too, or clear the season.'
   });
 })
