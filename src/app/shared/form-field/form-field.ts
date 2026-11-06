@@ -50,16 +50,21 @@ import {FormField} from '@angular/forms/signals';
   `,
 })
 export class FormFieldWrapper {
+  // Inputs
   readonly label = input.required<string>();
-  readonly labelSecondary = input<boolean>(false, { transform: booleanAttribute });
+  readonly labelSecondary = input(false, { transform: booleanAttribute });
   readonly optional = input(false, { transform: booleanAttribute });
   readonly hint = input<string>();
   readonly showErrors = input.required<boolean>();
 
+  // Queries
   private readonly control = contentChild.required(FormField);
+
+  // State
   protected readonly state = computed(() => this.control().state());
   protected readonly errors = computed(() => this.state().errors());
 
+  // Public because FormFieldControl reads them too
   readonly fieldId = crypto.randomUUID();
 
   readonly errorsVisible = computed(() => this.showErrors() && this.state().invalid());

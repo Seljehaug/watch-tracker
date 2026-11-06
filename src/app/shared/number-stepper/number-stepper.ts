@@ -66,7 +66,7 @@ export class NumberStepper implements FormValueControl<number | null>{
   // Dependencies
   private readonly formFieldWrapper = inject(FormFieldWrapper);
 
-  // Input and models
+  // Inputs and models
   readonly value = model<number | null>(null);
   readonly min = input<number | undefined>();
   readonly decreaseAriaLabel = input<string>('Decrease');
@@ -76,7 +76,7 @@ export class NumberStepper implements FormValueControl<number | null>{
   readonly touch = output<void>();
 
   // Queries
-  private readonly inputField = viewChild.required<ElementRef<HTMLInputElement>>('inputField')
+  private readonly inputField = viewChild.required<ElementRef<HTMLInputElement>>('inputField');
 
   // State
   protected readonly effectiveMin = computed(() => this.min() ?? 0);
@@ -154,7 +154,7 @@ export class NumberStepper implements FormValueControl<number | null>{
   }
 
   private increase(step: number = this.defaultStep): void {
-    this.value.update(current => current === null ? this.effectiveMin() : current + step)
+    this.value.update(current => current === null ? this.effectiveMin() : current + step);
   }
 
   private announceValue(): void {

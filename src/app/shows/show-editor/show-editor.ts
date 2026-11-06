@@ -90,13 +90,15 @@ import {NumberStepper} from '../../shared/number-stepper/number-stepper';
   `,
 })
 export class ShowEditor {
+  // Dependencies
+  private readonly store = inject(ShowStore);
+  private readonly injector = inject(Injector);
+
+  // Inputs
   readonly showId = input<string>();
 
+  // State
   private readonly isNewShow = computed(() => !this.showId());
-
-  private readonly store  = inject(ShowStore);
-
-  private readonly injector = inject(Injector);
 
   protected readonly show = computed(() => {
     return this.store.shows().find(show => show.id === this.showId());
@@ -133,9 +135,8 @@ export class ShowEditor {
       },
     }
   });
+
+  // Constants
   protected readonly SHOW_STATUSES = SHOW_STATUSES;
   protected readonly STREAMING_SERVICES = STREAMING_SERVICES;
 }
-
-
-

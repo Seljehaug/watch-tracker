@@ -131,11 +131,13 @@ import { DatePipe } from '@angular/common';
   `,
 })
 export class ShowCard {
+  // Inputs
   readonly show = input.required<TrackedShow>();
+
+  // Outputs
   readonly nextEpisodeWatched = output<string>();
 
-  protected readonly serviceName = streamingServiceDisplayName;
-
+  // State
   protected readonly lastWatchedDisplay = computed(() => {
     const lastWatched = this.show().lastWatched;
     if (!lastWatched) return 'Not started';
@@ -153,5 +155,8 @@ export class ShowCard {
     const next = getNextEpisodeRef(this.show().lastWatched);
     return `Mark season ${next.season}, episode ${next.episode} of ${this.show().title} as watched`;
   });
+
+  // Functions for the template
+  protected readonly serviceName = streamingServiceDisplayName;
   protected readonly canMarkNextEpisode = canMarkNextEpisodeAsWatched;
 }
