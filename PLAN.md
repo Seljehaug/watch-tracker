@@ -279,8 +279,12 @@ Goal: something actually useful – a list of my shows with progress, entered by
       top and restores the position on Back. Done 2026-11-09 (see §3).
 - [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
       `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
-      Save silently changes nothing. Decide whether the route stops it before the page opens (a
-      resolver or guard returning a `RedirectCommand`) or the page shows it itself.
+      Save silently changes nothing. Decided: a guard stops it before the page opens (D53).
+      Steps: a `NotFound` page in `src/app/not-found/` (`<h1 tabindex="-1">` for focus after
+      navigation, a short text, a link to Home); `{ path: '**' }` with a `title`, last in
+      `app.routes.ts` (the router takes the first match); `showExistsGuard` (`CanActivateFn`,
+      `ng generate guard shows/show-exists`) on the edit route. Tests: the guard, the wildcard
+      route, and the ShowEditor test that expects an empty form for an unknown id changes.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
@@ -365,6 +369,13 @@ Roughly in priority order; most of these require a backend.
 - **Movies** – simpler model: want to watch / watched, plus a rating.
 - **My subscriptions** – a setting for which services I pay for; highlight titles available on them.
 - **End-to-end tests** with Playwright, including automated axe accessibility checks.
+- **Leave warning** – only if real use on the phone (M2) shows that edits get lost by accident
+  (D54). Leaving the add/edit page with unsaved changes would ask first: a `CanDeactivateFn` on
+  both editor routes, asking only when the form is `dirty()` and never after a successful save
+  (the save navigates too); the browser's `beforeunload` for reloading or closing the tab (not
+  reliable in Safari on iOS); `withRouterConfig({ canceledNavigationResolution: 'computed' })` so
+  the history stays right when the user stays after Back; `confirm()` or the own `<dialog>` from
+  the delete task.
 
 ### FUTURE / OPTIONAL
 
@@ -464,6 +475,8 @@ reversed, mark it as superseded instead of deleting it.
 | D50 | 2026-11-09 | "Add show" lives where the screen size suits it: on phones a floating add button (plus icon only, `aria-label="Add show"`) and nothing in the header; on desktop a link in the header; on tablets perhaps both, decided when it is built. Both are links (D49). As in DESIGN.md (FAB on phone, header on desktop), which leaves tablets open. | On a phone the bottom corner is within reach of the thumb, and the narrow header keeps just the brand. On desktop a floating button over a wide grid is out of the way of nothing and far from the eye; the header is where the action is looked for. |
 | D51 | 2026-11-09 | The whole show card opens the show's edit page, except the plus button. The link stays in the title's `<h2>` (DESIGN.md §2); its click area is stretched over the card by a pseudo-element on the link (absolutely positioned, covering the card), and the plus button is lifted above it. Not a link wrapped around the card, and not a click handler on the `<article>`. Keyboard focus on the link shows as a ring around the whole card – the same ring as the global `:focus-visible` – and none around the title; the plus button keeps its own ring. | The card is the show, and the whole card is a much bigger target on a phone (D3). A link around the card would contain the plus button – a button inside a link is invalid HTML and fails axe's `nested-interactive` rule – and screen readers would read the whole card as the link's name. A click handler is not a link (D49): no Enter, no new tab, not announced. With the stretched link the name stays the title and heading navigation still works. A ring around the card shows the area the link covers; around the title alone it would suggest that only the title is a link. Accepted: card text is hard to select, and a tap just next to the plus opens the editor instead of doing nothing. When the show page comes (`/shows/:showId`, M3, D38), the card probably opens that instead. |
 | D52 | 2026-11-09 | The add/edit page has no "Back" link. Its one way out is "Cancel" next to "Save changes" – a `RouterLink` to `/` (D49) – on every screen size; the header has no "Back" link. The mockups and DESIGN.md §2 are updated. | Back and Cancel went to the same place, so one of them was in the way. In a form, "Cancel" also says that the changes are not saved, and it sits where the hand and the eye are when the form is done – within reach of the thumb on a phone (D3). Desktop and tablet also have the browser's back button and the brand link, but an app installed on an iPhone (M2) has no browser bar, so the page needs its own way out; one page for every size is simpler than hiding it on wide screens. "Back" may come back on pages that are read rather than filled in, such as the show page (M3). |
+| D53 | 2026-11-09 | An unknown show id is stopped by a `CanActivate` guard on `shows/:showId/edit` (`showExistsGuard`), not by the editor. The guard returns `true` when `ShowStore` has the show, otherwise a `RedirectCommand` to the not-found page with `browserUrl` set to the URL the user asked for, so the address bar keeps it. Unknown URLs reach the same page through the wildcard route. | One not-found page for unknown URLs and unknown ids. The check runs before the page opens, so there is no flash of an empty "Edit show" form, and the editor never has to handle a show that doesn't exist – D48's empty-model fallback is then only add mode. Keeping the URL shows the user what they asked for and lets them correct it. Accepted: the guard reads the store synchronously, which fits localStorage; with an HTTP API (Later) it returns a Promise or an Observable instead, which guards allow. |
+| D54 | 2026-11-09 | No leave warning for unsaved changes on the add/edit page for now; moved from M1 to Later, to be picked up only if real use on the phone (M2) shows that edits get lost by accident. | The form has five fields and an edit usually touches one or two, so an accidental exit costs seconds, and in edit mode the stored show is untouched. It would be built only because forms "usually have it" (§1, D14). It teaches little that is new: guards are learnt with the not-found page (D53). It costs a guard, `beforeunload`, history handling for Back and a dialog choice, and still can't cover closing the tab in Safari on iOS. |
 
 ## 7. Open questions
 
