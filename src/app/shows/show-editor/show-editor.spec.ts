@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
 import { ShowStorage } from '../show-storage';
@@ -151,5 +151,25 @@ describe('ShowEditor', () => {
     expect(TestBed.inject(ShowStore).shows()).toEqual([
       expect.objectContaining({ title: 'Andor', status: 'watching' }),
     ]);
+  });
+
+  // D49: Home after a successful save, and only then.
+  it('goes to Home after saving', async () => {
+    await open('/shows/slow-horses/edit');
+
+    save();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  it('stays on the form when the save is invalid', async () => {
+    await open('/shows/add', []);
+
+    save();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/shows/add');
+    expect(TestBed.inject(ShowStore).shows()).toEqual([]);
   });
 });

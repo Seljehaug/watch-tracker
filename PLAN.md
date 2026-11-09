@@ -5,8 +5,9 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-09
-**Current milestone:** M1 – My shows (next: the add/edit form, or the other statuses as tabs).
-Home "Continue watching" with the show card, the one-tap action and the empty state done
+**Current milestone:** M1 – My shows (next: focus after navigation – Save now navigates – then
+not found and the floating add button on phones).
+The add/edit form with its links in and out done 2026-11-09; Home "Continue watching" with the show card, the one-tap action and the empty state done
 2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
 done 2026-10-09.
 
@@ -65,19 +66,24 @@ professionally and presentable in a CV/portfolio.
 - Angular 22.2 CLI project. `App` renders `<app-header />` and `<main class="container">` around
   the `<router-outlet>`. Three routes, each lazy-loaded with `loadComponent` and with a page
   `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and `shows/:showId/edit`
-  → `ShowEditor`, which gets the id through component input binding (D38).
+  → `ShowEditor`, which gets the id through component input binding (D38). The router has
+  `withViewTransitions()`, so pages swap with the browser's default crossfade.
 - `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
   `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
   page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
   puts the store's fresh data in that order, with shows that started since first (D36). With no
-  show being watched it shows the empty state instead (DESIGN.md "Empty state"; the "Add your
-  first show" button waits for `/shows/add`).
+  show being watched it shows the empty state instead (DESIGN.md "Empty state", with an "Add your
+  first show" link to `/shows/add`). Under the title a muted "N shows in progress" (singular for
+  one). Page header and empty state are inline for now (see the status tabs task).
 - `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
   responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
   four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
   outputs don't bubble.
 - `ShowCard` (`src/app/shows/show-card/`): an `<article>` with a 2:3 poster placeholder
-  (`aria-hidden`), the title in an `<h2>` (ellipsis), the progress once (`S02 E05` visible but
+  (`aria-hidden`), the title in an `<h2>` (ellipsis) holding a `RouterLink` to
+  `/shows/:id/edit` whose `::after` covers the card, so the whole card opens the editor except
+  the plus button, which sits above it (D51) – a hovered link lightens the card on devices that
+  hover, a focused one turns its border accent – the progress once (`S02 E05` visible but
   `aria-hidden`, "Last watched: season 2, episode 5" as `.visually-hidden` text – D35), service and
   `updatedAt` (`DatePipe` in a `<time>`), and a plus button for Watching and Want to watch only,
   with a full `aria-label` from a `computed` on the `show` input. Outputs `nextEpisodeWatched` (the
@@ -88,9 +94,10 @@ professionally and presentable in a CV/portfolio.
   the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
   a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
   are secondary (D43, D46). The model is a `linkedSignal` over `show()` – the stored show mapped
-  with `toShowEditorFormModel`, or the empty model when there is none (D48). Not done: saving does
-  not navigate away, and an unknown id opens an empty form whose Save changes nothing (see the
-  not-found task).
+  with `toShowEditorFormModel`, or the empty model when there is none (D48). A successful save
+  goes to Home with `Router.navigateByUrl('/')` (D49); "Cancel" next to Save is a `RouterLink`
+  to `/` styled as a button (D52). Not done: an unknown id opens an
+  empty form whose Save changes nothing (see the not-found task).
 - `show-form-model.ts`: the form model (`null` for an empty number, `''` for no service), mapping
   both ways (`toShowEditorFormModel`, `toEditableShowFields`) and the schema – a required title that
   is not only spaces, `min(1)` and an own `integer()` validator on season and episode, and "both or
@@ -109,7 +116,8 @@ professionally and presentable in a CV/portfolio.
   read out even with the same text. Not styled yet.
 - `Header` (`src/app/layout/header/header.ts`, inline template and styles): `<header class="container">`
   with a `RouterLink` to `/` holding the TV icon (accent, via `color`) and the app name (not an
-  `<h1>` – pages own their heading). The full-width bottom line is a border on `:host` in
+  `<h1>` – pages own their heading), and an "Add show" link (plus icon + text) to `/shows/add`
+  on the right – at every width for now (D50). The full-width bottom line is a border on `:host` in
   `--color-divider`.
 - `SvgIcon` (`src/app/shared/svg-icon/svg-icon.ts`, selector `app-svg-icon`) is done: `name` input
   (`IconName` union) rendered by a `@switch` with `@default never` (D25), `size` input
@@ -135,20 +143,23 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 115, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+- Tests: 118, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
-  id, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
+  id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
   at open, a card stays in place after a tap, new shows first, empty state),
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
   errors, ARIA state, announcements, label through the wrapper, focus) and `show-editor.spec.ts`
   (edit mode loads the show, empty form for add and an unknown id, follows a new id when the
-  router reuses the page, save updates or adds – on the app's real routes through
-  `RouterTestingHarness`). Component tests use a test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
+  router reuses the page, save updates or adds, Home after a save but not after an invalid one –
+  on the app's real routes through `RouterTestingHarness`). Component tests use a test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
   these existed (D17).
-- Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
+- Zoneless (no zone.js), standalone components, SCSS, Prettier, Vitest + jsdom. Strict TypeScript
+  (`"strict": true`) and strict template type checking (`"strictTemplates": true`) in
+  `tsconfig.json` – both were missing from the start and turned on 2026-11-09; the code already
+  passed them.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
   generated defaults – ESLint/typescript-eslint recommended + stylistic, Angular TS rules, template
   rules incl. accessibility. No custom rules beyond the `app` selector prefix.
@@ -159,7 +170,10 @@ professionally and presentable in a CV/portfolio.
   inherit the text colour, the `.container` class – max width 1280px, centred, side padding –
   margin utility classes `.spacing-*` on the spacing tokens, `.visually-hidden`, `.text-muted`,
   `.label-secondary`, form controls at least `--touch-target` high and wide, a danger border from
-  `[aria-invalid='true']`, and `cursor: not-allowed` on `[aria-disabled]` buttons). The tokens
+  `[aria-invalid='true']`, `cursor: not-allowed` on `[aria-disabled]` buttons, button classes
+  that links can use too – `.button`, `.button-primary` (accent, like `type="submit"`),
+  `.button-secondary` (outlined), `.button-group` – and `scrollbar-gutter: stable` on `html`, so
+  nothing moves when a page grows a scrollbar). The tokens
   now include `--color-accent-soft` and `--color-accent-border` (8-digit hex). Inter via
   `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - No CI, no deployment, no UI library.
@@ -220,16 +234,36 @@ Goal: something actually useful – a list of my shows with progress, entered by
 - [x] Home screen "Continue watching": shows with status Watching, most recently updated first,
       each with a thumb-friendly "watched next episode" action. Empty state.
 - [ ] The other statuses one tap away: status tabs as router links, one route per status
-      (DESIGN.md, "Status tabs")
+      (DESIGN.md, "Status tabs"). One status at a time – not radio buttons, and not a filter with
+      several statuses at once; if "everything" is missed, an "All" tab is simpler, and "do I
+      already have X?" is answered by search (M3/M4). Comes with two components, noted on
+      2026-11-09:
+  - `PageHeader` (`app-page-header`, `shared/`): the page's `<h1>`, the muted subtitle ("2 shows
+    in progress") and the tabs projected with `<ng-content>`; it knows nothing about shows.
+    Name the input `heading`, not `title` – `title` is a global HTML attribute, so a static
+    `title="…"` also lands on the element and shows a tooltip over the whole section.
+    `StatusTabs` (`app-status-tabs`, `shows/`) is the `<nav>` with the links and counts.
+  - `EmptyState` (`app-empty-state`, `shared/`): today the empty state is inline in `Home`. Pull
+    it out – icon, heading, text and the action projected – so every status tab can show its own
+    ("No finished shows yet"), with the "Add your first show" button only where it fits.
 - [x] Show card component, reused across the lists (`ShowCard` + `ShowList`; the status tabs will
       reuse them)
-- [ ] Add/edit form with Signal Forms and validation (`/shows/add`, `/shows/:id/edit`): native
+- [x] Add/edit form with Signal Forms and validation (`/shows/add`, `/shows/:id/edit`): native
       `<input>`/`<select>`, plus an own form-field component (label, hint, error message) reused
-      across the fields. Then the card title becomes a link to `/shows/:id/edit` (DESIGN.md §2)
-      and the empty state gets its "Add your first show" button.
-      _Progress:_ fields, validation (D41, D44), the season/episode steppers (D43) and loading the
-      show in edit mode (D48) work; left are what happens after a save, the card link, the
-      empty-state button and the steppers' styling.
+      across the fields. Then the card opens `/shows/:id/edit` – the whole card except the plus
+      button (D51) – and the empty state gets its "Add your first show" button.
+      Done 2026-11-09: fields, validation (D41, D44), the season/episode steppers (D43), loading
+      the show in edit mode (D48), the card link (D51), Home after a save and Cancel (D49, D52)
+      and the empty-state button. The steppers' styling moved to the styling pass; unknown ids
+      to the not-found task.
+- [ ] "Add show" entry points, both links (D49, D50): on phones a floating add button – plus icon
+      only, `aria-label="Add show"` – and nothing in the header; on desktop an "Add show" link in
+      the header; on tablets perhaps both, decided when it is built. Not on the empty state, which
+      has its own button. _Progress:_ the header link is in, shown at every width for now; left
+      are the floating button on phones and hiding the header link there.
+- [ ] Focus after navigation: when Save or a link swaps the page, focus must not fall back to
+      `<body>`. Move it to the new page's heading on `NavigationEnd`, once for the whole app
+      (angular.dev, "Accessibility in Angular" → "Focus management after navigation").
 - [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
       `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
       Save silently changes nothing. Decide whether the route stops it before the page opens (a
@@ -240,6 +274,20 @@ Goal: something actually useful – a list of my shows with progress, entered by
       "Show card"): a custom pipe on `Intl.RelativeTimeFormat`. The value changes as time passes
       while the input stays the same, so decide whether the pipe can be pure. Until then the card
       shows `updatedAt` with `DatePipe` (`d MMM`).
+- [ ] Styling pass, put off on 2026-11-09 until the functionality is in: the steppers, the header
+      link, and the card's focus indicator – D51 asks for the global focus ring around the card,
+      today the card's border turns accent. The steppers first: at phone width (≈366px) their
+      buttons stack, the Episode stepper sticks out on the right and the page scrolls sideways,
+      which breaks D28 (no horizontal scrolling from 320px, WCAG 1.4.10). Ideas: glass for the floating button and a sticky
+      header, never for the cards (Apple: no glass in the content layer).
+- [ ] Route transitions, after the functionality: the Router's View Transitions support
+      (`withViewTransitions()` in `provideRouter`, developer preview in v22), styled in the global
+      styles. Start with a crossfade, then animate the page content only (a `view-transition-name`
+      on it), maybe later morph the tapped card into the edit form (the same name, `show-<id>`, on
+      both). Movement is skipped under `prefers-reduced-motion` (the Router doesn't do it on its
+      own); keep it short, as the page doesn't respond while it plays. Browsers without the API
+      just swap the page. angular.dev, "Route transition animations". _Progress:_
+      `withViewTransitions()` is on, with the default crossfade.
 - [ ] Tests alongside each task – mainly unit tests for the service/state logic, plus a component
       test or two. Claude writes them, the developer reviews them (D16, D17). Delete the CLI's
       `should create the app` smoke test once real tests exist.
@@ -399,6 +447,10 @@ reversed, mark it as superseded instead of deleting it.
 | D46 | 2026-11-06 | No "Shown as S02 E07. Leave empty if you haven't started." preview under the steppers. The fieldset holds the legend and the two steppers, and the legend says "Last watched episode (optional)", following the rule that optional fields say so in the label. This replaces the preview in DESIGN.md §2 and the "Shown as" parts of D39 and D44. | The preview repeats what the two fields already say, and the `S02 E07` format is learnt on the card, where it is shown. "Leave empty…" only says the fields are optional, which "(optional)" already covers, and the card shows "Not started" for an empty one. Without it there is no fieldset `aria-describedby` to wire up, and nothing to talk over the stepper's live region. |
 | D47 | 2026-11-06 | Class members go in this order: dependencies (`inject`), inputs and models, outputs, queries, state (signals, `computed`, the form), constants, then methods – public API, template event handlers, private helpers. Classes with three or more of these groups get a one-line `//` heading per group; small classes go without. Event handlers are named for what they do (`decreaseAndAnnounce`), not for the event (`decreaseClicked`); `handleKeydown` is fine for one handler that sends many keys on. | Angular's style guide: "Group Angular-specific properties before methods" and "Name event handlers for what they do". One order makes every class read the same way. It is also needed in places: fields initialise top to bottom, so `rawValue` has to come after the `value` it wraps, and `form` after `model`. Headings on a two-member class are noise. |
 | D48 | 2026-11-09 | The show editor's form model is a `linkedSignal` derived from `show()`: the stored show mapped with `toShowEditorFormModel`, or `EMPTY_SHOW_FORM_MODEL` when there is no show. `form()` gets it directly. It starts over when the show changes – when the router reuses the page for another id, or the store saves a new object for the show. | The model has to follow the `showId` input and still be writable by the form. A `signal` filled in a field initializer reads the input before the router has set it, and never follows when the page is reused for another id. An `effect` copying the show into a signal also works, but angular.dev advises against effects for passing state between signals. The model checks whether a show exists, not whether the page is in add mode (`isNewShow`), so an unknown id gives an empty form instead of a crash. Accepted: edits are lost if the show changes while the form is open – today only Save does that; revisit with sync (Later). |
+| D49 | 2026-11-09 | After a successful save – add or edit – the editor goes to Home with `Router` (`inject(Router)`). The page's "Back" is a `RouterLink` to `/`, not the browser's history back. Navigation the user chooses is always a link (`<a routerLink>`), the header's "Add show" included; `Router` is only used when navigation follows an action, as after Save (DESIGN.md §2 already makes tabs and Cancel links and Delete a button). **"Back" replaced by "Cancel" in D52.** | Home is the only list until the status tabs exist. A link to `/` lands in the same place whether the page was opened from Home, a bookmark or a new tab; history back would leave the app after a link opened from outside. A link is announced as a link, follows on Enter, can be opened in a new tab and shows its URL – a button that calls `navigate()` loses all of that. Accepted: a show saved with another status than Watching is not on Home, so nothing shows that it was saved; revisit with the status tabs (go to the show's tab) or a status message. |
+| D50 | 2026-11-09 | "Add show" lives where the screen size suits it: on phones a floating add button (plus icon only, `aria-label="Add show"`) and nothing in the header; on desktop a link in the header; on tablets perhaps both, decided when it is built. Both are links (D49). As in DESIGN.md (FAB on phone, header on desktop), which leaves tablets open. | On a phone the bottom corner is within reach of the thumb, and the narrow header keeps just the brand. On desktop a floating button over a wide grid is out of the way of nothing and far from the eye; the header is where the action is looked for. |
+| D51 | 2026-11-09 | The whole show card opens the show's edit page, except the plus button. The link stays in the title's `<h2>` (DESIGN.md §2); its click area is stretched over the card by a pseudo-element on the link (absolutely positioned, covering the card), and the plus button is lifted above it. Not a link wrapped around the card, and not a click handler on the `<article>`. Keyboard focus on the link shows as a ring around the whole card – the same ring as the global `:focus-visible` – and none around the title; the plus button keeps its own ring. | The card is the show, and the whole card is a much bigger target on a phone (D3). A link around the card would contain the plus button – a button inside a link is invalid HTML and fails axe's `nested-interactive` rule – and screen readers would read the whole card as the link's name. A click handler is not a link (D49): no Enter, no new tab, not announced. With the stretched link the name stays the title and heading navigation still works. A ring around the card shows the area the link covers; around the title alone it would suggest that only the title is a link. Accepted: card text is hard to select, and a tap just next to the plus opens the editor instead of doing nothing. When the show page comes (`/shows/:showId`, M3, D38), the card probably opens that instead. |
+| D52 | 2026-11-09 | The add/edit page has no "Back" link. Its one way out is "Cancel" next to "Save changes" – a `RouterLink` to `/` (D49) – on every screen size; the header has no "Back" link. The mockups and DESIGN.md §2 are updated. | Back and Cancel went to the same place, so one of them was in the way. In a form, "Cancel" also says that the changes are not saved, and it sits where the hand and the eye are when the form is done – within reach of the thumb on a phone (D3). Desktop and tablet also have the browser's back button and the brand link, but an app installed on an iPhone (M2) has no browser bar, so the page needs its own way out; one page for every size is simpler than hiding it on wide screens. "Back" may come back on pages that are read rather than filled in, such as the show page (M3). |
 
 ## 7. Open questions
 

@@ -127,7 +127,15 @@ Watching → "Continue watching", others → the tab name. Subtitle: "6 shows in
 
 ### Show card
 
-`<article>`, surface background, 1px border, radius 14, padding 12, gap 12. Three parts:
+`<article>`, surface background, 1px border, radius 14, padding 12, gap 12.
+
+The whole card opens the show's edit page, except the plus button (D51): the title's link has
+its click area stretched over the card, and the plus button sits above it. The link stays in the
+`<h2>`, so its name is the title – never a link wrapped around the card, which would contain the
+button. Keyboard focus on the link draws the focus ring around the whole card, not the title; the
+plus button keeps its own ring.
+
+Three parts:
 
 1. **Poster slot** 46×64 (52×74 desktop), a lighter surface, show initials in muted 15/700.
    Placeholder until TMDB posters arrive in M3 – keep the slot so nothing else moves.
@@ -178,7 +186,8 @@ pattern – see D35.)
 
 60×60, radius 18, accent, plus icon, bottom-right (20px from the edge, 28px from the bottom),
 `aria-label="Add show"`. The list needs ~112px bottom padding so the last card isn't hidden.
-Replaced by the header "Add show" button on desktop.
+Replaced by the header "Add show" button on desktop; on tablets perhaps both (D50). Both are
+links, since they navigate (D49).
 
 ### Form field (label · control · hint/error)
 
@@ -220,11 +229,12 @@ other error (D41), and only that field turns red.
 
 ### Edit / add page
 
-Back link (accent, chevron + "Back") in the header, page title "Edit show" / "Add show", fields:
+No "Back" link in the header: "Cancel" next to "Save changes" is the page's one way out, on
+every screen size (D52). Page title "Edit show" / "Add show", fields:
 Title, Status, Where I watch it, Last watched episode, then "Delete show" (edit only): a
 `<button type="button">` styled as a text link (danger, trash icon). It opens the delete dialog,
-so it is an action, not navigation. A bottom action bar with "Cancel" (outlined, 1/3; a link back
-to the list) and "Save changes" (accent, 2/3; `type="submit"`), 52px high. The bar must be inside
+so it is an action, not navigation. A bottom action bar with "Cancel" (outlined, 1/3; a link to
+Home, D49) and "Save changes" (accent, 2/3; `type="submit"`), 52px high. The bar must be inside
 the `<form>` (or the submit button must use the `form` attribute), so Enter and the button
 submit the form.
 
@@ -267,7 +277,7 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Not used at the moment (the alert icon is medium since D42)                       |
-| **medium** 20px | Default: brand mark, "next episode" plus, stepper, back link, select chevron, alert icon next to error messages |
+| **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages |
 | **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty

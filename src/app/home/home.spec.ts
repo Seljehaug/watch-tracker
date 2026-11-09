@@ -1,4 +1,5 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Home } from './home';
 import { ShowStorage } from '../shows/show-storage';
 import { ShowStore } from '../shows/show-store';
@@ -40,7 +41,10 @@ describe('Home', () => {
 
   function render(shows: TrackedShow[]): void {
     TestBed.configureTestingModule({
-      providers: [{ provide: ShowStorage, useValue: new InMemoryShowStorage(shows) }],
+      providers: [
+        provideRouter([]),
+        { provide: ShowStorage, useValue: new InMemoryShowStorage(shows) },
+      ],
     });
     fixture = TestBed.createComponent(Home);
     fixture.detectChanges();

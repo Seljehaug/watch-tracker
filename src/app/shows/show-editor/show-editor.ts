@@ -10,6 +10,7 @@ import {FormFieldControl} from '../../shared/form-field/form-field-control';
 import {SHOW_STATUSES} from '../show-status';
 import {STREAMING_SERVICES} from '../streaming-service';
 import {NumberStepper} from '../../shared/number-stepper/number-stepper';
+import {Router, RouterLink} from '@angular/router';
 
 @Component({
   imports: [
@@ -17,7 +18,8 @@ import {NumberStepper} from '../../shared/number-stepper/number-stepper';
     FormField,
     FormFieldWrapper,
     FormFieldControl,
-    NumberStepper
+    NumberStepper,
+    RouterLink
   ],
   selector: 'app-show-editor',
   styles: `
@@ -83,7 +85,10 @@ import {NumberStepper} from '../../shared/number-stepper/number-stepper';
           </div>
         </fieldset>
 
-        <button type="submit">Save changes</button>
+        <div class="button-group">
+          <a routerLink="/" class="button button-secondary">Cancel</a>
+          <button type="submit">Save changes</button>
+        </div>
       </form>
     </div>
   `,
@@ -92,6 +97,7 @@ export class ShowEditor {
   // Dependencies
   private readonly store = inject(ShowStore);
   private readonly injector = inject(Injector);
+  private readonly router = inject(Router);
 
   // Inputs
   readonly showId = input<string>();
@@ -127,6 +133,7 @@ export class ShowEditor {
           this.store.update(this.showId() as string, editableShowFields);
         }
 
+        await this.router.navigateByUrl('/');
       },
       onInvalid: (fieldTree) => {
         // Wait until the errors are rendered, so a screen reader reads them out with the field.

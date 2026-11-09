@@ -8,6 +8,7 @@ import { ShowCard } from '../show-card/show-card';
   styles: `
     // One column on a phone; on wider screens as many 18rem columns as fit – four at full width.
     .show-list {
+      margin-top: var(--spacing-1);
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
       gap: var(--spacing-1);

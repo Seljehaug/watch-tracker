@@ -2,14 +2,22 @@ import { Component, computed, inject } from '@angular/core';
 import { ShowStore } from '../shows/show-store';
 import { ShowList } from '../shows/show-list/show-list';
 import { SvgIcon } from '../shared/svg-icon/svg-icon';
+import {RouterLink} from '@angular/router';
 
 @Component({
   selector: 'app-home',
   template: `
+<!--    TODO move to a component for page-header in shared -->
     <h1>Continue watching</h1>
+    <span class="text-muted">
+      {{ watchingText() }}
+    </span>
+
     @if (watching().length > 0) {
       <app-show-list [shows]="watching()" (nextEpisodeWatched)="markNextEpisodeAsWatched($event)" />
-    } @else {
+    }
+
+    @else { <!--    TODO move to a component for empty state -->
       <div class="empty-state">
         <div class="empty-state-icon">
           <app-svg-icon name="tv" size="big" />
@@ -19,6 +27,10 @@ import { SvgIcon } from '../shared/svg-icon/svg-icon';
           Add the shows you're watching, and you'll always know where you stopped – and where to
           pick up.
         </p>
+        <a routerLink="/shows/add" class="button button-primary">
+          <app-svg-icon name="plus"/>
+          Add your first show
+        </a>
       </div>
     }
   `,
@@ -49,7 +61,7 @@ import { SvgIcon } from '../shared/svg-icon/svg-icon';
       text-wrap: balance;
     }
   `,
-  imports: [ShowList, SvgIcon],
+  imports: [ShowList, SvgIcon, RouterLink],
 })
 export class Home {
   private readonly store = inject(ShowStore);
@@ -71,6 +83,8 @@ export class Home {
 
     return [...added, ...kept];
   });
+
+  protected readonly watchingText = computed(() => `${this.watching().length} ${this.watching().length === 1 ? 'show' : 'shows'} in progress`);
 
   protected markNextEpisodeAsWatched(id: string): void {
     this.store.markNextEpisodeAsWatched(id);

@@ -3,9 +3,10 @@ import { canMarkNextEpisodeAsWatched, getNextEpisodeRef, TrackedShow } from '../
 import { streamingServiceDisplayName } from '../streaming-service';
 import { SvgIcon } from '../../shared/svg-icon/svg-icon';
 import { DatePipe } from '@angular/common';
+import {RouterLink} from '@angular/router';
 
 @Component({
-  imports: [SvgIcon, DatePipe],
+  imports: [SvgIcon, DatePipe, RouterLink],
   selector: 'app-show-card',
   styles: `
     :host {
@@ -24,6 +25,26 @@ import { DatePipe } from '@angular/common';
       background: var(--color-surface);
       border: 1px solid var(--color-divider);
       border-radius: var(--border-radius);
+      position: relative;
+
+      &:has(a:focus-visible) {
+        border-color: var(--color-accent);
+
+        a:focus {
+          outline: none;
+        }
+      }
+
+    }
+
+    .show-card {
+      transition: background-color 150ms ease-out, border-color 150ms ease-out;
+    }
+
+    @media (hover: hover) {
+      .show-card:has(.show-title a:hover) {
+        background-color: color-mix(in srgb, var(--color-surface), var(--color-text) 6%);
+      }
     }
 
     // 2:3 like a TMDB poster, so nothing moves when real posters arrive (M3).
@@ -44,6 +65,13 @@ import { DatePipe } from '@angular/common';
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+
+      a::after {
+        display: block;
+        content: '';
+        position: absolute;
+        inset: 0;
+      }
     }
 
     .show-last-watched {
@@ -83,6 +111,8 @@ import { DatePipe } from '@angular/common';
       border: 1px solid var(--color-accent-border);
       color: var(--color-accent);
       background: var(--color-accent-soft);
+      z-index: 1;
+      position: relative;
     }
   `,
   template: `
@@ -93,7 +123,11 @@ import { DatePipe } from '@angular/common';
       </div>
 
       <div class="show-info">
-        <h2 class="show-title">{{ show().title }}</h2>
+        <h2 class="show-title">
+          <a [routerLink]="['/shows', show().id, 'edit']">
+            {{ show().title }}
+          </a>
+        </h2>
 
         <p class="show-last-watched">
           <span class="visually-hidden">

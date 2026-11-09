@@ -11,6 +11,10 @@ import { SvgIcon } from '../../shared/svg-icon/svg-icon';
         <app-svg-icon name="tv" size="big" class="app-header-logo-icon spacing-right-half"/>
         <span class="app-header-text">Watch Tracker</span>
       </a>
+      <a routerLink="/shows/add" class="app-header-link button button-primary">
+        <app-svg-icon name="plus"/>
+        Add show
+      </a>
     </header>
   `,
   styles: `
@@ -19,7 +23,13 @@ import { SvgIcon } from '../../shared/svg-icon/svg-icon';
       border-bottom: 1px solid var(--color-divider);
     }
 
-    .app-header { }
+    .app-header {
+      padding-top: var(--spacing-1);
+      padding-bottom: var(--spacing-1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
     .app-header-logo-icon {
       color: var(--color-accent);

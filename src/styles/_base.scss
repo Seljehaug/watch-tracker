@@ -3,6 +3,10 @@
   color-scheme: dark;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-text);
@@ -13,7 +17,7 @@ body {
 .container {
   max-width: var(--content-max-width);
   margin-inline: auto;
-  padding-inline: var(--spacing-1);
+  padding: var(--spacing-1);
 }
 
 :focus-visible {
@@ -92,23 +96,44 @@ input, select {
   background-color: var(--color-surface);
 }
 
-button {
+button, .button {
   cursor: pointer;
   width: fit-content;
   padding: 0.6em 1.2em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: var(--border-radius);
+  font-weight: 700;
 
   &[aria-disabled], &[disabled] {
     cursor: not-allowed;
   }
 }
 
-button[type="submit"] {
+button[type="submit"],
+.button-primary {
   background-color: var(--color-accent);
-  color: var(--color-surface);
-  font-weight: 700;
+  color: var(--color-background);
+}
+
+.button-secondary {
+  background-color: var(--color-background);
+  width: fit-content;
+  border-color: var(--color-border);
+  font-weight: bold;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-half);
+}
+
+a {
+  cursor: pointer;
 }
 
 select {

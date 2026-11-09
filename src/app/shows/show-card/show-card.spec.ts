@@ -1,4 +1,5 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ShowCard } from './show-card';
 import type { TrackedShow } from '../tracked-show';
 
@@ -14,6 +15,8 @@ const aShow = (overrides: Partial<TrackedShow> = {}): TrackedShow => ({
 
 describe('ShowCard', () => {
   function render(show: TrackedShow): ComponentFixture<ShowCard> {
+    // The card links to the editor, and RouterLink needs a router.
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = TestBed.createComponent(ShowCard);
     fixture.componentRef.setInput('show', show);
     fixture.detectChanges();
@@ -22,6 +25,14 @@ describe('ShowCard', () => {
 
   const nextEpisodeButton = (fixture: ComponentFixture<ShowCard>) =>
     (fixture.nativeElement as HTMLElement).querySelector('button');
+
+  // The URL has to match the editor's route, `shows/:showId/edit` (D38).
+  it('links to the edit page of the show', () => {
+    const fixture = render(aShow({ id: 'abc' }));
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/shows/abc/edit');
+  });
 
   it('emits the show id when the next episode button is clicked', () => {
     const fixture = render(aShow({ id: 'abc' }));
