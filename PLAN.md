@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-09
 **Current milestone:** M1 – My shows (next: the add/edit form, or the other statuses as tabs).
 Home "Continue watching" with the show card, the one-tap action and the empty state done
 2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
@@ -87,8 +87,10 @@ professionally and presentable in a CV/portfolio.
   show in the store; `onInvalid` sets `hasTriedToSave` and, once the errors are rendered, focuses
   the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
   a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
-  are secondary (D43, D46). Not done: edit mode does not load the show into the model
-  (`toShowEditorFormModel` is unused), and saving does not navigate away.
+  are secondary (D43, D46). The model is a `linkedSignal` over `show()` – the stored show mapped
+  with `toShowEditorFormModel`, or the empty model when there is none (D48). Not done: saving does
+  not navigate away, and an unknown id opens an empty form whose Save changes nothing (see the
+  not-found task).
 - `show-form-model.ts`: the form model (`null` for an empty number, `''` for no service), mapping
   both ways (`toShowEditorFormModel`, `toEditableShowFields`) and the schema – a required title that
   is not only spaces, `min(1)` and an own `integer()` validator on season and episode, and "both or
@@ -133,7 +135,7 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 109, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+- Tests: 115, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
@@ -141,8 +143,10 @@ professionally and presentable in a CV/portfolio.
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
-  errors, ARIA state, announcements, label through the wrapper, focus). Component tests use a
-  test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
+  errors, ARIA state, announcements, label through the wrapper, focus) and `show-editor.spec.ts`
+  (edit mode loads the show, empty form for add and an unknown id, follows a new id when the
+  router reuses the page, save updates or adds – on the app's real routes through
+  `RouterTestingHarness`). Component tests use a test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
   these existed (D17).
 - Zoneless (no zone.js), standalone components, strict TypeScript, SCSS, Prettier, Vitest + jsdom.
 - ESLint via angular-eslint 22 (`npm run lint`): flat config in `eslint.config.mjs` (ES module),
@@ -223,9 +227,13 @@ Goal: something actually useful – a list of my shows with progress, entered by
       `<input>`/`<select>`, plus an own form-field component (label, hint, error message) reused
       across the fields. Then the card title becomes a link to `/shows/:id/edit` (DESIGN.md §2)
       and the empty state gets its "Add your first show" button.
-      _Progress:_ fields, validation (D41, D44) and the season/episode steppers (D43) work; left are
-      loading the show in edit mode, what happens after a save, the card link, the empty-state
-      button and the steppers' styling.
+      _Progress:_ fields, validation (D41, D44), the season/episode steppers (D43) and loading the
+      show in edit mode (D48) work; left are what happens after a save, the card link, the
+      empty-state button and the steppers' styling.
+- [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
+      `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
+      Save silently changes nothing. Decide whether the route stops it before the page opens (a
+      resolver or guard returning a `RedirectCommand`) or the page shows it itself.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
@@ -390,6 +398,7 @@ reversed, mark it as superseded instead of deleting it.
 | D45 | 2026-11-06 | ARIA attributes are bound with the `attr.` prefix everywhere, in templates and in `host` objects: `[attr.aria-label]`, `'[attr.aria-invalid]'`. A `false` that should remove the attribute is written `… \|\| null`. | Angular 22 also accepts `[aria-label]` in templates, but it first sends the value to a directive input with that name if the element has one, and in `host` bindings the compiler treats it as a DOM property rather than the attribute. `attr.` always sets the attribute and removes it on `null`/`undefined`, the same way in both places, so one form fits all. |
 | D46 | 2026-11-06 | No "Shown as S02 E07. Leave empty if you haven't started." preview under the steppers. The fieldset holds the legend and the two steppers, and the legend says "Last watched episode (optional)", following the rule that optional fields say so in the label. This replaces the preview in DESIGN.md §2 and the "Shown as" parts of D39 and D44. | The preview repeats what the two fields already say, and the `S02 E07` format is learnt on the card, where it is shown. "Leave empty…" only says the fields are optional, which "(optional)" already covers, and the card shows "Not started" for an empty one. Without it there is no fieldset `aria-describedby` to wire up, and nothing to talk over the stepper's live region. |
 | D47 | 2026-11-06 | Class members go in this order: dependencies (`inject`), inputs and models, outputs, queries, state (signals, `computed`, the form), constants, then methods – public API, template event handlers, private helpers. Classes with three or more of these groups get a one-line `//` heading per group; small classes go without. Event handlers are named for what they do (`decreaseAndAnnounce`), not for the event (`decreaseClicked`); `handleKeydown` is fine for one handler that sends many keys on. | Angular's style guide: "Group Angular-specific properties before methods" and "Name event handlers for what they do". One order makes every class read the same way. It is also needed in places: fields initialise top to bottom, so `rawValue` has to come after the `value` it wraps, and `form` after `model`. Headings on a two-member class are noise. |
+| D48 | 2026-11-09 | The show editor's form model is a `linkedSignal` derived from `show()`: the stored show mapped with `toShowEditorFormModel`, or `EMPTY_SHOW_FORM_MODEL` when there is no show. `form()` gets it directly. It starts over when the show changes – when the router reuses the page for another id, or the store saves a new object for the show. | The model has to follow the `showId` input and still be writable by the form. A `signal` filled in a field initializer reads the input before the router has set it, and never follows when the page is reused for another id. An `effect` copying the show into a signal also works, but angular.dev advises against effects for passing state between signals. The model checks whether a show exists, not whether the page is in add mode (`isNewShow`), so an unknown id gives an empty form instead of a crash. Accepted: edits are lost if the show changes while the form is open – today only Save does that; revisit with sync (Later). |
 
 ## 7. Open questions
 

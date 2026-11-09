@@ -1,9 +1,8 @@
-import {afterNextRender, Component, computed, inject, Injector, input, signal} from '@angular/core';
+import {afterNextRender, Component, computed, inject, Injector, input, linkedSignal, signal} from '@angular/core';
 import {ShowStore} from '../show-store';
 import {
   EMPTY_SHOW_FORM_MODEL,
-  ShowEditorFormModel,
-  showFormModelSchema, toEditableShowFields,
+  showFormModelSchema, toEditableShowFields, toShowEditorFormModel,
 } from '../show-form-model';
 import {form, FormField, FormRoot} from '@angular/forms/signals';
 import {FormFieldWrapper} from '../../shared/form-field/form-field';
@@ -106,7 +105,11 @@ export class ShowEditor {
 
   protected readonly pageTitle = computed(() => this.isNewShow() ? 'Add show' : 'Edit show');
 
-  protected readonly model = signal<ShowEditorFormModel>(EMPTY_SHOW_FORM_MODEL);
+  // The form's editable copy of the show, empty when there is none. Starts over when the show changes.
+  protected readonly model = linkedSignal(() => {
+    const show = this.show();
+    return show ? toShowEditorFormModel(show) : EMPTY_SHOW_FORM_MODEL;
+  });
 
   protected readonly hasTriedToSave = signal(false);
 
