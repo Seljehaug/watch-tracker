@@ -5,9 +5,10 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-09
-**Current milestone:** M1 – My shows (next: focus after navigation – Save now navigates – then
-not found and the floating add button on phones).
-The add/edit form with its links in and out done 2026-11-09; Home "Continue watching" with the show card, the one-tap action and the empty state done
+**Current milestone:** M1 – My shows (next: the not-found page, then the floating add button on
+phones).
+Focus and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
+done 2026-11-09; Home "Continue watching" with the show card, the one-tap action and the empty state done
 2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
 done 2026-10-09.
 
@@ -67,7 +68,13 @@ professionally and presentable in a CV/portfolio.
   the `<router-outlet>`. Three routes, each lazy-loaded with `loadComponent` and with a page
   `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and `shows/:showId/edit`
   → `ShowEditor`, which gets the id through component input binding (D38). The router has
-  `withViewTransitions()`, so pages swap with the browser's default crossfade.
+  `withViewTransitions()`, so pages swap with the browser's default crossfade, and
+  `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })`, so a new page starts at the
+  top and Back restores the position. `App` moves focus after every navigation but the first
+  (the app load): it listens to `router.events` (`filter` on `NavigationEnd`, `skip(1)`,
+  `takeUntilDestroyed()`) and, after the next render, focuses `main h1` with
+  `preventScroll: true`. Each page gives its `<h1>` `tabindex="-1"` – a page that forgets it
+  silently leaves focus on `<body>`.
 - `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
   `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
   page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
@@ -143,7 +150,8 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 118, in `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+- Tests: 121, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+  on the first one; stand-in pages instead of the real ones), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
@@ -241,8 +249,9 @@ Goal: something actually useful – a list of my shows with progress, entered by
   - `PageHeader` (`app-page-header`, `shared/`): the page's `<h1>`, the muted subtitle ("2 shows
     in progress") and the tabs projected with `<ng-content>`; it knows nothing about shows.
     Name the input `heading`, not `title` – `title` is a global HTML attribute, so a static
-    `title="…"` also lands on the element and shows a tooltip over the whole section.
-    `StatusTabs` (`app-status-tabs`, `shows/`) is the `<nav>` with the links and counts.
+    `title="…"` also lands on the element and shows a tooltip over the whole section. It owns
+    the `<h1 tabindex="-1">` that focus after navigation targets, so pages stop having to
+    remember the `tabindex`. `StatusTabs` (`app-status-tabs`, `shows/`) is the `<nav>` with the links and counts.
   - `EmptyState` (`app-empty-state`, `shared/`): today the empty state is inline in `Home`. Pull
     it out – icon, heading, text and the action projected – so every status tab can show its own
     ("No finished shows yet"), with the "Add your first show" button only where it fits.
@@ -261,9 +270,13 @@ Goal: something actually useful – a list of my shows with progress, entered by
       the header; on tablets perhaps both, decided when it is built. Not on the empty state, which
       has its own button. _Progress:_ the header link is in, shown at every width for now; left
       are the floating button on phones and hiding the header link there.
-- [ ] Focus after navigation: when Save or a link swaps the page, focus must not fall back to
+- [x] Focus after navigation: when Save or a link swaps the page, focus must not fall back to
       `<body>`. Move it to the new page's heading on `NavigationEnd`, once for the whole app
       (angular.dev, "Accessibility in Angular" → "Focus management after navigation").
+      Scroll goes with it: the Router keeps the scroll position on navigation by default, so a
+      card tapped far down Home opens the editor scrolled down.
+      `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })` starts a new page at the
+      top and restores the position on Back. Done 2026-11-09 (see §3).
 - [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
       `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
       Save silently changes nothing. Decide whether the route stops it before the page opens (a

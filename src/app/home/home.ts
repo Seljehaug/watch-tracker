@@ -8,7 +8,7 @@ import {RouterLink} from '@angular/router';
   selector: 'app-home',
   template: `
 <!--    TODO move to a component for page-header in shared -->
-    <h1>Continue watching</h1>
+    <h1 tabindex="-1">Continue watching</h1>
     <span class="text-muted">
       {{ watchingText() }}
     </span>

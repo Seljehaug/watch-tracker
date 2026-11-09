@@ -48,7 +48,7 @@ import {Router, RouterLink} from '@angular/router';
   `,
   template: `
     <div class="show-editor">
-      <h1>{{ pageTitle() }}</h1>
+      <h1 tabindex="-1">{{ pageTitle() }}</h1>
       <form [formRoot]="form" class="show-editor-form">
         <app-form-field label="Title" [showErrors]="hasTriedToSave()">
           <input type="text" [formField]="form.title" appFormFieldControl />
