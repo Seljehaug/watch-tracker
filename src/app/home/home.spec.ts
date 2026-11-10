@@ -95,7 +95,15 @@ describe('Home', () => {
     render([{ ...aShow('Done', '2026-10-01T00:00:00.000Z'), status: 'finished' }]);
 
     const page = fixture.nativeElement as HTMLElement;
-    expect(page.querySelector('.empty-state')).not.toBeNull();
+    expect(page.querySelector('app-show-list-empty')).not.toBeNull();
     expect(page.querySelector('app-show-list')).toBeNull();
+  });
+
+  it('projects the link to add a show into the empty state', () => {
+    render([]);
+
+    // Content that matches no <ng-content select> is dropped without a warning
+    const emptyState = (fixture.nativeElement as HTMLElement).querySelector('app-show-list-empty');
+    expect(emptyState?.querySelector('a[href="/shows/add"]')).not.toBeNull();
   });
 });

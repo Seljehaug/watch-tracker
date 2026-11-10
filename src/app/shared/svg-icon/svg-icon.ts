@@ -3,7 +3,7 @@ import { Component, input } from '@angular/core';
 export type IconSize = 'small' | 'medium' | 'big';
 
 export type IconName =
-  'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'minus' | 'plus' | 'trash' | 'tv';
+  'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'minus' | 'page-not-found' | 'plus' | 'trash' | 'tv';
 
 @Component({
   selector: 'app-svg-icon',
@@ -48,6 +48,11 @@ export type IconName =
           <rect x="3" y="5" width="18" height="12" rx="2" />
           <path d="M8 21h8" />
           <path d="M10.5 9v4l3-2z" />
+        }
+        @case ('page-not-found') {
+          <rect x="3" y="5" width="18" height="12" rx="2"/>
+          <path d="M8 21h8"/>
+          <path d="M9.75 8.75l4.5 4.5M14.25 8.75l-4.5 4.5"/>
         }
         @default never;
       }

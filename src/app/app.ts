@@ -7,8 +7,26 @@ import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 @Component({
   imports: [RouterOutlet, Header],
   selector: 'app-root',
-  styleUrl: './app.scss',
-  templateUrl: './app.html',
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+  `,
+  template: `
+    <app-header />
+
+    <main class="container">
+      <router-outlet />
+    </main>
+  `
 })
 export class App {
   private readonly router = inject(Router);

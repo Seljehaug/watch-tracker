@@ -4,10 +4,11 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-09
-**Current milestone:** M1 – My shows (next: the not-found page, then the floating add button on
-phones).
-Focus and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
+**Last updated:** 2026-11-10
+**Current milestone:** M1 – My shows (next: the guard that sends unknown show ids to the
+not-found page, then the floating add button on phones).
+The not-found page with its `**` route, `PageHeader` and `ShowListEmpty` done 2026-11-10; focus
+and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
 done 2026-11-09; Home "Continue watching" with the show card, the one-tap action and the empty state done
 2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
 done 2026-10-09.
@@ -64,24 +65,47 @@ professionally and presentable in a CV/portfolio.
 
 ## 3. Current state of the code
 
-- Angular 22.2 CLI project. `App` renders `<app-header />` and `<main class="container">` around
-  the `<router-outlet>`. Three routes, each lazy-loaded with `loadComponent` and with a page
-  `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and `shows/:showId/edit`
-  → `ShowEditor`, which gets the id through component input binding (D38). The router has
+- Angular 22.2 CLI project. `App` (inline template and styles) renders `<app-header />` and
+  `<main class="container">` around the `<router-outlet>`. The shell fills the screen: `App`'s
+  `:host` is a flex column with `min-height: 100dvh` (`dvh` follows the visible area on phones,
+  where `vh` counts the browser's toolbars as hidden), and `main` takes the rest with `flex: 1`
+  and is a flex column itself, so a page fills it with `flex: 1` on its own `:host` – the router
+  inserts the page's host after `<router-outlet>`, out of reach of `App`'s styles. `.container`
+  has `width: 100%`: its `margin-inline: auto` turns off stretching in a flex column, which
+  shrank `main` to its content. Four routes, each lazy-loaded with `loadComponent` and with a
+  page `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and
+  `shows/:showId/edit` → `ShowEditor`, which gets the id through component input binding (D38),
+  and `**` last → `PageNotFound` (the router takes the first match). The router has
   `withViewTransitions()`, so pages swap with the browser's default crossfade, and
   `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })`, so a new page starts at the
   top and Back restores the position. `App` moves focus after every navigation but the first
   (the app load): it listens to `router.events` (`filter` on `NavigationEnd`, `skip(1)`,
   `takeUntilDestroyed()`) and, after the next render, focuses `main h1` with
-  `preventScroll: true`. Each page gives its `<h1>` `tabindex="-1"` – a page that forgets it
-  silently leaves focus on `<body>`.
+  `preventScroll: true`. Each page's `<h1>` has `tabindex="-1"` – through `PageHeader` on Home,
+  written by hand in the editor and on the not-found page; a page that forgets it silently
+  leaves focus on `<body>`.
 - `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
   `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
   page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
   puts the store's fresh data in that order, with shows that started since first (D36). With no
   show being watched it shows the empty state instead (DESIGN.md "Empty state", with an "Add your
   first show" link to `/shows/add`). Under the title a muted "N shows in progress" (singular for
-  one). Page header and empty state are inline for now (see the status tabs task).
+  one). The title and the count are a `PageHeader`, the empty state a `ShowListEmpty` with the
+  link projected – Home imports `RouterLink` and `SvgIcon` for it, since projected content is
+  compiled in the template that writes it.
+- `PageHeader` (`src/app/shared/page-header/`): the page's `<h1 tabindex="-1">` from the
+  required `heading` input and an optional muted `<p>` from `description`. The status tabs will
+  be projected into it.
+- `ShowListEmpty` (`src/app/shows/show-list-empty/`, D55): the icon (`iconName`, an `IconName`) in
+  a `--color-accent-soft` tile, an `<h2>` from the required `heading`, an optional muted `<p>`
+  from `description`, and the action projected with `<ng-content select="a, button">` – anything
+  else is dropped without a warning. The tile is a `<div>` around the icon: padding on
+  `app-svg-icon` itself eats its fixed size (`border-box`) and the SVG ends up 0×0.
+- `PageNotFound` (`src/app/page-not-found/`, `app-page-not-found`, DESIGN.md "Not-found page"):
+  the `page-not-found` icon in the same kind of tile, `<h1 tabindex="-1">Page not found</h1>`, a
+  muted line and a "Go to the home page" button link to `/`, centred both ways – its `:host` has
+  `flex: 1` in the shell's `main`. Only unknown URLs reach it so far; unknown show ids still
+  open an empty editor until the guard is in.
 - `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
   responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
   four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
@@ -150,12 +174,15 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 121, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
-  on the first one; stand-in pages instead of the real ones), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+- Tests: 129, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+  on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
+  show the not-found page and keep the URL, the real pages still open – catches a `**` that has
+  moved up the list), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
-  at open, a card stays in place after a tap, new shows first, empty state),
+  at open, a card stays in place after a tap, new shows first, empty state, the add link
+  projected into it),
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
@@ -252,9 +279,12 @@ Goal: something actually useful – a list of my shows with progress, entered by
     `title="…"` also lands on the element and shows a tooltip over the whole section. It owns
     the `<h1 tabindex="-1">` that focus after navigation targets, so pages stop having to
     remember the `tabindex`. `StatusTabs` (`app-status-tabs`, `shows/`) is the `<nav>` with the links and counts.
-  - `EmptyState` (`app-empty-state`, `shared/`): today the empty state is inline in `Home`. Pull
-    it out – icon, heading, text and the action projected – so every status tab can show its own
-    ("No finished shows yet"), with the "Add your first show" button only where it fits.
+    _Progress:_ built 2026-11-10 with the heading and the subtitle (`description`), used by
+    Home; the tabs slot comes with this task.
+  - `ShowListEmpty` (`app-show-list-empty`, `shows/`, D55): today the empty state is inline in
+    `Home`. Pull it out – icon, heading (always an `<h2>`) and text as inputs, the action
+    projected – so every status tab can show its own ("No finished shows yet"), with the "Add
+    your first show" button only where it fits. _Progress:_ done 2026-11-10, used by Home.
 - [x] Show card component, reused across the lists (`ShowCard` + `ShowList`; the status tabs will
       reuse them)
 - [x] Add/edit form with Signal Forms and validation (`/shows/add`, `/shows/:id/edit`): native
@@ -280,11 +310,16 @@ Goal: something actually useful – a list of my shows with progress, entered by
 - [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
       `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
       Save silently changes nothing. Decided: a guard stops it before the page opens (D53).
-      Steps: a `NotFound` page in `src/app/not-found/` (`<h1 tabindex="-1">` for focus after
-      navigation, a short text, a link to Home); `{ path: '**' }` with a `title`, last in
-      `app.routes.ts` (the router takes the first match); `showExistsGuard` (`CanActivateFn`,
-      `ng generate guard shows/show-exists`) on the edit route. Tests: the guard, the wildcard
-      route, and the ShowEditor test that expects an empty form for an unknown id changes.
+      Steps: a `PageNotFound` page in `src/app/page-not-found/` (`<h1 tabindex="-1">` for focus
+      after navigation, a short text, a link to Home – designed in DESIGN.md, "Not-found page":
+      the `page-not-found` icon, its own markup rather than `ShowListEmpty`, D55);
+      `{ path: '**' }` with a `title`, last in `app.routes.ts` (the router takes the first
+      match); `showExistsGuard` (`CanActivateFn`, `ng generate guard shows/show-exists`) on the
+      edit route – `true` when the store has the show, otherwise a `RedirectCommand` to a URL
+      the `**` route catches, with `browserUrl: state.url` so the address bar keeps what the
+      user asked for. Tests: the guard, the wildcard route, and the ShowEditor test that expects
+      an empty form for an unknown id changes. _Progress:_ the page, the `**` route and its
+      tests done 2026-11-10; left are the guard and its tests.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
@@ -295,7 +330,9 @@ Goal: something actually useful – a list of my shows with progress, entered by
       link, and the card's focus indicator – D51 asks for the global focus ring around the card,
       today the card's border turns accent. The steppers first: at phone width (≈366px) their
       buttons stack, the Episode stepper sticks out on the right and the page scrolls sideways,
-      which breaks D28 (no horizontal scrolling from 320px, WCAG 1.4.10). Ideas: glass for the floating button and a sticky
+      which breaks D28 (no horizontal scrolling from 320px, WCAG 1.4.10). Page titles: no rule
+      sizes `h1`, so every page's title is the browser's 2em (32px), not `--font-size-big`
+      (noted 2026-11-10). Ideas: glass for the floating button and a sticky
       header, never for the cards (Apple: no glass in the content layer).
 - [ ] Route transitions, after the functionality: the Router's View Transitions support
       (`withViewTransitions()` in `provideRouter`, developer preview in v22), styled in the global
@@ -477,6 +514,7 @@ reversed, mark it as superseded instead of deleting it.
 | D52 | 2026-11-09 | The add/edit page has no "Back" link. Its one way out is "Cancel" next to "Save changes" – a `RouterLink` to `/` (D49) – on every screen size; the header has no "Back" link. The mockups and DESIGN.md §2 are updated. | Back and Cancel went to the same place, so one of them was in the way. In a form, "Cancel" also says that the changes are not saved, and it sits where the hand and the eye are when the form is done – within reach of the thumb on a phone (D3). Desktop and tablet also have the browser's back button and the brand link, but an app installed on an iPhone (M2) has no browser bar, so the page needs its own way out; one page for every size is simpler than hiding it on wide screens. "Back" may come back on pages that are read rather than filled in, such as the show page (M3). |
 | D53 | 2026-11-09 | An unknown show id is stopped by a `CanActivate` guard on `shows/:showId/edit` (`showExistsGuard`), not by the editor. The guard returns `true` when `ShowStore` has the show, otherwise a `RedirectCommand` to the not-found page with `browserUrl` set to the URL the user asked for, so the address bar keeps it. Unknown URLs reach the same page through the wildcard route. | One not-found page for unknown URLs and unknown ids. The check runs before the page opens, so there is no flash of an empty "Edit show" form, and the editor never has to handle a show that doesn't exist – D48's empty-model fallback is then only add mode. Keeping the URL shows the user what they asked for and lets them correct it. Accepted: the guard reads the store synchronously, which fits localStorage; with an HTTP API (Later) it returns a Promise or an Observable instead, which guards allow. |
 | D54 | 2026-11-09 | No leave warning for unsaved changes on the add/edit page for now; moved from M1 to Later, to be picked up only if real use on the phone (M2) shows that edits get lost by accident. | The form has five fields and an edit usually touches one or two, so an accidental exit costs seconds, and in edit mode the stored show is untouched. It would be built only because forms "usually have it" (§1, D14). It teaches little that is new: guards are learnt with the not-found page (D53). It costs a guard, `beforeunload`, history handling for Back and a dialog choice, and still can't cover closing the tab in Safari on iOS. |
+| D55 | 2026-11-10 | The show lists' empty state is a component in `shows/`, `ShowListEmpty` (`app-show-list-empty`): icon (`IconName`), heading and description as inputs, the action (link or button) projected with one `<ng-content />`. The heading is always an `<h2>`. The not-found page does not use it: it has the same look in its own markup, with the page's `<h1 tabindex="-1">` as its heading. Replaces `EmptyState` in `shared/` from the status tabs task. | Every empty state looks and behaves the same, the compiler requires the heading (projected content can't be required), and its styles stay in the component – a projected heading belongs to the page's view, which the component's styles don't reach. The not-found page is a page, not an empty list: its heading is the `<h1>` that focus after navigation targets, so it can't be the component's `<h2>`. Accepted: the tile and the centring are styled in two places; DESIGN.md describes the pattern, so they stay alike. |
 
 ## 7. Open questions
 

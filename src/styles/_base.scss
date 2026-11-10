@@ -16,6 +16,7 @@ body {
 
 .container {
   max-width: var(--content-max-width);
+  width: 100%;
   margin-inline: auto;
   padding: var(--spacing-1);
 }

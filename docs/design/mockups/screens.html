@@ -171,6 +171,7 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; }
     <a href="#edit">Add/edit</a>
     <a href="#delete">Delete dialog</a>
     <a href="#empty">Empty state</a>
+    <a href="#not-found">Not found</a>
   </nav>
 </header>
 
@@ -198,6 +199,12 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; }
     <p>No floating add button on phone and no "Add show" in the header on wider screens: the empty state's own button is the one way forward.</p>
     <div class="sizes" data-screen="empty"></div>
   </section>
+
+  <section class="screen" id="not-found">
+    <h2>Not found</h2>
+    <p>One page for a URL no route matches and for an edit URL whose show isn't in the list; the address bar keeps the URL, so the text covers both (D53). The empty state's look in the page's own markup: the heading is the page's <code>&lt;h1&gt;</code>, at the page title size (D55). The page-not-found icon (the TV with a cross), not the alert icon – there is nothing to correct. The header is the same as on Home; no floating add button on phone, as the page's own button is the way forward.</p>
+    <div class="sizes" data-screen="not-found"></div>
+  </section>
 </main>
 
 <script>
@@ -210,6 +217,7 @@ const SIZES = [
 // The paths of docs/design/icons/*.svg
 const ICON_PATHS = {
   tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M10.5 9v4l3-2z"/>',
+  pageNotFound: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M9.75 8.75l4.5 4.5M14.25 8.75l-4.5 4.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
   chevronDown: '<path d="M6 9l6 6 6-6"/>',
@@ -404,11 +412,27 @@ function empty() {
     </main>`;
 }
 
+function notFound(size) {
+  return `
+    ${header({ addButton: size !== 'phone' })}
+    <main class="page container">
+      <div class="empty-state">
+        <span class="empty-tile">${icon('pageNotFound', 'big')}</span>
+        <div>
+          <h1 class="page-title">Page not found</h1>
+          <p class="empty-text">This show never made it past the pilot – or the link is broken.</p>
+        </div>
+        <a class="button button-large button-accent" href="#home">Go to the home page</a>
+      </div>
+    </main>`;
+}
+
 const SCREENS = {
   home: (size) => home(size),
   edit: (size, uid) => edit(size, uid),
   delete: (size, uid) => deleteDialog(size, uid),
   empty: () => empty(),
+  'not-found': (size) => notFound(size),
 };
 
 for (const section of document.querySelectorAll('[data-screen]')) {

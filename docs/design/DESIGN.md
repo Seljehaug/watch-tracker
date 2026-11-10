@@ -255,11 +255,34 @@ Inside a tab with no shows: just "Nothing here yet." in muted text.
 Built (M1) with the `big` TV icon in a `--color-accent-soft` tile sized by its `--spacing-1`
 padding; the "Add your first show" button comes with the add form, when `/shows/add` exists.
 
+### Not-found page
+
+One page for everything that doesn't exist (D53): a URL no route matches (the `**` route) and an
+edit URL whose show isn't in the list (the guard on `shows/:showId/edit`). The address bar keeps
+the URL the user asked for, and the page can't tell the two cases apart, so its text covers both.
+
+Centred like the empty state: the `big` page-not-found icon (the TV with a cross where the play
+triangle was – nothing to play here) in a `--color-accent-soft` tile, the title "Page not found"
+as the page's `<h1>` (`tabindex="-1"`, so focus after navigation lands on it), the muted text "This
+show never made it past the pilot – or the link is broken.", and one accent button "Go to the
+home page" – a `RouterLink` to `/` (D49) styled as `.button-primary`. Not the
+alert-circle icon: that is the form error icon (D42), and the user has nothing to correct here.
+Not a plain link in the text: links have no underline and inherit the text colour, so it would
+look like body text (WCAG 1.4.1). Not "Back" or "Go back" (D52): the link always goes to `/`, and
+a user who came from a bookmark, another site or a typed address was never on Home. Not "Go to
+Continue watching": the page's title reads as an instruction, not as a place to go. The heading
+stays plain, as screen readers and the tab title say it too; the joke is in the text, which still
+names both causes. The text is centred too, so it wraps into centred lines on a phone.
+
+It looks like the empty state but is not one: its heading is the page's `<h1>`, while the show
+lists' empty state (`ShowListEmpty`) always has an `<h2>`. So the page has its own markup with the
+same tokens (D55).
+
 ### Icons
 
-Simple inline stroke SVGs: TV (brand), check, plus, minus, chevron-left, chevron-down, trash,
-alert-circle – one file each in [`icons/`](icons/). All icons share the same attributes, so a new
-icon must follow them too:
+Simple inline stroke SVGs: TV (brand), page-not-found (the TV with a cross), check, plus, minus,
+chevron-left, chevron-down, trash, alert-circle – one file each in [`icons/`](icons/). All icons
+share the same attributes, so a new icon must follow them too:
 
 - `viewBox="0 0 24 24"` – every icon is drawn on a 24×24 grid. Icons from a library with another
   grid (e.g. 16 or 512) have to be redrawn or scaled to it first.
@@ -278,7 +301,7 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Not used at the moment (the alert icon is medium since D42)                       |
 | **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages |
-| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state |
+| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state, page-not-found icon on the not-found page |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
 state drew the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with
@@ -307,7 +330,8 @@ Screen range (D28): the layout **must work from 320px** wide with no horizontal 
 ## 4. Mockups
 
 [`mockups/screens.html`](mockups/screens.html) shows every screen – Home, add/edit, the delete
-dialog and the empty state – at phone (390px), tablet (768px) and desktop (1280px) width. It is
+dialog, the empty state and the not-found page – at phone (390px), tablet (768px) and desktop
+(1280px) width. It is
 plain HTML that opens in any browser, uses the tokens from §1 (values that aren't tokens yet are
 named `--mock-*`), and follows this file, including D35 and D39. Like the measurements in §2,
 it is an example, not an answer key (D26). Show titles are sample data.

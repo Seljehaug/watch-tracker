@@ -15,5 +15,10 @@ export const routes: Routes = [
     path: 'shows/:showId/edit',
     title: 'Edit show - Watch Tracker',
     loadComponent: () => import('./shows/show-editor/show-editor').then((m) => m.ShowEditor),
+  },
+  {
+    path: '**',
+    title: 'Page not found - Watch Tracker',
+    loadComponent: () => import('./page-not-found/page-not-found').then(m => m.PageNotFound),
   }
 ];
