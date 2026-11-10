@@ -25,6 +25,10 @@ import {SvgIcon} from '../shared/svg-icon/svg-icon';
       background: var(--color-accent-soft);
       color: var(--color-accent);
     }
+
+    .page-not-found-description {
+      text-align: center;
+    }
   `,
   template: `
     <div class="page-not-found-icon-wrapper">
@@ -35,7 +39,7 @@ import {SvgIcon} from '../shared/svg-icon/svg-icon';
       Page not found
     </h1>
 
-    <p class="text-muted">
+    <p class="text-muted page-not-found-description">
       This show never made it past the pilot – or the link is broken.
     </p>
 

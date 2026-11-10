@@ -105,15 +105,16 @@ export class ShowEditor {
   // State
   private readonly isNewShow = computed(() => !this.showId());
 
-  protected readonly show = computed(() => {
-    return this.store.shows().find(show => show.id === this.showId());
+  protected readonly storedShow = computed(() => {
+    const id = this.showId();
+    return id ? this.store.getShowById(id) : null;
   });
 
   protected readonly pageTitle = computed(() => this.isNewShow() ? 'Add show' : 'Edit show');
 
   // The form's editable copy of the show, empty when there is none. Starts over when the show changes.
   protected readonly model = linkedSignal(() => {
-    const show = this.show();
+    const show = this.storedShow();
     return show ? toShowEditorFormModel(show) : EMPTY_SHOW_FORM_MODEL;
   });
 

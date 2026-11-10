@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import {showExistsGuard} from './shows/show-exists-guard';
 
 export const routes: Routes = [
   {
@@ -14,6 +15,7 @@ export const routes: Routes = [
   {
     path: 'shows/:showId/edit',
     title: 'Edit show - Watch Tracker',
+    canActivate: [showExistsGuard],
     loadComponent: () => import('./shows/show-editor/show-editor').then((m) => m.ShowEditor),
   },
   {

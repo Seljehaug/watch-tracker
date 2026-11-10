@@ -20,6 +20,14 @@ export class ShowStore {
     return [...filtered].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   });
 
+  getShowById(showId: string): TrackedShow | null {
+    return this._shows().find(show => show.id === showId) ?? null;
+  }
+
+  showExists(showId: string): boolean {
+    return this.getShowById(showId) !== null;
+  }
+
   add(newShow: EditableShowFields): TrackedShow {
     const nowAsISO = new Date().toISOString();
 

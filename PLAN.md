@@ -5,9 +5,9 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-10
-**Current milestone:** M1 – My shows (next: the guard that sends unknown show ids to the
-not-found page, then the floating add button on phones).
-The not-found page with its `**` route, `PageHeader` and `ShowListEmpty` done 2026-11-10; focus
+**Current milestone:** M1 – My shows (next: the floating add button on phones).
+The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
+`ShowListEmpty` done 2026-11-10; focus
 and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
 done 2026-11-09; Home "Continue watching" with the show card, the one-tap action and the empty state done
 2026-11-03; data model and the store with localStorage behind an abstraction done 2026-10-16; M0
@@ -75,7 +75,13 @@ professionally and presentable in a CV/portfolio.
   shrank `main` to its content. Four routes, each lazy-loaded with `loadComponent` and with a
   page `title`: `''` → `Home` (`src/app/home/`, inline template), `shows/add` and
   `shows/:showId/edit` → `ShowEditor`, which gets the id through component input binding (D38),
-  and `**` last → `PageNotFound` (the router takes the first match). The router has
+  and `**` last → `PageNotFound` (the router takes the first match). The edit route has
+  `canActivate: [showExistsGuard]` (`src/app/shows/show-exists-guard.ts`, D53): it reads the id
+  with `route.paramMap.get('showId')` (typed `string | null`, where `params` is `any`) and
+  returns `true` when `ShowStore.showExists`, otherwise a `RedirectCommand` to
+  `/page-not-found` – no route of its own, `**` catches it – with `browserUrl: state.url`, so
+  the router shows the not-found page while the address bar keeps the URL the user asked for
+  (`router.url` is the redirect target). The router has
   `withViewTransitions()`, so pages swap with the browser's default crossfade, and
   `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })`, so a new page starts at the
   top and Back restores the position. `App` moves focus after every navigation but the first
@@ -104,8 +110,9 @@ professionally and presentable in a CV/portfolio.
 - `PageNotFound` (`src/app/page-not-found/`, `app-page-not-found`, DESIGN.md "Not-found page"):
   the `page-not-found` icon in the same kind of tile, `<h1 tabindex="-1">Page not found</h1>`, a
   muted line and a "Go to the home page" button link to `/`, centred both ways – its `:host` has
-  `flex: 1` in the shell's `main`. Only unknown URLs reach it so far; unknown show ids still
-  open an empty editor until the guard is in.
+  `flex: 1` in the shell's `main`. Reached by unknown URLs and, through the guard, by edit URLs
+  whose show isn't in the store. Not done: the muted line has no `text-align: center`, so on a
+  phone it wraps into left-aligned lines under the centred heading (DESIGN.md asks for centred).
 - `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
   responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
   four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
@@ -124,11 +131,14 @@ professionally and presentable in a CV/portfolio.
   show in the store; `onInvalid` sets `hasTriedToSave` and, once the errors are rendered, focuses
   the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
   a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
-  are secondary (D43, D46). The model is a `linkedSignal` over `show()` – the stored show mapped
-  with `toShowEditorFormModel`, or the empty model when there is none (D48). A successful save
-  goes to Home with `Router.navigateByUrl('/')` (D49); "Cancel" next to Save is a `RouterLink`
-  to `/` styled as a button (D52). Not done: an unknown id opens an
-  empty form whose Save changes nothing (see the not-found task).
+  are secondary (D43, D46). `storedShow` is a `computed` that reads `showId()` once into a
+  `const` (TypeScript narrows variables, not the results of calls) and looks it up with
+  `ShowStore.getShowById`, or is `null` in add mode. The model is a `linkedSignal` over it – the
+  stored show mapped with `toShowEditorFormModel`, or the empty model when there is none (D48).
+  An unknown id never reaches the editor (the guard, D53), so the empty model is only add mode –
+  and a show removed while the form is open. A successful save goes to Home with
+  `Router.navigateByUrl('/')` (D49); "Cancel" next to Save is a `RouterLink` to `/` styled as a
+  button (D52).
 - `show-form-model.ts`: the form model (`null` for an empty number, `''` for no service), mapping
   both ways (`toShowEditorFormModel`, `toEditableShowFields`) and the schema – a required title that
   is not only spaces, `min(1)` and an own `integer()` validator on season and episode, and "both or
@@ -166,7 +176,9 @@ professionally and presentable in a CV/portfolio.
   `markNextEpisodeAsWatched(id)` bumps the episode via the pure `getNextEpisodeRef` in
   `tracked-show.ts` and starts Want to watch shows; Finished and Dropped are left alone (D34).
   Which statuses get the action is one pure function, `canMarkNextEpisodeAsWatched`, shared by
-  the store and the card so they cannot disagree.
+  the store and the card so they cannot disagree. `getShowById(id)` returns the show or `null`
+  (D56) and `showExists(id)` builds on it – the guard and the editor both look shows up through
+  them.
 - Storage behind an abstraction (D6): `ShowStorage` is an `abstract class` – both the type and the
   DI token, since a TS interface does not exist at runtime – implemented by
   `LocalStorageShowStorage` and wired in `app.config.ts` with `useClass`. The payload is a
@@ -174,10 +186,13 @@ professionally and presentable in a CV/portfolio.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 129, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- Tests: 132, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
-  show the not-found page and keep the URL, the real pages still open – catches a `**` that has
-  moved up the list), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
+  and an unknown show id show the not-found page and keep the URL in the address bar –
+  `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
+  still open, which catches a `**` that has moved up the list), `show-exists-guard.spec.ts`
+  (stand-in pages: a known show opens, an unknown id gets the not-found page with its URL in
+  the address bar, a show removed after the app started is not found), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
   system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
   version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
@@ -187,7 +202,7 @@ professionally and presentable in a CV/portfolio.
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
   errors, ARIA state, announcements, label through the wrapper, focus) and `show-editor.spec.ts`
-  (edit mode loads the show, empty form for add and an unknown id, follows a new id when the
+  (edit mode loads the show, empty form in add mode, follows a new id when the
   router reuses the page, save updates or adds, Home after a save but not after an invalid one –
   on the app's real routes through `RouterTestingHarness`). Component tests use a test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
   these existed (D17).
@@ -307,7 +322,7 @@ Goal: something actually useful – a list of my shows with progress, entered by
       card tapped far down Home opens the editor scrolled down.
       `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })` starts a new page at the
       top and restores the position on Back. Done 2026-11-09 (see §3).
-- [ ] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
+- [x] Not found page: a wildcard route (`**`) for unknown URLs, also shown for
       `/shows/:showId/edit` with an id that does not exist – today that opens an empty form, and
       Save silently changes nothing. Decided: a guard stops it before the page opens (D53).
       Steps: a `PageNotFound` page in `src/app/page-not-found/` (`<h1 tabindex="-1">` for focus
@@ -318,8 +333,8 @@ Goal: something actually useful – a list of my shows with progress, entered by
       edit route – `true` when the store has the show, otherwise a `RedirectCommand` to a URL
       the `**` route catches, with `browserUrl: state.url` so the address bar keeps what the
       user asked for. Tests: the guard, the wildcard route, and the ShowEditor test that expects
-      an empty form for an unknown id changes. _Progress:_ the page, the `**` route and its
-      tests done 2026-11-10; left are the guard and its tests.
+      an empty form for an unknown id changes. Done 2026-11-10 (see §3); the not-found
+      text's centring is still open.
 - [ ] Delete with confirmation: native `<dialog>` wrapped in an own component
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
@@ -515,6 +530,7 @@ reversed, mark it as superseded instead of deleting it.
 | D53 | 2026-11-09 | An unknown show id is stopped by a `CanActivate` guard on `shows/:showId/edit` (`showExistsGuard`), not by the editor. The guard returns `true` when `ShowStore` has the show, otherwise a `RedirectCommand` to the not-found page with `browserUrl` set to the URL the user asked for, so the address bar keeps it. Unknown URLs reach the same page through the wildcard route. | One not-found page for unknown URLs and unknown ids. The check runs before the page opens, so there is no flash of an empty "Edit show" form, and the editor never has to handle a show that doesn't exist – D48's empty-model fallback is then only add mode. Keeping the URL shows the user what they asked for and lets them correct it. Accepted: the guard reads the store synchronously, which fits localStorage; with an HTTP API (Later) it returns a Promise or an Observable instead, which guards allow. |
 | D54 | 2026-11-09 | No leave warning for unsaved changes on the add/edit page for now; moved from M1 to Later, to be picked up only if real use on the phone (M2) shows that edits get lost by accident. | The form has five fields and an edit usually touches one or two, so an accidental exit costs seconds, and in edit mode the stored show is untouched. It would be built only because forms "usually have it" (§1, D14). It teaches little that is new: guards are learnt with the not-found page (D53). It costs a guard, `beforeunload`, history handling for Back and a dialog choice, and still can't cover closing the tab in Safari on iOS. |
 | D55 | 2026-11-10 | The show lists' empty state is a component in `shows/`, `ShowListEmpty` (`app-show-list-empty`): icon (`IconName`), heading and description as inputs, the action (link or button) projected with one `<ng-content />`. The heading is always an `<h2>`. The not-found page does not use it: it has the same look in its own markup, with the page's `<h1 tabindex="-1">` as its heading. Replaces `EmptyState` in `shared/` from the status tabs task. | Every empty state looks and behaves the same, the compiler requires the heading (projected content can't be required), and its styles stay in the component – a projected heading belongs to the page's view, which the component's styles don't reach. The not-found page is a page, not an empty list: its heading is the `<h1>` that focus after navigation targets, so it can't be the component's `<h2>`. Accepted: the tile and the centring are styled in two places; DESIGN.md describes the pattern, so they stay alike. |
+| D56 | 2026-11-10 | A lookup that finds nothing returns `null` – `ShowStore.getShowById`, as `querySelector`, `localStorage.getItem` and `paramMap.get` do; `Array.find`'s `undefined` is turned into `null` with `?? null`. A value that simply isn't set is `undefined` – optional fields such as `lastWatched` and `service`, an `input()` with no value. One chain keeps one of them: the editor's `storedShow` is `TrackedShow \| null`, never `\| null \| undefined`. Form models follow Signal Forms instead: an empty number is `null` (D43). | Mixing both in one type makes every check ask which one it means, and an early `return undefined` next to a `null` from the store had already done that. Following the split the platform itself uses makes it predictable which one to expect. |
 
 ## 7. Open questions
 

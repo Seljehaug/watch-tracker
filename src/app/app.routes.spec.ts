@@ -1,6 +1,7 @@
+import { Location } from '@angular/common';
 import type { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
 import { Home } from './home/home';
@@ -46,13 +47,14 @@ describe('routes', () => {
     harness = await RouterTestingHarness.create();
   });
 
-  // navigateByUrl throws when the page that opens is not of the given type.
-  it.each(['/unknown', '/shows', '/shows/severance', '/shows/add/more'])(
-    'shows the not-found page at %s and keeps the URL',
+  // navigateByUrl throws when the page that opens is not of the given type. The last URL matches
+  // the edit route, so it only reaches the not-found page through the route's guard (D53).
+  it.each(['/unknown', '/shows', '/shows/severance', '/shows/add/more', '/shows/unknown/edit'])(
+    'shows the not-found page at %s and keeps the URL in the address bar',
     async (url) => {
       await harness.navigateByUrl(url, PageNotFound);
 
-      expect(TestBed.inject(Router).url).toBe(url);
+      expect(TestBed.inject(Location).path()).toBe(url);
     },
   );
 

@@ -108,9 +108,9 @@ describe('ShowEditor', () => {
     });
   });
 
-  // An unknown id gives an empty form instead of a crash (D48), until the not-found task.
-  it.each(['/shows/add', '/shows/unknown/edit'])('starts with an empty form at %s', async (url) => {
-    await open(url);
+  // An unknown id never gets here: the route's guard sends it to the not-found page (D53).
+  it('starts with an empty form in add mode', async () => {
+    await open('/shows/add');
 
     expect(fieldValues()).toEqual(EMPTY_FORM);
   });
