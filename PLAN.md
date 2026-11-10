@@ -5,7 +5,9 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-10
-**Current milestone:** M1 – My shows (next: the floating add button on phones).
+**Current milestone:** M1 – My shows (next: delete with confirmation, then M2 – the app on
+several devices, which now needs a backend (D58); backend and hosting are being decided, §7; the
+floating add button is put off, 2026-11-10).
 The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
 `ShowListEmpty` done 2026-11-10; focus
 and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
@@ -34,8 +36,11 @@ my own workflow – so we skip features that exist only because "trackers usuall
 **Developer background:** experienced with C#/.NET, JavaScript/TypeScript, Vue and SCSS. New to
 Angular.
 
-**Learning goals:** Angular (primary), Docker, later possibly Kubernetes. Things that are useful
-professionally and presentable in a CV/portfolio.
+**Learning goals:** Angular (primary) – including RxJS, both the classic way that dominates
+existing codebases (`HttpClient` Observables, `subscribe`, operators, `BehaviorSubject` services)
+and the signal-based way new Angular favours (`httpResource`, `rxResource`, `toSignal`); see D57.
+Docker, later possibly Kubernetes. Things that are useful professionally and presentable in a
+CV/portfolio.
 
 **How we work:**
 
@@ -314,7 +319,9 @@ Goal: something actually useful – a list of my shows with progress, entered by
       only, `aria-label="Add show"` – and nothing in the header; on desktop an "Add show" link in
       the header; on tablets perhaps both, decided when it is built. Not on the empty state, which
       has its own button. _Progress:_ the header link is in, shown at every width for now; left
-      are the floating button on phones and hiding the header link there.
+      are the floating button on phones and hiding the header link there. Put off on
+      2026-11-10: the header link already works on phones, so a second way to add is less
+      important than delete and getting the app onto the phone (M2).
 - [x] Focus after navigation: when Save or a link swaps the page, focus must not fall back to
       `<body>`. Move it to the new page's heading on `NavigationEnd`, once for the whole app
       (angular.dev, "Accessibility in Angular" → "Focus management after navigation").
@@ -375,6 +382,13 @@ binding), pipes, reading tests written with TestBed + Vitest.
 Goal: the app is hosted and installed on my phone, so I actually start using it. (Until then, data
 typed into `ng serve` on the laptop is test data.)
 
+**Rethought 2026-11-10 (D58):** the app should work on several devices – the phone and the laptop
+at least – so M2 needs a backend with a database and login, brought forward from Later. Which
+backend, database, login and hosting is decided in its own session (see §7 for the candidates
+and the facts found so far); M2 is rewritten then. The bullets below were written for a
+localStorage-only M2 and are revisited with it. On the Angular side the data layer is built the
+classic way first and then rewritten (D57).
+
 - Static hosting + GitHub Actions: lint, test, build and deploy on push to `main` (hosting
   provider: open question, §7)
 - PWA (`ng add @angular/pwa`): installable, works offline, update prompt (`SwUpdate`)
@@ -411,11 +425,12 @@ exercise. Docker becomes really useful with the backend (see Later).
 
 Roughly in priority order; most of these require a backend.
 
-- **Backend + database** – stack not decided (§7). Docker Compose for local development (API +
+- **Backend + database** – moved to M2 on 2026-11-10 (D58); stack not decided (§7). Docker Compose for local development (API +
   database). Swap the Angular storage implementation to the API. TMDB calls proxied through the
   backend so the key is no longer in the browser. Typed API client generated from OpenAPI.
 - **Users and login** – a small group of friends, family and colleagues (invite-only, not public
-  sign-up). Standard OIDC provider (not decided). Also solves sync across devices.
+  sign-up). Standard OIDC provider (not decided). Also solves sync across devices. Login for
+  the developer's own devices moves to M2 with the backend (D58); more users stay here.
 - **IMDb rating** – via OMDb (simple) or the IMDb non-commercial datasets imported by a scheduled
   job (more interesting).
 - **Movies** – simpler model: want to watch / watched, plus a rating.
@@ -531,6 +546,8 @@ reversed, mark it as superseded instead of deleting it.
 | D54 | 2026-11-09 | No leave warning for unsaved changes on the add/edit page for now; moved from M1 to Later, to be picked up only if real use on the phone (M2) shows that edits get lost by accident. | The form has five fields and an edit usually touches one or two, so an accidental exit costs seconds, and in edit mode the stored show is untouched. It would be built only because forms "usually have it" (§1, D14). It teaches little that is new: guards are learnt with the not-found page (D53). It costs a guard, `beforeunload`, history handling for Back and a dialog choice, and still can't cover closing the tab in Safari on iOS. |
 | D55 | 2026-11-10 | The show lists' empty state is a component in `shows/`, `ShowListEmpty` (`app-show-list-empty`): icon (`IconName`), heading and description as inputs, the action (link or button) projected with one `<ng-content />`. The heading is always an `<h2>`. The not-found page does not use it: it has the same look in its own markup, with the page's `<h1 tabindex="-1">` as its heading. Replaces `EmptyState` in `shared/` from the status tabs task. | Every empty state looks and behaves the same, the compiler requires the heading (projected content can't be required), and its styles stay in the component – a projected heading belongs to the page's view, which the component's styles don't reach. The not-found page is a page, not an empty list: its heading is the `<h1>` that focus after navigation targets, so it can't be the component's `<h2>`. Accepted: the tile and the centring are styled in two places; DESIGN.md describes the pattern, so they stay alike. |
 | D56 | 2026-11-10 | A lookup that finds nothing returns `null` – `ShowStore.getShowById`, as `querySelector`, `localStorage.getItem` and `paramMap.get` do; `Array.find`'s `undefined` is turned into `null` with `?? null`. A value that simply isn't set is `undefined` – optional fields such as `lastWatched` and `service`, an `input()` with no value. One chain keeps one of them: the editor's `storedShow` is `TrackedShow \| null`, never `\| null \| undefined`. Form models follow Signal Forms instead: an empty number is `null` (D43). | Mixing both in one type makes every check ask which one it means, and an early `return undefined` next to a `null` from the store had already done that. Following the split the platform itself uses makes it predictable which one to expect. |
+| D57 | 2026-11-10 | The Angular data layer against the backend is built the classic way first – `HttpClient` Observables, `subscribe`, error handling with operators, `toSignal` into the store – and then the reads are rewritten to `httpResource` (or `rxResource` where a read needs operators). Writes stay on `HttpClient`, as angular.dev advises against `httpResource` for mutations, with RxJS operators where they fit (`concatMap` so quick taps on "next episode" are saved in order); the auth interceptor is RxJS too. Some classic code stays as an example to look back at: the writes and the interceptor do anyway, and whether one read stays classic as well is decided when it is built. The classic version of the reads is committed on its own before the rewrite, so the before and after are in the history. In M3 the TMDB search is built both ways too: RxJS (`debounceTime`, `distinctUntilChanged`, `switchMap`) and a signal with `httpResource`. | The developer wants to learn both: the RxJS code that fills existing Angular codebases, and the signal-based code new Angular favours – and to know when to reach for which. Building the same feature both ways shows what each one takes care of (subscriptions, loading and error state, cancelling, refetching) better than either alone. |
+| D58 | 2026-11-10 | The app should work on several devices – at least the phone and the laptop. Its data moves from localStorage to a server with a database, behind login, and the backend is brought forward from Later into M2. Backend, database, login and hosting are decided in their own session (§7). | localStorage belongs to one browser, so a show added on the laptop doesn't exist on the phone; JSON export/import by hand is not a way to use the app every day. |
 
 ## 7. Open questions
 
@@ -539,13 +556,13 @@ Not decided yet – don't treat these as settled. Decide them when the relevant 
 | Question                                             | Needed by | Current thinking                                                                                                                                                                                                            |
 | ---------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Make the GitHub repo public?                         | M2        | Currently private. Recommendation: make it public before M2 – portfolio visibility, free GitHub Pages, and the history shows how the project grew. Commits already use the GitHub noreply email; no secrets in the history. |
-| Where to host the static frontend?                   | M2        | GitHub Pages if the repo is public; otherwise Cloudflare Pages or Netlify (free for private repos).                                                                                                                         |
+| Where to host the app and the backend?               | M2        | Reworded 2026-11-10 (D58): it is no longer only a static frontend. Facts found: the developer's own site `cseljehaug.no` is a one.com web hotel (Apache, PHP; DNS at one.com, mail at Uniweb) – fine for the Angular build as static files, but it can't run a backend or a database for the app. Idea: the app at `watch.cseljehaug.no`, a subdomain set in one.com's DNS, so the address stays the same whatever runs behind it (localStorage on the phone can then be uploaded once). Candidates checked 2026-11-10 (prices change – check again): Railway (a PaaS: builds from GitHub, Postgres in one click, custom domain by CNAME + TXT, Hobby about $5/month including $5 of usage, doesn't sleep); Render (free web services sleep after 15 minutes, about a minute to wake; free Postgres expires after 30 days); Supabase (free, but free projects pause after about a week without database activity; Pro about $25/month); Azure (Container Apps has a free monthly grant; PostgreSQL flexible server free for 12 months with a free account); Cloudflare Workers + D1 (free, but a custom domain needs all of `cseljehaug.no`'s DNS moved, mail records included). GitHub Pages serves static files only. Claude's leaning: the app and its API in one Railway service on `watch.cseljehaug.no`. |
 | How to handle the TMDB API key in a public frontend? | M3        | Options: accept it (read-only, low-stakes key on an unadvertised site), a tiny proxy (e.g. serverless function), or bring the backend forward. Never commit the key either way.                                             |
 | Language of show data from TMDB                      | M3        | Probably Norwegian (`nb-NO`) titles/overviews with English fallback – or English only. Try both with real data.                                                                                                             |
-| Is working offline actually a goal?                   | M2        | Undecided (2026-10-16). M2 currently assumes yes (PWA "works offline", persistent storage, export/import). If no, M2 shrinks, and server-generated row ids become the natural choice; if yes, client-generated UUIDs avoid id reconciliation when syncing. |
-| Who generates the id: client or database?            | Later     | Undecided (2026-10-16). M1 uses `crypto.randomUUID()` in the store, since there is no server. Client-generated UUIDs let the UI update before the server answers – which the one-tap "✓ E06" action (D12) wants – and avoid id reconciliation when syncing; collision risk is negligible (122 random bits), and the primary key is the safety net either way. Database-generated identity columns are the path of least resistance in EF Core. Tied to the offline question above. Note: `crypto.randomUUID()` needs a secure context – it is `undefined` over plain HTTP on a LAN address. |
-| Backend stack                                        | Later     | Leaning: ASP.NET Core + EF Core + PostgreSQL – known stack keeps the learning budget on Angular/Docker, and Angular + .NET is a common combination professionally. Not decided.                                             |
-| Login provider                                       | Later     | Self-hosted (e.g. Keycloak in Docker – good Docker/K8s practice) vs. hosted (Auth0, Entra External ID, …).                                                                                                                  |
+| Is working offline actually a goal?                   | M2        | Undecided (2026-10-16). M2 currently assumes yes (PWA "works offline", persistent storage, export/import). If no, M2 shrinks, and server-generated row ids become the natural choice; if yes, client-generated UUIDs avoid id reconciliation when syncing. Claude's recommendation (2026-11-10, with D58): online first – the app reads and saves through the API, editing without a connection maybe later – since offline edits on two devices give conflicts that are hard to resolve. |
+| Who generates the id: client or database?            | M2        | Undecided (2026-10-16). M1 uses `crypto.randomUUID()` in the store, since there is no server. Client-generated UUIDs let the UI update before the server answers – which the one-tap "✓ E06" action (D12) wants – and avoid id reconciliation when syncing; collision risk is negligible (122 random bits), and the primary key is the safety net either way. Database-generated identity columns are the path of least resistance in EF Core. Tied to the offline question above. Note: `crypto.randomUUID()` needs a secure context – it is `undefined` over plain HTTP on a LAN address. |
+| Backend stack                                        | M2        | Updated 2026-11-10: the developer is not tied to .NET or SQL, wants something simple to build and run themselves and quick to learn, as Angular (with RxJS, D57) is the focus; writing the endpoints themselves is nice but not required. Options discussed: a TypeScript backend – Hono, Drizzle and PostgreSQL – sharing types and checks such as `isTrackedShow` with Angular (Claude's leaning); ASP.NET Core + EF Core + PostgreSQL, the stack the developer knows; Supabase, a ready backend (Postgres, login, a generated API, Edge Functions) where security lives in Row Level Security rules and `supabase-js` returns Promises rather than Observables, so less `HttpClient`/RxJS practice. Earlier leaning (2026-10-08): ASP.NET Core. Not decided. |
+| Login provider                                       | M2        | Moved to M2 with D58. Options discussed 2026-11-10: a library that keeps users and sessions in the app's own database (e.g. Better Auth with a TypeScript backend, ASP.NET Core Identity with .NET), Supabase Auth with Supabase, or a hosted OIDC provider (Auth0, Entra External ID, …). Invite-only, no public sign-up. Earlier idea: Keycloak in Docker – likely too heavy for now. |
 | IMDb rating source                                   | Later     | OMDb (simple, API key, daily limit) vs. IMDb datasets imported by a backend job.                                                                                                                                            |
 
 ---
