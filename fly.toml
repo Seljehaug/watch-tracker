@@ -1,0 +1,30 @@
+# Fly.io's settings for the app (M2 A4, D72), read by `flyctl deploy` in the deploy workflow.
+# Deploys come from that workflow only, never from the Mac (D73).
+app = "watch-tracker"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  # nginx's port in the Dockerfile.
+  internal_port = 80
+  force_https = true
+  # Always on: Fly's proxy would otherwise stop an idle machine, and the next visit would
+  # wait for it to start (D60, D72). One machine, kept running.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # A deploy only counts as done once the new machine answers.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/"
+    timeout = "5s"
+
+# The smallest machine, $2.19 a month – under the $5 Fly waives (D72).
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

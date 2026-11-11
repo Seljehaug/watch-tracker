@@ -427,7 +427,13 @@ needed in between.
       started by a button (`workflow_dispatch`) that runs only from `main` after a green `ci`,
       with `flyctl deploy --remote-only`; an app-scoped deploy token (`fly tokens create deploy`)
       kept in 1Password and stored as the GitHub secret `FLY_API_TOKEN` (D74). Never `fly deploy`
-      from the Mac – it builds the folder as it is, uncommitted changes included.
+      from the Mac – it builds the folder as it is, uncommitted changes included. _Progress
+      2026-11-11:_ `fly.toml` and `.github/workflows/deploy.yml` written by Claude (D79) – by
+      hand, with `fly apps create` instead of `fly launch`, which guesses at settings (1 GB by
+      default). The first deploy needs `--ha=false`, or Fly starts two machines for a new app; the
+      shared IPv4 comes with that deploy. setup-flyctl is pinned to a commit, since the deploy job
+      holds the token. A3 and A4 go to `main` in one pull request, since the button only appears
+      once `deploy.yml` is on `main`.
 - [ ] A5. Domain: `fly certs add watch.cseljehaug.no`, the CNAME (and an `_acme-challenge` record
       if Fly asks for it) in one.com's DNS, `fly certs check`, and HTTPS works.
 - [ ] A6. A home-screen shortcut from Chrome on the Pixel – and start using the app.
