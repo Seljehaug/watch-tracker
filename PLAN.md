@@ -5,9 +5,11 @@
 > the code disagree, the code is the truth – fix the plan.
 
 **Last updated:** 2026-11-11
-**Current milestone:** M1 – My shows (next: delete with confirmation and the steppers' overflow at
-phone width, then M2 – the app on several devices (D58), with backend, hosting and order decided
-2026-11-10 in D60–D78; the floating add button is put off, 2026-11-10).
+**Current milestone:** M1 – My shows, with M2's part A alongside: the app is live at
+`https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5). Next: a home-screen shortcut on the
+Pixel (A6), delete with confirmation and the steppers' overflow at phone width (A1), then the rest
+of M2 – the app on several devices (D58), with backend, hosting and order decided 2026-11-10 in
+D60–D78; the floating add button is put off, 2026-11-10.
 The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
 `ShowListEmpty` done 2026-11-10; focus
 and scroll after navigation done 2026-11-09; the add/edit form with its links in and out
@@ -242,7 +244,11 @@ goal (D63): it should take as little time from Angular as possible.
   `dist/watch-tracker/browser` on port 80 with `nginx.conf` as its site: `try_files` falls back to
   `index.html` for the app's routes, `index.html` is sent with `Cache-Control: no-cache` (it
   names the hashed bundles), and text is gzipped. `.dockerignore` keeps `node_modules`, `dist`,
-  `.angular`, `.git` and the docs out of the build context. No deployment yet, no UI library.
+  `.angular`, `.git` and the docs out of the build context. Deployment (D72, D73): `fly.toml` –
+  app `watch-tracker` in `fra`, one always-on shared-cpu-1x 256 MB machine, `force_https`, an
+  HTTP check on `/` – and `.github/workflows/deploy.yml`, a `workflow_dispatch` button that only
+  runs on `main`, calls `ci` first, then `flyctl deploy --remote-only --ha=false` with the
+  `FLY_API_TOKEN` secret. Live at `https://watch.cseljehaug.no` (M2 A5). No UI library.
 - Dependencies (2026-11-11): Angular 22.2.5 (CLI and build 22.2.6), updated with `ng update` –
   the framework packages require each other's exact version, so plain `npm install` of one of
   them fails. `npm audit` leaves 10 moderate findings, all one `minimatch` advisory inside
@@ -419,7 +425,7 @@ needed in between.
 
 - [ ] A1. From M1, before real use: delete with confirmation, and the steppers' overflow at phone
       width (the styling pass, D28).
-- [ ] A2. CI (D73): a GitHub Actions workflow, `ci`, that runs `npm run lint`, `npm test` and
+- [x] A2. CI (D73): a GitHub Actions workflow, `ci`, that runs `npm run lint`, `npm test` and
       `npm run build` on every push to `main` and every pull request, and can be called by the
       deploy workflow (`workflow_call`). _Progress:_ `.github/workflows/ci.yml` and `.nvmrc`
       written by Claude 2026-11-11 (D79); lint, test and build pass on the committed code.
@@ -432,7 +438,7 @@ needed in between.
       by Claude (D81): `node:24-slim` builds, `nginx:1.30-alpine` serves, with `nginx.conf` in the
       root; built and run on the Mac, deep links and unknown URLs get the app. Port 8080 on the
       Mac is taken by another project, so run it with `-p 8090:80`.
-- [ ] A4. Fly.io (D72): an account (personal organization); `fly launch` with region `fra`, 256 MB,
+- [x] A4. Fly.io (D72): an account (personal organization); `fly launch` with region `fra`, 256 MB,
       exactly one machine and `auto_stop_machines = "off"` in `fly.toml` (the default stops the
       machine when idle, which brings back cold starts); no dedicated IPv4. A `deploy` workflow
       started by a button (`workflow_dispatch`) that runs only from `main` after a green `ci`,
@@ -444,9 +450,21 @@ needed in between.
       default). The first deploy needs `--ha=false`, or Fly starts two machines for a new app; the
       shared IPv4 comes with that deploy. setup-flyctl is pinned to a commit, since the deploy job
       holds the token. A3 and A4 go to `main` in one pull request, since the button only appears
-      once `deploy.yml` is on `main`.
-- [ ] A5. Domain: `fly certs add watch.cseljehaug.no`, the CNAME (and an `_acme-challenge` record
-      if Fly asks for it) in one.com's DNS, `fly certs check`, and HTTPS works.
+      once `deploy.yml` is on `main`. Done 2026-11-11: the account, `fly.toml` and the workflow
+      merged with A3; the token is in 1Password and the GitHub secret; the first deploy from the
+      button (run 43001701977) started one machine with a shared IPv4 and IPv6, no dedicated IPv4.
+- [x] A5. Domain: `fly certs add watch.cseljehaug.no`, the CNAME (and an `_acme-challenge` record
+      if Fly asks for it) in one.com's DNS, `fly certs check`, and HTTPS works. Done 2026-11-11.
+      The domain's DNS is edited in Uniweb's control panel (the name servers are one.com's,
+      `ns01/ns02.no.brand.one.com`). Fly recommends A and AAAA records; the CNAME
+      `watch` → `mwd30le.watch-tracker.fly.dev` (`fly certs setup` names the target) follows Fly
+      if its addresses change (D72). Fly's ownership check wants an AAAA record on the name itself
+      and doesn't follow the CNAME, so the TXT `_fly-ownership.watch` = `app-mwd30le` proves it –
+      renewals need it too, so both records stay. No `_acme-challenge` record. Let's Encrypt
+      certificate (ECDSA, 90 days, renewed by Fly); `/`, deep links and unknown URLs answer `200`,
+      `http://` redirects to `https://`, `index.html` has `Cache-Control: no-cache`.
+      `watch-tracker.fly.dev` reaches the same machine, but localStorage belongs to the address, so
+      the app is used at `watch.cseljehaug.no` only.
 - [ ] A6. A home-screen shortcut from Chrome on the Pixel – and start using the app.
 
 **B. The backend, locally**
@@ -736,7 +754,8 @@ Not decided yet – don't treat these as settled. Decide them when the relevant 
   - Fly.io – <https://docs.fly.io/about/pricing>. No free allowance for new organizations, but a
     personal organization's bill under $5 a month is waived. shared-cpu-1x: $2.19 (256 MB) and
     $3.69 (512 MB) a month when running; shared IPv4 free, dedicated IPv4 $2; the first 10
-    certificates free; Managed Postgres from $38. Custom domains:
+    single-hostname certificates free, then $0.10 a month each (still so 2026-11-11); Managed
+    Postgres from $38. Custom domains:
     <https://docs.fly.io/networking/custom-domain>.
   - Neon – <https://neon.com/pricing>. Free: 1 GB per project, 100 CU-hours a month, compute
     suspends after 5 idle minutes and resumes in "a few hundred milliseconds", a 6-hour history
