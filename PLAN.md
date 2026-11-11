@@ -243,6 +243,17 @@ goal (D63): it should take as little time from Angular as possible.
   `index.html` for the app's routes, `index.html` is sent with `Cache-Control: no-cache` (it
   names the hashed bundles), and text is gzipped. `.dockerignore` keeps `node_modules`, `dist`,
   `.angular`, `.git` and the docs out of the build context. No deployment yet, no UI library.
+- Dependencies (2026-11-11): Angular 22.2.5 (CLI and build 22.2.6), updated with `ng update` –
+  the framework packages require each other's exact version, so plain `npm install` of one of
+  them fails. `npm audit` leaves 10 moderate findings, all one `minimatch` advisory inside
+  ESLint and typescript-eslint, fixed only in `minimatch` 11, which ESLint 10 doesn't use yet;
+  it is lint-time only and needs hostile glob patterns, so it is accepted until ESLint moves.
+  Production dependencies have none (`npm audit --omit=dev`). npm 11 blocks dependencies'
+  install scripts unless `package.json`'s `allowScripts` allows them: `esbuild`, `lmdb`,
+  `msgpackr-extract`, `@parcel/watcher` and `fsevents` are denied (`false`) – their scripts only
+  build from source or optimise, and all ship prebuilt binaries. A new package with an install
+  script shows up as an `npm warn install-scripts` line; review it with
+  `npm install-scripts ls`, then `approve` or `deny`.
 - Angular CLI MCP server configured in `.mcp.json` (docs search, best practices).
 
 ---
