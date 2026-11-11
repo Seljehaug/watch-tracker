@@ -1,0 +1,38 @@
+# Deploys main to Fly.io when the button is pressed (Actions → deploy → Run workflow),
+# after ci has passed on the same commit (D73). Never fly deploy from the Mac.
+name: deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a second press waits for the first instead of cancelling it.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    # Only main is deployed. Started from another branch, both jobs are skipped.
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Pinned to a commit rather than a tag, since this job holds the deploy token.
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+
+      # Fly builds the image from the Dockerfile on its own builder (--remote-only).
+      # --ha=false: one machine, not the two Fly starts for a new app (D72).
+      - run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
