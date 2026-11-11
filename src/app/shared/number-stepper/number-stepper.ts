@@ -21,9 +21,55 @@ import {FormFieldWrapper} from '../form-field/form-field';
   ],
   selector: 'app-number-stepper',
   styles: `
+    :host {
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius);
+      background-color: var(--color-surface);
+      width: fit-content;
+    }
+
+    :host(:has(input:focus-visible)) {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    :host(:has(input[aria-invalid='true'])) {
+      border-color: var(--color-danger);
+    }
+
+    input {
+      width: 3ch;
+      min-width: 0;
+      padding: 0;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      border: none;
+      background: transparent;
+      outline: none;
+    }
+
     button {
-      height: var(--touch-target);
+      flex-shrink: 0;
       width: var(--touch-target);
+      height: var(--touch-target);
+      padding: 0;
+      color: var(--color-text);
+      background: transparent;
+      border: calc(var(--spacing-half) / 2) solid transparent;
+      background-clip: padding-box;
+      border-radius: var(--border-radius);
+
+      &[aria-disabled] {
+        color: var(--color-text-muted);
+      }
+
+      @media (hover: hover) {
+        &:hover:not([aria-disabled]) {
+          background-color: var(--color-text-soft);
+        }
+      }
     }
   `,
   template: `
@@ -33,7 +79,7 @@ import {FormFieldWrapper} from '../form-field/form-field';
       [attr.aria-label]="decreaseAriaLabel()"
       [attr.aria-disabled]="value() === null || null"
       (click)="decreaseAndAnnounce()">
-      <app-svg-icon name="minus" size="small"></app-svg-icon>
+      <app-svg-icon name="minus"/>
     </button>
 
     <input
@@ -54,7 +100,7 @@ import {FormFieldWrapper} from '../form-field/form-field';
       tabindex="-1"
       (click)="increaseAndAnnounce()"
       [attr.aria-label]="increaseAriaLabel()">
-      <app-svg-icon name="plus" size="small"></app-svg-icon>
+      <app-svg-icon name="plus"/>
     </button>
 
     <span class="visually-hidden" aria-live="polite">

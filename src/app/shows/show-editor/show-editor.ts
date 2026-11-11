@@ -1,4 +1,14 @@
-import {afterNextRender, Component, computed, inject, Injector, input, linkedSignal, signal} from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  inject,
+  Injector,
+  input,
+  linkedSignal,
+  signal,
+  viewChild
+} from '@angular/core';
 import {ShowStore} from '../show-store';
 import {
   EMPTY_SHOW_FORM_MODEL,
@@ -11,6 +21,8 @@ import {SHOW_STATUSES} from '../show-status';
 import {STREAMING_SERVICES} from '../streaming-service';
 import {NumberStepper} from '../../shared/number-stepper/number-stepper';
 import {Router, RouterLink} from '@angular/router';
+import {DeleteShowDialog} from '../delete-show-dialog/delete-show-dialog';
+import {SvgIcon} from '../../shared/svg-icon/svg-icon';
 
 @Component({
   imports: [
@@ -19,7 +31,9 @@ import {Router, RouterLink} from '@angular/router';
     FormFieldWrapper,
     FormFieldControl,
     NumberStepper,
-    RouterLink
+    RouterLink,
+    DeleteShowDialog,
+    SvgIcon
   ],
   selector: 'app-show-editor',
   styles: `
@@ -51,7 +65,7 @@ import {Router, RouterLink} from '@angular/router';
       <h1 tabindex="-1">{{ pageTitle() }}</h1>
       <form [formRoot]="form" class="show-editor-form">
         <app-form-field label="Title" [showErrors]="hasTriedToSave()">
-          <input type="text" [formField]="form.title" appFormFieldControl />
+          <input type="text" [formField]="form.title" appFormFieldControl/>
         </app-form-field>
 
         <app-form-field label="Status" [showErrors]="hasTriedToSave()">
@@ -85,11 +99,22 @@ import {Router, RouterLink} from '@angular/router';
           </div>
         </fieldset>
 
+        @if (storedShow()) {
+          <button type="button" class="button button-danger-text" (click)="openDeleteShowDialog()">
+            <app-svg-icon name="delete"/>
+            Delete show
+          </button>
+        }
+
         <div class="button-group">
           <a routerLink="/" class="button button-secondary">Cancel</a>
           <button type="submit">Save changes</button>
         </div>
       </form>
+
+      @if (storedShow(); as show) {
+        <app-delete-show-dialog #deleteShowDialog [show]="show" (deleted)="onShowDeleted()"></app-delete-show-dialog>
+      }
     </div>
   `,
 })
@@ -103,7 +128,7 @@ export class ShowEditor {
   readonly showId = input<string>();
 
   // State
-  private readonly isNewShow = computed(() => !this.showId());
+  protected readonly isNewShow = computed(() => !this.showId());
 
   protected readonly storedShow = computed(() => {
     const id = this.showId();
@@ -150,4 +175,16 @@ export class ShowEditor {
   // Constants
   protected readonly SHOW_STATUSES = SHOW_STATUSES;
   protected readonly STREAMING_SERVICES = STREAMING_SERVICES;
+
+  // Queries
+  private readonly deleteShowDialog = viewChild<DeleteShowDialog>('deleteShowDialog');
+
+  // Methods
+  protected openDeleteShowDialog() {
+    this.deleteShowDialog()?.open();
+  }
+
+  protected async onShowDeleted(): Promise<void> {
+    await this.router.navigateByUrl('/');
+  }
 }

@@ -34,16 +34,32 @@ the content max width, which is tied to the screen rather than the text (D28).
 | `--color-divider`       | `#2C2C33`   | Decorative lines: header border, separators (no contrast requirement) |
 | `--color-text`          | `#F4F4F5`   | Body text, headings                                                   |
 | `--color-text-muted`    | `#A1A1AA`   | Secondary text: meta lines, hints                                     |
+| `--color-text-soft`     | `#F4F4F514` | Text at 8%: hover and press on quiet neutral buttons (the dialog's close button, the stepper's − and +) |
 | `--color-accent`        | `#F5B841`   | Main action, active tab, links, focus, brand mark                     |
 | `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons ("next episode")    |
 | `--color-accent-border` | `#F5B84159` | Accent at 35%: their border (decorative, see §1.1)                    |
-| `--color-danger`        | `#FF8A8A`   | Errors (message, icon, the invalid control's border); destructive     |
+| `--color-danger`        | `#FF453A`   | Errors (message, icon, the invalid control's border); destructive text |
+| `--color-danger-soft`   | `#D7B3B114` | Warm grey at 8%, behind danger text and icons: hover and press on quiet destructive buttons; the delete dialog's icon tile |
+| `--color-danger-fill`   | `#B02A24`   | Fill of solid destructive buttons, with `--color-text` on it          |
 
-The two tints are 8-digit hex (`#RRGGBBAA`, the last pair is the opacity: `1F` ≈ 12%, `59` ≈ 35%),
-so they sit on whatever surface is behind them.
+The tints are 8-digit hex (`#RRGGBBAA`, the last pair is the opacity: `14` ≈ 8%, `1F` ≈ 12%,
+`59` ≈ 35%), so they sit on whatever surface is behind them. `--color-danger-soft` is a warm grey
+rather than a red tint: red text on a red tint shares its hue and reads muddy, while a grey with a
+hint of red sets it off and still belongs with it. At 8% the red text keeps 4.5:1 on the surface
+too (12% would fall to 4.2 there).
 
-**Not tokens yet.** The mockups also use a solid red for destructive buttons, a red tint, a
-dialog backdrop, a lighter "raised" surface and a heading size for dialogs and the empty state.
+`--color-danger` was `#FF8A8A` until 2026-11-11, which read as pink. Red is dark, so on a near-black
+background it has to be lightened to reach 4.5:1; mixing in white (green and blue equally high)
+turns it pink, while a little more green than blue keeps it red. Its hue (3°) stays far from the
+amber accent (≈40°).
+
+**Not tokens yet.** The mockups also use a dialog backdrop, a lighter "raised" surface and a
+heading size for dialogs and the empty state.
+
+Two reds, because one can't do both jobs: text on the dark background needs a light red
+(`--color-danger`), and light text on a fill needs a dark one (`--color-danger-fill`, the same hue).
+`--color-danger` with dark text on it was tried for the solid button and read washed out; light
+text on it is 3.1:1.
 Add them as tokens when a component needs them (M1) – the values are the `--mock-*` ones in
 `mockups/screens.html` – and check the contrast first.
 
@@ -61,7 +77,10 @@ Add them as tokens when a component needs them (M1) – the values are the `--mo
 | divider vs background / surface                             | 1.4 / 1.3   | decorative only |
 | accent icon on accent-soft (over surface)                   | 7.9         | 3:1 non-text ✔  |
 | accent-border vs surface                                    | 2.3         | decorative only |
-| danger on background / surface (error text, border)         | 8.5 / 7.9   | 4.5:1 ✔         |
+| danger on background / surface (error text, border)         | 5.7 / 5.3   | 4.5:1 ✔         |
+| danger on danger-soft over background / surface             | 5.0 / 4.6   | 4.5:1 ✔         |
+| text on danger-fill (solid destructive button)              | 6.0         | 4.5:1 ✔         |
+| text on text-soft (over surface)                            | 13.4        | 4.5:1 ✔         |
 
 A quiet accent button is identified by its accent icon or text (7.9:1), so its tint and border
 need no contrast of their own (WCAG 1.4.11).
@@ -99,6 +118,12 @@ Shadows: none yet – only floating elements (FAB, dialog) get one, added when t
 Visible focus on every interactive element:
 `:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }`
 (the original Claude Design mockups used `currentColor`; accent is clearer against the dark background).
+
+One exception: the page's `<h1 tabindex="-1">`, which `App` focuses after each navigation so
+screen readers start at the page's title, shows no ring (`h1[tabindex='-1']:focus`). It isn't
+interactive – it can't be used or reached with Tab – so the rule above doesn't ask for one, and
+the ring only appeared after keyboard use, which looked random. Only that heading: the stepper's
+buttons also have `tabindex="-1"` but are controls.
 
 ---
 
@@ -213,7 +238,11 @@ input sets the global `.label-secondary` class, which other places can reuse.
 
 Inside a `<fieldset>` with `<legend>` "Last watched episode (optional)", two steppers side by side
 (Season, Episode). Each: `−` button · number input · `+` button in one 50px box; buttons are
-44px wide with `aria-label` "Decrease season" etc. Empty means "not started". No preview under it
+44px wide with `aria-label` "Decrease season" etc. Built with the component's host as the box
+(border, surface background, radius) and the input and buttons unstyled inside it, so flex shares
+out the width and two steppers fit side by side at 320px; the focus ring and the error border are
+drawn on the host when the input has them. Buttons get `--color-text-soft` on hover and are muted
+while `aria-disabled`. Empty means "not started". No preview under it
 (D46): the mockup's "Shown as S02 E07" line is dropped.
 
 Keyboard and ARIA (D43): the input is `type="text"` with `inputmode="numeric"` and
@@ -232,8 +261,10 @@ other error (D41), and only that field turns red.
 No "Back" link in the header: "Cancel" next to "Save changes" is the page's one way out, on
 every screen size (D52). Page title "Edit show" / "Add show", fields:
 Title, Status, Where I watch it, Last watched episode, then "Delete show" (edit only): a
-`<button type="button">` styled as a text link (danger, trash icon). It opens the delete dialog,
-so it is an action, not navigation. A bottom action bar with "Cancel" (outlined, 1/3; a link to
+`<button type="button">` styled as a text link (danger, delete icon). It opens the delete dialog,
+so it is an action, not navigation. Built as `.button-danger-text`: pulled back by its side
+padding so the icon lines up with the fields; `--color-danger-soft` behind it on hover (devices
+that hover only) and while pressed; the global focus ring. A bottom action bar with "Cancel" (outlined, 1/3; a link to
 Home, D49) and "Save changes" (accent, 2/3; `type="submit"`), 52px high. The bar must be inside
 the `<form>` (or the submit button must use the `form` attribute), so Enter and the button
 submit the form.
@@ -242,9 +273,18 @@ submit the form.
 
 Native `<dialog>` opened with `showModal()`, shown as a bottom sheet on phone (12px from the
 sides, 16px from the bottom, radius 20, surface). Icon tile with a soft red tint, title
-"Delete Severance?", text "The show and your progress (S02 E07) will be removed. This can't be
-undone." Buttons stacked: "Delete show" (solid red, white text) above "Cancel" (outlined).
-Dark translucent backdrop. Focus goes to Cancel when it opens; Escape closes it.
+"Delete Severance?", text "This can't be undone." – the same text for every show: the title
+names the show, so the text only says what the title can't, and a show without progress needs no
+other wording. The dialog is named by the title (`aria-labelledby`) and described by the text
+(`aria-describedby`). Buttons: "Cancel" (outlined), then "Delete show" (`--color-danger-fill`
+with `--color-text`) – the main action last, in the DOM too, so the Tab order is what you see. In
+a row, centred, when the dialog is wide; stacked and full width, Cancel on top, when it is
+narrower than 22rem – a container query on the dialog, so it follows the dialog's width rather
+than the screen's (phones up to about 440px). Not reversed with `row-reverse`/`column-reverse`,
+which would part the Tab order from the screen; the mockup's stacked buttons on every size are
+superseded. Built 26rem wide (the browser's
+max-width keeps it inside narrow screens) with 24px padding; title and text 8px apart, as one
+group, and the buttons 24px below them. Dark translucent backdrop. Focus goes to Cancel when it opens; Escape closes it.
 
 ### Empty state
 
@@ -281,7 +321,9 @@ same tokens (D55).
 ### Icons
 
 Simple inline stroke SVGs: TV (brand), page-not-found (the TV with a cross), check, plus, minus,
-chevron-left, chevron-down, trash, alert-circle – one file each in [`icons/`](icons/). All icons
+chevron-left, chevron-down, delete (a trash can), alert-circle, close (an x) – one file each in
+[`icons/`](icons/). The close x is drawn 6–18, as Lucide and Tabler do, so it looks as big as
+plus (5–19). All icons
 share the same attributes, so a new icon must follow them too:
 
 - `viewBox="0 0 24 24"` – every icon is drawn on a 24×24 grid. Icons from a library with another
@@ -300,8 +342,8 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Not used at the moment (the alert icon is medium since D42)                       |
-| **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages |
-| **big** 24px    | Trash icon in the delete dialog, plus icon in the FAB, TV icon in the empty state, page-not-found icon on the not-found page |
+| **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button |
+| **big** 24px    | Delete icon in the delete dialog, plus icon in the FAB, TV icon in the empty state, page-not-found icon on the not-found page |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
 state drew the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with

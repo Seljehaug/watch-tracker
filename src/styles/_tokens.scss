@@ -8,10 +8,13 @@
   --color-divider: #2c2c33;
   --color-text: #f4f4f5;
   --color-text-muted: #a1a1aa;
+  --color-text-soft: #f4f4f514; // text at 8% opacity, behind quiet neutral buttons
   --color-accent: #f5b841;
   --color-accent-soft: #f5b8411f; // accent at 12% opacity
   --color-accent-border: #f5b84159; // accent at 35% opacity
-  --color-danger: #ff8a8a; // errors and destructive actions
+  --color-danger: #ff453a; // errors and destructive actions
+  --color-danger-soft: #d7b3b114; // warm grey at 8% opacity, behind danger text and icons
+  --color-danger-fill: #b02a24; // solid destructive buttons, with --color-text on it
 
   // Typography
   --font-family: 'Inter Variable', system-ui, sans-serif;

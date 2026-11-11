@@ -26,6 +26,12 @@ body {
   outline-offset: 2px;
 }
 
+// Focused after navigation so screen readers start at the page's title (App), but it isn't a
+// control – it can't be used or reached with Tab – so it gets no ring.
+h1[tabindex='-1']:focus {
+  outline: none;
+}
+
 a {
   text-decoration: none;
   color: inherit;
@@ -104,6 +110,7 @@ button, .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-half); // between an icon and the text
   border: 1px solid currentColor;
   border-radius: var(--border-radius);
   font-weight: 700;
@@ -126,6 +133,30 @@ button[type="submit"],
   font-weight: bold;
 }
 
+.button-delete {
+  background-color: var(--color-danger-fill);
+  border-color: var(--color-danger-fill);
+  color: var(--color-text);
+}
+
+.button-danger-text {
+  padding-inline: var(--spacing-half);
+  margin-inline-start: calc(-1 * var(--spacing-half) - 1px);
+  color: var(--color-danger);
+  background: transparent;
+  border-color: transparent;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-danger-soft);
+    }
+  }
+
+  &:active {
+    background-color: var(--color-danger-soft);
+  }
+}
+
 .button-group {
   display: flex;
   justify-content: center;
@@ -145,6 +176,20 @@ select {
 .label-secondary {
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
+}
+
+// Dialog
+dialog {
+  width: 26rem;
+  padding: calc(var(--spacing-1) + var(--spacing-half));
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+
+  &::backdrop {
+    background-color: var(--color-background);
+    opacity: 0.85;
+  }
 }
 
 // Validation

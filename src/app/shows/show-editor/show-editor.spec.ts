@@ -46,6 +46,23 @@ const EMPTY_FORM = { title: '', status: 'watching', service: '', season: '', epi
 describe('ShowEditor', () => {
   let harness: RouterTestingHarness;
 
+  // jsdom has no showModal() or close(). These stand-ins keep the `open` attribute, enough for the
+  // delete dialog to be opened and closed.
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    };
+  });
+
+  afterAll(() => {
+    const prototype = HTMLDialogElement.prototype as Partial<HTMLDialogElement>;
+    delete prototype.showModal;
+    delete prototype.close;
+  });
+
   const root = () => harness.routeNativeElement as HTMLElement;
 
   // Finds a control through its label, as a user does.
@@ -95,6 +112,12 @@ describe('ShowEditor', () => {
     (root().querySelector('button[type="submit"]') as HTMLButtonElement).click();
     harness.detectChanges();
   }
+
+  // The page's own "Delete show", which opens the dialog – not the one inside it.
+  const pageDeleteButton = () =>
+    Array.from(root().querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete show' && !button.closest('dialog'),
+    );
 
   it('fills the form with the show in the URL', async () => {
     await open('/shows/slow-horses/edit');
@@ -171,5 +194,32 @@ describe('ShowEditor', () => {
 
     expect(TestBed.inject(Router).url).toBe('/shows/add');
     expect(TestBed.inject(ShowStore).shows()).toEqual([]);
+  });
+
+  it('offers Delete show in edit mode only', async () => {
+    await open('/shows/add');
+    expect(pageDeleteButton()).toBeUndefined();
+
+    await navigate('/shows/severance/edit');
+    expect(pageDeleteButton()).toBeDefined();
+  });
+
+  // D59: the dialog deletes and emits `deleted`; the editor then goes to Home (D49).
+  it('goes to Home after the show is deleted in the dialog', async () => {
+    await open('/shows/severance/edit');
+
+    pageDeleteButton()?.click();
+    harness.detectChanges();
+    const dialog = root().querySelector('dialog') as HTMLDialogElement;
+    expect(dialog.hasAttribute('open')).toBe(true);
+
+    const confirmButton = Array.from(dialog.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete show',
+    );
+    confirmButton?.click();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(ShowStore).shows().map((show) => show.id)).toEqual(['slow-horses']);
+    expect(TestBed.inject(Router).url).toBe('/');
   });
 });
