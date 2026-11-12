@@ -298,7 +298,16 @@ goal (D63): it should take as little time from Angular as possible.
   Microsoft.Testing.Platform – so `dotnet build` and `dotnet test` run from there.
   `server/WatchTracker.Api` is still the `web` template: an empty minimal API with "Hello
   World!" on `/`, on `http://localhost:5080` locally – `launchSettings.json` has only the `http`
-  profile, and no browser opens on start. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
+  profile, and no browser opens on start. `/healthz` is `MapHealthChecks` with no checks
+  registered, so it answers `200 Healthy` whenever the app serves requests – never a database
+  check (D75); `fly.toml`'s check moves from `/` to it in D2. Logging (D75): `AddHttpLogging`
+  writes one line per request (`CombineLogs`) with only the method, path, status and duration –
+  no query string, headers or body – and `appsettings.json` lets its category through, since the
+  template keeps `Microsoft.AspNetCore` at `Warning`. `/healthz` is left out with
+  `WithHttpLogging(HttpLoggingFields.None)`, as Fly calls it every 30 seconds.
+  `appsettings.Production.json` sets the console's `FormatterName` to `json` – config rather
+  than `AddJsonConsole()` in code – so each entry is one JSON object, with the fields in `State`
+  and an error's stack trace in `Exception`; Development keeps the readable format. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
   a project reference to the API, and the template's placeholder test until B2 (D86).
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
   `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
@@ -561,8 +570,10 @@ needed in between.
       the C# indent in `.editorconfig` and `server` in `.dockerignore` are in; `dotnet build` and
       `dotnet test` pass from the root. The API runs on `http://localhost:5080`: one `http`
       profile in `launchSettings.json`, without the `https` profile (HTTPS is Fly's) or a browser
-      on start – not 5000 or 7000 (macOS's AirPlay Receiver) nor 8080 (another project). Left:
-      `/healthz`, the logging, `compose.yaml` and CI.
+      on start – not 5000 or 7000 (macOS's AirPlay Receiver) nor 8080 (another project).
+      `/healthz` answers `200 Healthy`, and every other request gets one log line – JSON in
+      production – both written by Claude at the developer's request (D87). Left: `compose.yaml`
+      and CI.
 - [ ] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
       the editable fields, and `addedAt`/`updatedAt` set by the server; the first migration;
       `Database.Migrate()` at startup; a Development seed with a dev user and ~10 shows covering
@@ -823,6 +834,7 @@ reversed, mark it as superseded instead of deleting it.
 | D84 | 2026-11-12 | The delete dialog has no icon tile – the developer left it out on purpose, which amends DESIGN.md §2 ("Delete dialog"). On phones it becomes a bottom sheet that slides up from the bottom edge, without the movement under `prefers-reduced-motion`, like the route transitions. Built last, in M1's styling pass; until then the dialog is centred on every size. | The tile looked out of place in the dialog – the developer's visual call within the rules (D26); the red "Delete show" button still marks the action as destructive. The bottom sheet puts the buttons within the thumb's reach, but the centred dialog works on the phone today, so it doesn't hold up M2. |
 | D85 | 2026-11-12 | The .NET solution sits in the root: `WatchTracker.slnx` – the XML format `dotnet new sln` makes in .NET 10, not the old `.sln` – listing `server/WatchTracker.Api` and `server/WatchTracker.Api.Tests`, with `global.json` beside it (SDK 10.0.404, `rollForward: latestFeature`), so it covers everything under `server/`. `dotnet build` and `dotnet test` run from the root, in CI too. The projects and `server/.gitignore` stay in `server/`, and Angular stays a plain folder, not a JavaScript project (`.esproj`) in the solution (amends D76). | The developer opens the repo in Rider, which has no C# support in a folder opened without a solution, so a solution in `server/` meant two windows; with it in the root, one window has both – like the solution the developer knows from work. An `.esproj` would wrap the Angular CLI's build in MSBuild for nothing: `ng serve`, `ng test`, CI and the Docker build call the CLI directly. Accepted: two .NET files in the root beside the npm ones. |
 | D86 | 2026-11-12 | The backend's tests use xUnit v3 – `dotnet new install xunit.v3.templates`, then `dotnet new xunit3 -f net10.0`, since the template defaults to `net8.0` – on Microsoft.Testing.Platform: the test project is an executable, and `global.json` sets `test.runner` so `dotnet test` uses it. The template's placeholder test (`UnitTest1`, `Assert.True(true)`) stays until the first real test replaces it in B2 – `/healthz` answering while the database is down (D75) – because a run with no tests ends with exit code 8, which fails `dotnet test` and CI. | xUnit v3 is the maintained version – the SDK's own `xunit` template still makes v2 (2.9.3), which is in maintenance – and works with `WebApplicationFactory` and Testcontainers (B3, B4). Microsoft.Testing.Platform is the template's default and a runner .NET 10's `dotnet test` supports natively. Accepted: a test that tests nothing, against D17, until B2. |
+| D87 | 2026-11-12 | Claude wrote `/healthz` and the logging setup (B1) at the developer's request, with comments on what each must not do; the developer reviews them. Both are hosting plumbing, like the configuration in D79 – the developer still writes the endpoints (D64). | The developer had no experience with health checks or ASP.NET Core's logging and preferred to learn them by reviewing a few explained lines. What matters is what they must not do. The logs must never hold headers or bodies, where cookies and passwords travel. And the health check must not touch the database: Fly's proxy stops sending traffic to a machine whose check fails, so with one machine a database check would turn a sleeping Neon into a 503 for the whole app, Angular included. Both rules are in the comments in `Program.cs`. |
 
 ## 7. Open questions
 
