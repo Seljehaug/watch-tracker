@@ -7,10 +7,12 @@
 **Last updated:** 2026-11-12
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
-the Pixel's home screen since 2026-11-12 (A6). Now: part B, the backend locally (B1, under
-way: the .NET solution and both projects in place 2026-11-12, D85, D86) – the app
-on several devices (D58), with backend, hosting and order decided 2026-11-10 in D60–D78. The
-floating add button is put off, 2026-11-10.
+the Pixel's home screen since 2026-11-12 (A6). Now: the walking skeleton (D88) – Claude takes
+the backend to a first `GET /api/shows` in production, then the developer writes the rest. B1
+is under way: the solution, both projects, `/healthz` and the logging in place 2026-11-12
+(D85–D87). The goal is the app on several devices (D58), with backend, hosting and order
+decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
+off, 2026-11-10.
 The season and episode errors under both steppers (D83) done 2026-11-12.
 Delete with confirmation (D59) and the steppers at phone width done 2026-11-11 (M2 A1).
 The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
@@ -283,7 +285,9 @@ goal (D63): it should take as little time from Angular as possible.
   now include `--color-accent-soft` and `--color-accent-border` (8-digit hex). Inter via
   `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - CI: `.github/workflows/ci.yml` runs lint, tests and the build on pushes to `main` and on pull
-  requests, with Node from `.nvmrc` (24). Docker: the `Dockerfile` in the root is v1 (D81) –
+  requests, with Node from `.nvmrc` (24); a second job, `api`, runs `dotnet build` and
+  `dotnet test` beside it, with the SDK `global.json` names (`actions/setup-dotnet@v6`). Docker:
+  the `Dockerfile` in the root is v1 (D81) –
   `node:24-slim` runs `npm ci` and `npm run build`, and `nginx:1.30-alpine` serves
   `dist/watch-tracker/browser` on port 80 with `nginx.conf` as its site: `try_files` falls back to
   `index.html` for the app's routes, `index.html` is sent with `Cache-Control: no-cache` (it
@@ -307,7 +311,10 @@ goal (D63): it should take as little time from Angular as possible.
   `WithHttpLogging(HttpLoggingFields.None)`, as Fly calls it every 30 seconds.
   `appsettings.Production.json` sets the console's `FormatterName` to `json` – config rather
   than `AddJsonConsole()` in code – so each entry is one JSON object, with the fields in `State`
-  and an error's stack trace in `Exception`; Development keeps the readable format. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
+  and an error's stack trace in `Exception`; Development keeps the readable format.
+  `compose.yaml` in the root runs `db` only: `postgres:18` with development-only user, password
+  and database (`watchtracker`), on `127.0.0.1:5432` so the network can't reach it, a named
+  volume at `/var/lib/postgresql` (18's layout, not `…/data`), and a `pg_isready` healthcheck. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
   a project reference to the API, and the template's placeholder test until B2 (D86).
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
   `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
@@ -503,10 +510,14 @@ the decisions D60–D78.
 In short: ASP.NET Core minimal APIs on .NET 10 with EF Core and PostgreSQL (D63); one container
 on Fly.io that serves both the Angular build and `/api` from the same origin (D71, D72), the
 database on Neon's free plan; email and password with ASP.NET Core Identity and a cookie session
-(D70); online only (D62). Everything stays on `main` (D73), and the deploy button is not pressed
-between step C1 and step D2: from C1 Angular calls `/api`, which the nginx image doesn't have. A
-tag on the last commit deployed with localStorage gives a place to start a fix from, if one is
-needed in between.
+(D70); online only (D62). Everything stays on `main` (D73).
+
+**Order changed 2026-11-12 (D88): a walking skeleton first.** Claude writes B1, a minimal B2
+(the `Show` entity, the first migration) and `GET /api/shows`, then D1 and D2, so production
+runs the ASP.NET image – Angular still on localStorage – with one endpoint against Neon. Then
+B3 (login, Claude), B4 (the other endpoints and migrations, the developer), C1, C2 and D3. The
+original order paused the deploy button from C1 to D2, since from C1 Angular calls `/api` and
+the nginx image has none; with production on the new image first, that pause is gone.
 
 **A. In use on the phone – frontend only, localStorage**
 
@@ -572,8 +583,9 @@ needed in between.
       profile in `launchSettings.json`, without the `https` profile (HTTPS is Fly's) or a browser
       on start – not 5000 or 7000 (macOS's AirPlay Receiver) nor 8080 (another project).
       `/healthz` answers `200 Healthy`, and every other request gets one log line – JSON in
-      production – both written by Claude at the developer's request (D87). Left: `compose.yaml`
-      and CI.
+      production – both written by Claude at the developer's request (D87). `compose.yaml` and
+      the `api` job in CI by Claude (D88); Postgres 18.6 starts healthy locally. B1 is done once
+      the `api` job is green on GitHub.
 - [ ] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
       the editable fields, and `addedAt`/`updatedAt` set by the server; the first migration;
       `Database.Migrate()` at startup; a Development seed with a dev user and ~10 shows covering
@@ -811,7 +823,7 @@ reversed, mark it as superseded instead of deleting it.
 | D61 | 2026-11-10 | Data protection and backup. The data is personal data of low sensitivity: EU region for server, database and any backup, HTTPS only, no home-made password storage, only the data needed (the email and the shows), no third-party analytics or tracking, and a backup is as sensitive as the database. Backup is wanted, not required, and does not steer the choice of host. In M2 there is no automatic backup: before a migration that can lose data, a manual `pg_dump` is taken and kept on the Mac (FileVault); Neon's 6-hour history is a possible bonus, not relied on. The accepted worst case is typing the shows in again. Revisited when friends' data is in the app. | A TV list is not secret, but it is personal, and friends' lists and emails will be the developer's responsibility; the EU keeps GDPR simple at no cost. The developer first asked for at most a day's loss with a tested restore, then said backup isn't critical for a personal app: the data is cheap to recreate (20–30 shows in a quarter of an hour), and a backup job needs a safe place for the dumps – never an Actions artifact in a public repo (D74). The dangerous day is a migration that drops a column, which the manual dump covers. |
 | D62 | 2026-11-10 | Online only in M2. The installed app opens from the service worker's app shell, but the list needs a connection, and without one the app says so clearly. Reading without a connection – the last list, marked as such – is Later, built only if real use misses it; full offline with queued edits is out of scope. Replaces M2's "works offline" and `navigator.storage.persist()`. | The app is used on the couch, at home on wifi (D3). Offline edits on two devices need conflict resolution, a project of its own that teaches little Angular. Even reading offline has traps: the code can't tell a cached answer from a fresh one, and user data in the cache must be cleared on logout. Errors in the data layer – `catchError`, `httpResource`'s `error()` – are D57 learning either way. |
 | D63 | 2026-11-10 | The backend is a means, not a learning goal, and it is an own backend: ASP.NET Core minimal APIs on .NET 10 (LTS), EF Core with Npgsql, PostgreSQL and ASP.NET Core Identity. Not Supabase, and not a TypeScript backend (Hono, Drizzle, Better Auth). In Angular the API's types are written by hand; later at most `openapi-typescript` for types, never a generator that writes Angular services. | The developer knows C#, ASP.NET and EF Core (with SQL Server at work; with EF Core, Postgres differs in a provider line, case-sensitive text, its types and its naming), so the backend costs ~1–2 evenings instead of the ~5–8 a new stack would take from Angular. Supabase's free plan has no backups and pauses after a week without activity, and Pro (~$25 a month) is above the budget; it gives no own image to build (D65), and `supabase-js` returns Promises, which sidesteps the `HttpClient` and interceptor learning (D57). Shared TypeScript types, the main argument for Hono, are worth little with one table; the cost is the status and service lists, and the next-episode rule (D69), written twice. Postgres over SQL Server: free on every host, and a small image that runs natively on Apple Silicon. A generator for Angular services would write exactly the `HttpClient` code the developer is here to learn. |
-| D64 | 2026-11-10 | Who writes the backend (amends D1 and D16): the developer writes the endpoints, the EF Core model, the migrations, the Dockerfile and all Angular code. When asked, Claude writes the authentication plumbing – Identity with the cookie setup, the `401` instead of a redirect, Data Protection keys in the database, the create-user command – and the developer reviews it. Claude writes the backend's integration tests (`WebApplicationFactory` and Testcontainers), as for Angular (D16, D17). CLAUDE.md is updated to match. | The endpoints are the API the Angular code talks to; having written them, the developer understands the errors `HttpClient` gets. The auth plumbing is a couple of evenings of documentation for code written once and not learnt from. Backend tests catch what fails unnoticed – one user seeing another's shows. |
+| D64 | 2026-11-10 | Who writes the backend (amends D1 and D16): the developer writes the endpoints, the EF Core model, the migrations, the Dockerfile and all Angular code. When asked, Claude writes the authentication plumbing – Identity with the cookie setup, the `401` instead of a redirect, Data Protection keys in the database, the create-user command – and the developer reviews it. Claude writes the backend's integration tests (`WebApplicationFactory` and Testcontainers), as for Angular (D16, D17). CLAUDE.md is updated to match. **D88: Claude writes the walking skeleton up to the first endpoint in production; the developer's part starts after it.** | The endpoints are the API the Angular code talks to; having written them, the developer understands the errors `HttpClient` gets. The auth plumbing is a couple of evenings of documentation for code written once and not learnt from. Backend tests catch what fails unnoticed – one user seeing another's shows. |
 | D65 | 2026-11-10 | Docker in M2: Compose runs Postgres on the Mac, and the developer writes the Dockerfile whose image is what runs in production – first nginx serving the Angular build (M2 A3, replacing the Docker side quest), then the .NET image serving Angular and the API (D1). Not the whole development setup in Compose. Kubernetes stays Future. **Dockerfile v1 written by Claude at the developer's request (D81).** | Docker is a learning goal (§2), and building the image that actually runs teaches what an image is – multi-stage builds, `.dockerignore`, size, environment variables, health checks – which using a container doesn't. Two steps, the small image first, make a better curve. Running the API and Angular in containers during development makes hot reload slow on a Mac and teaches little. |
 | D66 | 2026-11-10 | The frontend goes live first: the static Angular app with localStorage at `watch.cseljehaug.no` on Fly, in use on the Pixel, before the backend exists (M2 A). Delete with confirmation and the steppers' overflow come before it. When the backend is live, the shows are typed in again by hand; no code moves data out of localStorage. | D11 still holds – real use early shapes M3 and M4 – and the backend with D57's rewrite is weeks away. The final address from day one means DNS and deploy are built once. Moving the data was considered – a banner reading localStorage, or an export file and an import – but retyping 15–30 shows takes a quarter of an hour, less than either. |
 | D67 | 2026-11-10 | A show's id is an integer made by the database – an identity column, one counter for all users – so URLs read `/shows/1/edit`. The server also sets `addedAt` and `updatedAt`. Another user's id gives `404`. Replaces the UUID in D38; the URL's shape stays. | The developer wants readable URLs, and only the database can hand out the next number without two devices picking the same one. D38 rejected numbers because of a counter in localStorage and collisions when syncing; neither applies with a server and online only (D62). Waiting for the server's id is the most common pattern in Angular and .NET code – `201` with the created resource, a pending Save button, navigation and error handling after the answer – which is the training the developer chose over a client-made UUID. One clock decides "most recently updated" across devices. Accepted: once friends join, a user's shows get gaps in their numbers; numbers per user are more work than they are worth now. |
@@ -835,6 +847,7 @@ reversed, mark it as superseded instead of deleting it.
 | D85 | 2026-11-12 | The .NET solution sits in the root: `WatchTracker.slnx` – the XML format `dotnet new sln` makes in .NET 10, not the old `.sln` – listing `server/WatchTracker.Api` and `server/WatchTracker.Api.Tests`, with `global.json` beside it (SDK 10.0.404, `rollForward: latestFeature`), so it covers everything under `server/`. `dotnet build` and `dotnet test` run from the root, in CI too. The projects and `server/.gitignore` stay in `server/`, and Angular stays a plain folder, not a JavaScript project (`.esproj`) in the solution (amends D76). | The developer opens the repo in Rider, which has no C# support in a folder opened without a solution, so a solution in `server/` meant two windows; with it in the root, one window has both – like the solution the developer knows from work. An `.esproj` would wrap the Angular CLI's build in MSBuild for nothing: `ng serve`, `ng test`, CI and the Docker build call the CLI directly. Accepted: two .NET files in the root beside the npm ones. |
 | D86 | 2026-11-12 | The backend's tests use xUnit v3 – `dotnet new install xunit.v3.templates`, then `dotnet new xunit3 -f net10.0`, since the template defaults to `net8.0` – on Microsoft.Testing.Platform: the test project is an executable, and `global.json` sets `test.runner` so `dotnet test` uses it. The template's placeholder test (`UnitTest1`, `Assert.True(true)`) stays until the first real test replaces it in B2 – `/healthz` answering while the database is down (D75) – because a run with no tests ends with exit code 8, which fails `dotnet test` and CI. | xUnit v3 is the maintained version – the SDK's own `xunit` template still makes v2 (2.9.3), which is in maintenance – and works with `WebApplicationFactory` and Testcontainers (B3, B4). Microsoft.Testing.Platform is the template's default and a runner .NET 10's `dotnet test` supports natively. Accepted: a test that tests nothing, against D17, until B2. |
 | D87 | 2026-11-12 | Claude wrote `/healthz` and the logging setup (B1) at the developer's request, with comments on what each must not do; the developer reviews them. Both are hosting plumbing, like the configuration in D79 – the developer still writes the endpoints (D64). | The developer had no experience with health checks or ASP.NET Core's logging and preferred to learn them by reviewing a few explained lines. What matters is what they must not do. The logs must never hold headers or bodies, where cookies and passwords travel. And the health check must not touch the database: Fly's proxy stops sending traffic to a machine whose check fails, so with one machine a database check would turn a sleeping Neon into a 503 for the whole app, Angular included. Both rules are in the comments in `Program.cs`. |
+| D88 | 2026-11-12 | A walking skeleton first: Claude writes the backend up to one endpoint in production – `compose.yaml`, the .NET job in CI, EF Core with the `Show` entity and the first migration, `GET /api/shows`, Dockerfile v2 and the `fly.toml` changes – and the developer reviews each piece, creates the Neon project, sets the secret and presses deploy. `GET /api/shows` is open until login (B3): the database is empty and no endpoint can add to it, so nothing can leak; login comes before `POST` and before any real data. After the skeleton the developer writes the endpoints and the migrations (D64), Claude writes login (B3). D1 and D2 move before C (amends D64, D65 and M2's order). | The backend is a means (D63); the developer learns from Angular and RxJS in C1 and C2, not from wiring up a backend. The riskiest parts – Dockerfile v2, Neon, migrations, secrets, the first deploy of the new image – are proven early and in small, reviewed steps, and C1 gets a real API in production to call. Accepted: Compose and Dockerfile v2 are learnt by reading, as Dockerfile v1 was (D81). |
 
 ## 7. Open questions
 

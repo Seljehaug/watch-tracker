@@ -1,6 +1,6 @@
 # Lint, test and build on every push to main and every pull request (D73).
 # The deploy workflow calls this one first (workflow_call), so it only deploys
-# a commit that passed these checks.
+# a commit that passed these checks – both jobs, Angular's and the API's.
 name: ci
 
 on:
@@ -33,3 +33,23 @@ jobs:
       - run: npm test
 
       - run: npm run build
+
+  # The backend (server/), next to the Angular job rather than after it.
+  api:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Installs the SDK that global.json in the root names.
+      - uses: actions/setup-dotnet@v6
+
+      # From the root, where WatchTracker.slnx is (D85).
+      - run: dotnet build
+
+      # On Microsoft.Testing.Platform, as global.json sets (D86).
+      - run: dotnet test --no-build

@@ -1,0 +1,30 @@
+# Postgres for local development (M2 B1, D76). The API runs on the Mac with dotnet watch and
+# connects to localhost:5432; the tests start their own database with Testcontainers instead.
+#   docker compose up -d      start it in the background
+#   docker compose down       stop it – the data stays in the volume
+#   docker compose down -v    stop it and delete the data, to start over
+services:
+  db:
+    # The Neon project's major version (D2).
+    image: postgres:18
+    environment:
+      # Development-only values, not secrets (D76). appsettings.Development.json uses the same.
+      POSTGRES_USER: watchtracker
+      POSTGRES_PASSWORD: watchtracker-dev
+      POSTGRES_DB: watchtracker
+    ports:
+      # On the Mac's own address only, so nobody else on the network can reach it.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # From Postgres 18 the data lives under /var/lib/postgresql, in a folder per major
+      # version – not /var/lib/postgresql/data, as older guides have it.
+      - db-data:/var/lib/postgresql
+    # Docker runs this until Postgres takes connections; docker compose ps then says "healthy".
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchtracker -d watchtracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
