@@ -3,6 +3,7 @@
 #   docker compose up -d      start it in the background
 #   docker compose down       stop it – the data stays in the volume
 #   docker compose down -v    stop it and delete the data, to start over
+# The production image can run against it too, with the app profile below (M2 D1).
 services:
   db:
     # The Neon project's major version (D2).
@@ -25,6 +26,27 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # The production image (Dockerfile v2, M2 D1), built and run here on the Mac against db, to
+  # try it before a deploy. Fly never reads this file – it builds the Dockerfile and uses
+  # fly.toml. Only with its profile; a plain `docker compose up` still starts db alone:
+  #   docker compose --profile app up --build    build the image and start both
+  #   docker compose --profile app down          stop both
+  # Then http://localhost:8091. Inside the container the app listens on 8080, as on Fly; 8091 is
+  # the Mac's side, since another project has 8080 there and v1's container (A3) uses 8090.
+  app:
+    profiles: [app]
+    build: .
+    environment:
+      # Inside Compose's network a service reaches another by its name, so the database is db
+      # here, not localhost. On Fly this comes from a secret instead (D2, D74).
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=watchtracker;Username=watchtracker;Password=watchtracker-dev"
+    ports:
+      - "127.0.0.1:8091:8080"
+    # Wait until db's healthcheck passes: the app migrates the database as it starts.
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   db-data:

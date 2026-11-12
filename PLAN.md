@@ -10,7 +10,8 @@ is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A
 the Pixel's home screen since 2026-11-12 (A6). Now: the walking skeleton (D88) – Claude takes
 the backend to a first `GET /api/shows` in production, then the developer writes the rest. B1
 is done, and B2's skeleton part – `Show`, the first migration, `GET /api/shows` and its first
-tests with Testcontainers (D90) – is in, 2026-11-12; next is Dockerfile v2 (D1). The goal is
+tests with Testcontainers (D90) – is in, and Dockerfile v2 (D1) runs locally against Compose's
+`db`, 2026-11-12. Next is D2 with the developer; no deploy until it is done. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
 off, 2026-11-10.
@@ -288,12 +289,18 @@ goal (D63): it should take as little time from Angular as possible.
 - CI: `.github/workflows/ci.yml` runs lint, tests and the build on pushes to `main` and on pull
   requests, with Node from `.nvmrc` (24); a second job, `api`, runs `dotnet build` and
   `dotnet test` beside it, with the SDK `global.json` names (`actions/setup-dotnet@v6`). Docker:
-  the `Dockerfile` in the root is v1 (D81) –
-  `node:24-slim` runs `npm ci` and `npm run build`, and `nginx:1.30-alpine` serves
-  `dist/watch-tracker/browser` on port 80 with `nginx.conf` as its site: `try_files` falls back to
-  `index.html` for the app's routes, `index.html` is sent with `Cache-Control: no-cache` (it
-  names the hashed bundles), and text is gzipped. `.dockerignore` keeps `node_modules`, `dist`,
-  `.angular`, `.git` and the docs out of the build context. Deployment (D72, D73): `fly.toml` –
+  the `Dockerfile` in the root is v2 (M2 D1, D91), in three stages. `node:24-slim` runs `npm ci`
+  and `npm run build` with only the files the Angular build reads (`angular.json`, the two
+  tsconfigs, `public`, `src`), so a C# change doesn't build Angular again;
+  `mcr.microsoft.com/dotnet/sdk:10.0` (SDK 10.0.404) restores from the `.csproj` alone, then
+  `dotnet publish`es the API; `mcr.microsoft.com/dotnet/aspnet:10.0` (Ubuntu 24.04) runs it as
+  the image's non-root user `app` on port 8080 (the image's `ASPNETCORE_HTTP_PORTS`), with
+  Angular's build in `wwwroot` and the environment left at Production – 381 MB. `.dockerignore`
+  keeps `node_modules`, `dist`, `.angular`, every `bin` and `obj` (the Mac's restore files break
+  `dotnet publish --no-restore`), the test project, `.git` and the docs out of the build context.
+  v1's `nginx.conf` is gone. **Production still runs v1 until D2:** `fly.toml` still says port 80
+  and Fly has no connection string, so a deploy before D2 would take the app down – don't press
+  the button between D1 and D2. Deployment (D72, D73): `fly.toml` –
   app `watch-tracker` in `fra`, one always-on shared-cpu-1x 256 MB machine, `force_https`, an
   HTTP check on `/` – and `.github/workflows/deploy.yml`, a `workflow_dispatch` button that only
   runs on `main`, calls `ci` first, then `flyctl deploy --remote-only --ha=false` with the
@@ -304,7 +311,7 @@ goal (D63): it should take as little time from Angular as possible.
   `dotnet build` and `dotnet test` run from there. `dotnet-tools.json` beside them pins
   `dotnet-ef` 10.0.14, run as `dotnet ef …` from the root. `server/WatchTracker.Api` runs on
   `http://localhost:5080` locally – `launchSettings.json` has only the `http` profile, and no
-  browser opens on start; "Hello World!" stays on `/` until D1.
+  browser opens on start.
   Data: EF Core with Npgsql 10.0.3, plus `Microsoft.EntityFrameworkCore.Relational` 10.0.14 to
   lift EF Core to the Design package's patch – without it the test project, which doesn't get
   Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
@@ -334,9 +341,25 @@ goal (D63): it should take as little time from Angular as possible.
   `appsettings.Production.json` sets the console's `FormatterName` to `json` – config rather
   than `AddJsonConsole()` in code – so each entry is one JSON object, with the fields in `State`
   and an error's stack trace in `Exception`; Development keeps the readable format.
-  `compose.yaml` in the root runs `db` only: `postgres:18` with development-only user, password
+  Angular (D1, D91): `UseStaticFiles` serves `wwwroot` before `UseHttpLogging`, so the JS, CSS
+  and fonts get no log line, and sends `index.html` with `Cache-Control: no-cache` (it names the
+  hashed bundles). `MapFallbackToFile("index.html")` answers the app's routes (`/`,
+  `/shows/add`), and `MapFallback("/api/{**path}")` gives an unknown `/api` path a `404`
+  instead of `index.html`; a missing file (`/main-old.js`) is a `404` too, as the fallback skips
+  paths with a file extension. `UseResponseCompression` compresses HTML, CSS and JavaScript only –
+  `main.js` goes from 272 kB to 120 kB with gzip, 109 kB with Brotli, as nginx gzipped in v1 –
+  never the API's JSON. Locally there is no `wwwroot`, since `ng serve` serves Angular, so the
+  API logs "The WebRootPath was not found" twice at start; harmless. The connection string gets
+  `GssEncryptionMode = Disable`: Npgsql tries Kerberos encryption first, and in the image, which
+  has no Kerberos library, .NET printed a plain-text "Cannot load library libgssapi_krb5.so.2"
+  at every start.
+  `compose.yaml` in the root runs `db`: `postgres:18` with development-only user, password
   and database (`watchtracker`), on `127.0.0.1:5432` so the network can't reach it, a named
   volume at `/var/lib/postgresql` (18's layout, not `…/data`), and a `pg_isready` healthcheck.
+  The `app` profile (D76) builds Dockerfile v2 and runs it against `db` on
+  `http://localhost:8091` – `docker compose --profile app up --build` – with
+  `ConnectionStrings__Default` pointing at `Host=db`, the service's name inside Compose's
+  network, after `db`'s healthcheck passes; a plain `docker compose up` still starts `db` alone.
   `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform (D86) with a
   project reference to the API, `Microsoft.AspNetCore.Mvc.Testing` 10.0.14 and
   `Testcontainers.PostgreSql` 4.16.0 (D90). `ApiFactory` is a `WebApplicationFactory<Program>`
@@ -351,8 +374,7 @@ goal (D63): it should take as little time from Angular as possible.
   answers `200 Healthy` (D75). Each test was seen to fail with the rule it guards broken
   (`WhenWritingNull` removed, a database check added). `dotnet test` needs Docker running –
   Docker Desktop on the Mac, built in on CI's ubuntu-latest – and takes a few seconds.
-  `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
-  `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
+  `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
   and `.editorconfig` has `end_of_line = lf`: `dotnet new` writes its templates with CRLF, and a
   repo rule covers every machine and CI, where a global `core.autocrlf` covers only one Mac.
@@ -671,9 +693,18 @@ the nginx image has none; with production on the new image first, that pause is 
 
 **D. To production**
 
-- [ ] D1. Dockerfile v2: Node builds Angular, the .NET SDK builds the API, and the ASP.NET runtime
+- [x] D1. Dockerfile v2: Node builds Angular, the .NET SDK builds the API, and the ASP.NET runtime
       image serves both – the Angular build from `wwwroot` with `index.html` as the fallback, and
-      `/api`. Test it locally with a Compose profile against `db`.
+      `/api`. Test it locally with a Compose profile against `db`. Done 2026-11-12, written by
+      Claude (D88, D91): the Dockerfile, `.dockerignore`, the `app` profile in `compose.yaml`, and
+      in `Program.cs` the static files, the two fallbacks, compression and the GSS setting, with
+      "Hello World!" gone. Run with the profile against `db`: `/`, `/shows/add` and
+      `/index.html` give `index.html` with `no-cache`, `/api/shows` the seeded shows, `/healthz`
+      `Healthy`, `/api/nope` a `404`; every file in `wwwroot` comes with its right type, the app
+      runs as `app` (uid 1654), and every log line is JSON. Not deployed – that is D2, and the
+      button waits until then. For D2: `fly.toml`'s `internal_port` goes from 80 to 8080 and its
+      check from `/` to `/healthz`; Npgsql reads only `Host=…;Database=…` connection strings, not
+      a `postgresql://` URL, so the Neon string kept in 1Password must be in that form.
 - [ ] D2. Neon (D72): a project in Frankfurt (`aws-eu-central-1`), its connection string kept in
       1Password and set with `fly secrets set ConnectionStrings__Default="$(op read …)"` (D74).
       The same Fly app moves to 512 MB with an HTTP health check on `/healthz` and replaces the
@@ -893,6 +924,7 @@ reversed, mark it as superseded instead of deleting it.
 | D88 | 2026-11-12 | A walking skeleton first: Claude writes the backend up to one endpoint in production – `compose.yaml`, the .NET job in CI, EF Core with the `Show` entity and the first migration, `GET /api/shows`, Dockerfile v2 and the `fly.toml` changes – and the developer reviews each piece, creates the Neon project, sets the secret and presses deploy. `GET /api/shows` is open until login (B3): the database is empty and no endpoint can add to it, so nothing can leak; login comes before `POST` and before any real data. After the skeleton the developer writes the endpoints and the migrations (D64), Claude writes login (B3). D1 and D2 move before C (amends D64, D65 and M2's order). | The backend is a means (D63); the developer learns from Angular and RxJS in C1 and C2, not from wiring up a backend. The riskiest parts – Dockerfile v2, Neon, migrations, secrets, the first deploy of the new image – are proven early and in small, reviewed steps, and C1 gets a real API in production to call. Accepted: Compose and Dockerfile v2 are learnt by reading, as Dockerfile v1 was (D81). |
 | D89 | 2026-11-12 | The API's conventions, which the developer's endpoints follow: minimal APIs with the handler as a lambda in `MapGet`/`MapPost`, grouped per resource in a static `XxxEndpoints` class with a `MapXxxEndpoints` method – not controllers (confirms D63). What the API returns is `XxxModel` (`ShowModel`), what `POST` and `PUT` take is `XxxPostModel` (`ShowPostModel`, only the fields the user decides – Angular's `EditableShowFields`), and the entity → model mapping is a static `MapFrom`, with `MapListFrom` for a list. Null properties are left out of the JSON by one setting in `Program.cs` (`WhenWritingNull`), not by attributes on each model. | The developer knew only controllers; minimal APIs are ASP.NET Core's default for new APIs and where new features land first (validation in .NET 10), and five or six endpoints are a cheap place to learn them. The names follow the developer's convention from work (`Model`, `PostModel`, `MapFrom`, `MapListFrom`), since the developer will write the rest. One JSON setting keeps every model alike and leaves the records free of attributes. |
 | D90 | 2026-11-12 | The backend's integration tests (by Claude, D64): `ApiFactory` – a `WebApplicationFactory<Program>` with its own `postgres:18` container from Testcontainers – is a class fixture (`IClassFixture<ApiFactory>`), so each test class gets its own container and database and the classes run in parallel; the tests in one class share it, and each starts by emptying the tables it uses. A test that stops or breaks its database makes its own `ApiFactory`. The app runs as `Testing`, not Development, and gets the connection string with `UseSetting`. Test data goes straight into the database through the app's `DbContext` until an endpoint can make it. A response's shape is checked against the expected JSON (`JsonNode.DeepEquals`), not by reading it back into the API's own models. | A container per class costs a couple of seconds and keeps the classes from seeing each other's data, without a reset library (Respawn) or a database per test; one container for the whole run (an xUnit assembly fixture) is the next step if the classes get many. `Testing` keeps the Development seed out. `UseSetting` is the way that reaches `Program.cs` before `builder.Build()` – the factory passes it on as a command-line argument – where `ConfigureAppConfiguration` comes too late. Reading the response as JSON tests what Angular receives: reading it into `ShowModel` would pass with `"service": null` and with PascalCase names, since the web defaults ignore case – the two things that can break unnoticed. |
+| D91 | 2026-11-12 | Dockerfile v2 and how the API serves Angular (M2 D1, written by Claude per D88). Three stages – Node builds Angular from only the files it reads, the .NET SDK restores from the `.csproj` and publishes, `aspnet:10.0` runs it as the non-root `app` user on 8080 with Angular in `wwwroot`. In `Program.cs`: `UseStaticFiles` before `UseHttpLogging`, `index.html` with `Cache-Control: no-cache`, `MapFallbackToFile("index.html")` for Angular's routes and `MapFallback("/api/{**path}")` returning `404`; `UseResponseCompression` for HTML, CSS and JavaScript only (`EnableForHttps`); `GssEncryptionMode = Disable` on the connection string. `nginx.conf` goes. The Compose profile `app` runs the image against `db` on port 8091. | One origin as D71 decided, with what nginx did in v1 kept: the fallback, `no-cache` on `index.html` and compression – without it `main.js` would go from 120 kB to 272 kB on the phone's first load. Compression is limited to Angular's file types so no response that could hold a secret is compressed, which is what makes compressing over HTTPS unsafe (BREACH); the API's JSON is small anyway. Without the `/api` fallback a mistyped API URL would answer `200` with `index.html`, and `HttpClient` would fail on parsing HTML instead of reporting a `404`. Static files before the logging keep a page load to one log line, not one per bundle and font. The non-root user means a hole in the app can't rewrite the image's files. The GSS setting removes a misleading plain-text "Error:" line at every start from logs that are otherwise JSON; neither Postgres here nor Neon uses Kerberos, and setting it in code means the Neon secret needs nothing extra. Port 8091 because 8080 and 8090 are taken on the Mac. |
 
 ## 7. Open questions
 

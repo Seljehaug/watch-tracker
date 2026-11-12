@@ -4,6 +4,10 @@
 node_modules
 dist
 .angular
+# .NET's build output from the Mac. obj/ holds the restore's files with the Mac's paths, which
+# would break `dotnet publish --no-restore` in the image.
+**/bin
+**/obj
 
 # Not needed to build the app.
 .git
@@ -14,7 +18,5 @@ dist
 docs
 coverage
 *.md
-
-# The backend: Dockerfile v1 only builds Angular, and a C# change would rebuild it for nothing.
-# Comes out again in M2 D1, when Dockerfile v2 builds the API too.
-server
+server/WatchTracker.Api.Tests
+TestResults
