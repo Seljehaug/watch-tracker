@@ -297,7 +297,8 @@ goal (D63): it should take as little time from Angular as possible.
   (D85) – the SDK pinned to 10.0.404 with `rollForward: latestFeature`, and `test.runner` set to
   Microsoft.Testing.Platform – so `dotnet build` and `dotnet test` run from there.
   `server/WatchTracker.Api` is still the `web` template: an empty minimal API with "Hello
-  World!" on `/`. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
+  World!" on `/`, on `http://localhost:5080` locally – `launchSettings.json` has only the `http`
+  profile, and no browser opens on start. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
   a project reference to the API, and the template's placeholder test until B2 (D86).
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
   `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
@@ -558,8 +559,10 @@ needed in between.
       readable by root only, so `dotnet` failed with "Permission denied" until
       `sudo chmod 755 /usr/local/share`. The solution, both projects (D86), `server/.gitignore`,
       the C# indent in `.editorconfig` and `server` in `.dockerignore` are in; `dotnet build` and
-      `dotnet test` pass from the root. Left: a fixed port in `launchSettings.json` (not 5000 –
-      macOS's AirPlay Receiver – nor 8080), `/healthz`, the logging, `compose.yaml` and CI.
+      `dotnet test` pass from the root. The API runs on `http://localhost:5080`: one `http`
+      profile in `launchSettings.json`, without the `https` profile (HTTPS is Fly's) or a browser
+      on start – not 5000 or 7000 (macOS's AirPlay Receiver) nor 8080 (another project). Left:
+      `/healthz`, the logging, `compose.yaml` and CI.
 - [ ] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
       the editable fields, and `addedAt`/`updatedAt` set by the server; the first migration;
       `Database.Migrate()` at startup; a Development seed with a dev user and ~10 shows covering
@@ -580,7 +583,8 @@ needed in between.
 
 **C. Angular against the API, the classic way (D57, D77)**
 
-- [ ] C1. `proxy.conf.json` for `ng serve` (`/api` → the API on the Mac). `ShowApi` – one method per
+- [ ] C1. `proxy.conf.json` for `ng serve` (`/api` → the API on the Mac, `http://localhost:5080`
+      from `launchSettings.json` – the two must match). `ShowApi` – one method per
       endpoint, returning Observables – and `ShowStore` on top of it: the same signals plus a
       loading and an error state, updated from the server's answers; the API's types written by
       hand (D63). `ShowStorage` goes (D77). What has to change with it:
