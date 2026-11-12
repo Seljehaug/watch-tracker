@@ -297,12 +297,33 @@ goal (D63): it should take as little time from Angular as possible.
   HTTP check on `/` – and `.github/workflows/deploy.yml`, a `workflow_dispatch` button that only
   runs on `main`, calls `ci` first, then `flyctl deploy --remote-only --ha=false` with the
   `FLY_API_TOKEN` secret. Live at `https://watch.cseljehaug.no` (M2 A5). No UI library.
-- Backend (M2 B1, started 2026-11-12): `WatchTracker.slnx` and `global.json` sit in the root
-  (D85) – the SDK pinned to 10.0.404 with `rollForward: latestFeature`, and `test.runner` set to
-  Microsoft.Testing.Platform – so `dotnet build` and `dotnet test` run from there.
-  `server/WatchTracker.Api` is still the `web` template: an empty minimal API with "Hello
-  World!" on `/`, on `http://localhost:5080` locally – `launchSettings.json` has only the `http`
-  profile, and no browser opens on start. `/healthz` is `MapHealthChecks` with no checks
+- Backend (M2 B1 done and B2's skeleton part 2026-11-12, D88): `WatchTracker.slnx` and
+  `global.json` sit in the root (D85) – the SDK pinned to 10.0.404 with
+  `rollForward: latestFeature`, and `test.runner` set to Microsoft.Testing.Platform – so
+  `dotnet build` and `dotnet test` run from there. `dotnet-tools.json` beside them pins
+  `dotnet-ef` 10.0.14, run as `dotnet ef …` from the root. `server/WatchTracker.Api` runs on
+  `http://localhost:5080` locally – `launchSettings.json` has only the `http` profile, and no
+  browser opens on start; "Hello World!" stays on `/` until D1.
+  Data: EF Core with Npgsql 10.0.3, plus `Microsoft.EntityFrameworkCore.Relational` 10.0.14 to
+  lift EF Core to the Design package's patch – without it the test project, which doesn't get
+  Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
+  `Title`, `Status` and `Service` holding Angular's ids (D31), `LastWatchedSeason` and
+  `LastWatchedEpisode` (both null: not started), `AddedAt` and `UpdatedAt` as `timestamptz`; no
+  owner until login (B3). `Data/WatchTrackerDbContext.cs` has `Shows`, and `Migrations/` holds
+  `InitialCreate`. `Program.cs` reads `ConnectionStrings:Default` – Compose's `db` in
+  `appsettings.Development.json`, a Fly secret in production – and stops at startup without it,
+  then runs `Database.Migrate()` before taking requests (D68). In Development, `UseSeeding` runs
+  `Data/DevelopmentSeed.cs` on an empty database: 10 shows with every status, not started, no
+  service and a long title. On a brand-new database the first `Migrate()` logs one failed
+  `SELECT` from `__EFMigrationsHistory` before it creates the table – EF's normal behaviour.
+  `GET /api/shows` (`Shows/ShowEndpoints.cs`, a `MapGroup("/api/shows")` the other endpoints
+  join) returns every show, ordered by id, as `ShowModel` (`Shows/ShowModel.cs`, built with
+  `MapFrom`, or `MapListFrom` for a list): Angular's `TrackedShow` with a number id. `Program.cs` sets
+  `WhenWritingNull` for all of the API's JSON, so an empty `service` or `lastWatched` is left
+  out rather than sent as `null` (D89).
+  Open until login (D88). EF's SQL (`Microsoft.EntityFrameworkCore.Database.Command`) is logged
+  at `Information` in Development only; elsewhere at `Warning`, so failed commands still show.
+  `/healthz` is `MapHealthChecks` with no checks
   registered, so it answers `200 Healthy` whenever the app serves requests – never a database
   check (D75); `fly.toml`'s check moves from `/` to it in D2. Logging (D75): `AddHttpLogging`
   writes one line per request (`CombineLogs`) with only the method, path, status and duration –
@@ -314,8 +335,9 @@ goal (D63): it should take as little time from Angular as possible.
   and an error's stack trace in `Exception`; Development keeps the readable format.
   `compose.yaml` in the root runs `db` only: `postgres:18` with development-only user, password
   and database (`watchtracker`), on `127.0.0.1:5432` so the network can't reach it, a named
-  volume at `/var/lib/postgresql` (18's layout, not `…/data`), and a `pg_isready` healthcheck. `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with
-  a project reference to the API, and the template's placeholder test until B2 (D86).
+  volume at `/var/lib/postgresql` (18's layout, not `…/data`), and a `pg_isready` healthcheck.
+  `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with a project
+  reference to the API, and the template's placeholder test until the first real one (D86).
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
   `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
@@ -570,7 +592,7 @@ the nginx image has none; with production on the new image first, that pause is 
 
 **B. The backend, locally**
 
-- [ ] B1. `server/` (D76): `WatchTracker.Api` (minimal APIs, .NET 10) and `WatchTracker.Api.Tests`,
+- [x] B1. `server/` (D76): `WatchTracker.Api` (minimal APIs, .NET 10) and `WatchTracker.Api.Tests`,
       with `WatchTracker.slnx` and `global.json` in the root (D85); `compose.yaml` in the root with
       Postgres only, on the same major version as the Neon project – 18, Neon's default since June
       2026; `/healthz` with `MapHealthChecks` that never touches the database (D75); JSON console
@@ -584,13 +606,19 @@ the nginx image has none; with production on the new image first, that pause is 
       on start – not 5000 or 7000 (macOS's AirPlay Receiver) nor 8080 (another project).
       `/healthz` answers `200 Healthy`, and every other request gets one log line – JSON in
       production – both written by Claude at the developer's request (D87). `compose.yaml` and
-      the `api` job in CI by Claude (D88); Postgres 18.6 starts healthy locally. B1 is done once
-      the `api` job is green on GitHub.
+      the `api` job in CI by Claude (D88); Postgres 18.6 starts healthy locally. Done 2026-11-12:
+      the `api` job is green on GitHub (ci #11). It shows inside the `ci` run, next to the
+      Angular job – the Actions sidebar lists workflows (`ci`, `deploy`), not their jobs.
 - [ ] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
       the editable fields, and `addedAt`/`updatedAt` set by the server; the first migration;
       `Database.Migrate()` at startup; a Development seed with a dev user and ~10 shows covering
       every status and the edge cases (not started, a long title, no service), its login in
-      `appsettings.Development.json` as test values.
+      `appsettings.Development.json` as test values. _Progress 2026-11-12, the skeleton part
+      (D88), by Claude:_ the `Show` entity without the owner, the first migration (`InitialCreate`),
+      `Database.Migrate()` at startup, the seed's 10 shows without the dev user – both come with
+      login (B3) – and `GET /api/shows`, open for now. Tried against Compose's `db`: `200` with
+      the 10 shows, and a second start neither migrates nor seeds again. Next in the skeleton:
+      tests for it with Testcontainers, replacing the placeholder (D86), then D1.
 - [ ] B3. Login – Claude writes it when asked (D64, D70): Identity with a cookie that is `HttpOnly`,
       `Secure`, `SameSite=Strict` and lasts 60 days, sliding; a `401` instead of the redirect to
       a login page; Data Protection keys in the database (`PersistKeysToDbContext`), or every
@@ -848,6 +876,7 @@ reversed, mark it as superseded instead of deleting it.
 | D86 | 2026-11-12 | The backend's tests use xUnit v3 – `dotnet new install xunit.v3.templates`, then `dotnet new xunit3 -f net10.0`, since the template defaults to `net8.0` – on Microsoft.Testing.Platform: the test project is an executable, and `global.json` sets `test.runner` so `dotnet test` uses it. The template's placeholder test (`UnitTest1`, `Assert.True(true)`) stays until the first real test replaces it in B2 – `/healthz` answering while the database is down (D75) – because a run with no tests ends with exit code 8, which fails `dotnet test` and CI. | xUnit v3 is the maintained version – the SDK's own `xunit` template still makes v2 (2.9.3), which is in maintenance – and works with `WebApplicationFactory` and Testcontainers (B3, B4). Microsoft.Testing.Platform is the template's default and a runner .NET 10's `dotnet test` supports natively. Accepted: a test that tests nothing, against D17, until B2. |
 | D87 | 2026-11-12 | Claude wrote `/healthz` and the logging setup (B1) at the developer's request, with comments on what each must not do; the developer reviews them. Both are hosting plumbing, like the configuration in D79 – the developer still writes the endpoints (D64). | The developer had no experience with health checks or ASP.NET Core's logging and preferred to learn them by reviewing a few explained lines. What matters is what they must not do. The logs must never hold headers or bodies, where cookies and passwords travel. And the health check must not touch the database: Fly's proxy stops sending traffic to a machine whose check fails, so with one machine a database check would turn a sleeping Neon into a 503 for the whole app, Angular included. Both rules are in the comments in `Program.cs`. |
 | D88 | 2026-11-12 | A walking skeleton first: Claude writes the backend up to one endpoint in production – `compose.yaml`, the .NET job in CI, EF Core with the `Show` entity and the first migration, `GET /api/shows`, Dockerfile v2 and the `fly.toml` changes – and the developer reviews each piece, creates the Neon project, sets the secret and presses deploy. `GET /api/shows` is open until login (B3): the database is empty and no endpoint can add to it, so nothing can leak; login comes before `POST` and before any real data. After the skeleton the developer writes the endpoints and the migrations (D64), Claude writes login (B3). D1 and D2 move before C (amends D64, D65 and M2's order). | The backend is a means (D63); the developer learns from Angular and RxJS in C1 and C2, not from wiring up a backend. The riskiest parts – Dockerfile v2, Neon, migrations, secrets, the first deploy of the new image – are proven early and in small, reviewed steps, and C1 gets a real API in production to call. Accepted: Compose and Dockerfile v2 are learnt by reading, as Dockerfile v1 was (D81). |
+| D89 | 2026-11-12 | The API's conventions, which the developer's endpoints follow: minimal APIs with the handler as a lambda in `MapGet`/`MapPost`, grouped per resource in a static `XxxEndpoints` class with a `MapXxxEndpoints` method – not controllers (confirms D63). What the API returns is `XxxModel` (`ShowModel`), what `POST` and `PUT` take is `XxxPostModel` (`ShowPostModel`, only the fields the user decides – Angular's `EditableShowFields`), and the entity → model mapping is a static `MapFrom`, with `MapListFrom` for a list. Null properties are left out of the JSON by one setting in `Program.cs` (`WhenWritingNull`), not by attributes on each model. | The developer knew only controllers; minimal APIs are ASP.NET Core's default for new APIs and where new features land first (validation in .NET 10), and five or six endpoints are a cheap place to learn them. The names follow the developer's convention from work (`Model`, `PostModel`, `MapFrom`, `MapListFrom`), since the developer will write the rest. One JSON setting keeps every model alike and leaves the records free of attributes. |
 
 ## 7. Open questions
 
