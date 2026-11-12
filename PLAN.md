@@ -9,8 +9,9 @@
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). Now: the walking skeleton (D88) – Claude takes
 the backend to a first `GET /api/shows` in production, then the developer writes the rest. B1
-is under way: the solution, both projects, `/healthz` and the logging in place 2026-11-12
-(D85–D87). The goal is the app on several devices (D58), with backend, hosting and order
+is done, and B2's skeleton part – `Show`, the first migration, `GET /api/shows` and its first
+tests with Testcontainers (D90) – is in, 2026-11-12; next is Dockerfile v2 (D1). The goal is
+the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
 off, 2026-11-10.
 The season and episode errors under both steppers (D83) done 2026-11-12.
@@ -336,8 +337,20 @@ goal (D63): it should take as little time from Angular as possible.
   `compose.yaml` in the root runs `db` only: `postgres:18` with development-only user, password
   and database (`watchtracker`), on `127.0.0.1:5432` so the network can't reach it, a named
   volume at `/var/lib/postgresql` (18's layout, not `…/data`), and a `pg_isready` healthcheck.
-  `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform with a project
-  reference to the API, and the template's placeholder test until the first real one (D86).
+  `server/WatchTracker.Api.Tests` is xUnit v3 on Microsoft.Testing.Platform (D86) with a
+  project reference to the API, `Microsoft.AspNetCore.Mvc.Testing` 10.0.14 and
+  `Testcontainers.PostgreSql` 4.16.0 (D90). `ApiFactory` is a `WebApplicationFactory<Program>`
+  – the API in memory, with a test server instead of a port – that starts its own `postgres:18`
+  container, runs the app as `Testing` so the Development seed stays out, and hands it the
+  container's connection string with `UseSetting`: `Program.cs` reads it before
+  `builder.Build()`, and `ConfigureAppConfiguration` is only applied at `Build()`, too late
+  (tried). `Shows/ShowEndpointsTests` checks that `GET /api/shows` sends Angular's
+  `TrackedShow` – a number id, camelCase, `lastWatched` as `{ season, episode }`, and no
+  `service` or `lastWatched` at all when they are null – by comparing the response with the
+  expected JSON. `HealthCheckTests` stops its container and checks that `/healthz` still
+  answers `200 Healthy` (D75). Each test was seen to fail with the rule it guards broken
+  (`WhenWritingNull` removed, a database check added). `dotnet test` needs Docker running –
+  Docker Desktop on the Mac, built in on CI's ubuntu-latest – and takes a few seconds.
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4;
   `.dockerignore` leaves `server` out of Dockerfile v1's build context until D1.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
@@ -617,8 +630,10 @@ the nginx image has none; with production on the new image first, that pause is 
       (D88), by Claude:_ the `Show` entity without the owner, the first migration (`InitialCreate`),
       `Database.Migrate()` at startup, the seed's 10 shows without the dev user – both come with
       login (B3) – and `GET /api/shows`, open for now. Tried against Compose's `db`: `200` with
-      the 10 shows, and a second start neither migrates nor seeds again. Next in the skeleton:
-      tests for it with Testcontainers, replacing the placeholder (D86), then D1.
+      the 10 shows, and a second start neither migrates nor seeds again. The first tests, by
+      Claude 2026-11-12 (D90): `GET /api/shows`'s JSON shape and `/healthz` with the database
+      down, with `WebApplicationFactory` and Testcontainers, replacing the placeholder (D86).
+      Next in the skeleton: D1.
 - [ ] B3. Login – Claude writes it when asked (D64, D70): Identity with a cookie that is `HttpOnly`,
       `Secure`, `SameSite=Strict` and lasts 60 days, sliding; a `401` instead of the redirect to
       a login page; Data Protection keys in the database (`PersistKeysToDbContext`), or every
@@ -877,6 +892,7 @@ reversed, mark it as superseded instead of deleting it.
 | D87 | 2026-11-12 | Claude wrote `/healthz` and the logging setup (B1) at the developer's request, with comments on what each must not do; the developer reviews them. Both are hosting plumbing, like the configuration in D79 – the developer still writes the endpoints (D64). | The developer had no experience with health checks or ASP.NET Core's logging and preferred to learn them by reviewing a few explained lines. What matters is what they must not do. The logs must never hold headers or bodies, where cookies and passwords travel. And the health check must not touch the database: Fly's proxy stops sending traffic to a machine whose check fails, so with one machine a database check would turn a sleeping Neon into a 503 for the whole app, Angular included. Both rules are in the comments in `Program.cs`. |
 | D88 | 2026-11-12 | A walking skeleton first: Claude writes the backend up to one endpoint in production – `compose.yaml`, the .NET job in CI, EF Core with the `Show` entity and the first migration, `GET /api/shows`, Dockerfile v2 and the `fly.toml` changes – and the developer reviews each piece, creates the Neon project, sets the secret and presses deploy. `GET /api/shows` is open until login (B3): the database is empty and no endpoint can add to it, so nothing can leak; login comes before `POST` and before any real data. After the skeleton the developer writes the endpoints and the migrations (D64), Claude writes login (B3). D1 and D2 move before C (amends D64, D65 and M2's order). | The backend is a means (D63); the developer learns from Angular and RxJS in C1 and C2, not from wiring up a backend. The riskiest parts – Dockerfile v2, Neon, migrations, secrets, the first deploy of the new image – are proven early and in small, reviewed steps, and C1 gets a real API in production to call. Accepted: Compose and Dockerfile v2 are learnt by reading, as Dockerfile v1 was (D81). |
 | D89 | 2026-11-12 | The API's conventions, which the developer's endpoints follow: minimal APIs with the handler as a lambda in `MapGet`/`MapPost`, grouped per resource in a static `XxxEndpoints` class with a `MapXxxEndpoints` method – not controllers (confirms D63). What the API returns is `XxxModel` (`ShowModel`), what `POST` and `PUT` take is `XxxPostModel` (`ShowPostModel`, only the fields the user decides – Angular's `EditableShowFields`), and the entity → model mapping is a static `MapFrom`, with `MapListFrom` for a list. Null properties are left out of the JSON by one setting in `Program.cs` (`WhenWritingNull`), not by attributes on each model. | The developer knew only controllers; minimal APIs are ASP.NET Core's default for new APIs and where new features land first (validation in .NET 10), and five or six endpoints are a cheap place to learn them. The names follow the developer's convention from work (`Model`, `PostModel`, `MapFrom`, `MapListFrom`), since the developer will write the rest. One JSON setting keeps every model alike and leaves the records free of attributes. |
+| D90 | 2026-11-12 | The backend's integration tests (by Claude, D64): `ApiFactory` – a `WebApplicationFactory<Program>` with its own `postgres:18` container from Testcontainers – is a class fixture (`IClassFixture<ApiFactory>`), so each test class gets its own container and database and the classes run in parallel; the tests in one class share it, and each starts by emptying the tables it uses. A test that stops or breaks its database makes its own `ApiFactory`. The app runs as `Testing`, not Development, and gets the connection string with `UseSetting`. Test data goes straight into the database through the app's `DbContext` until an endpoint can make it. A response's shape is checked against the expected JSON (`JsonNode.DeepEquals`), not by reading it back into the API's own models. | A container per class costs a couple of seconds and keeps the classes from seeing each other's data, without a reset library (Respawn) or a database per test; one container for the whole run (an xUnit assembly fixture) is the next step if the classes get many. `Testing` keeps the Development seed out. `UseSetting` is the way that reaches `Program.cs` before `builder.Build()` – the factory passes it on as a command-line argument – where `ConfigureAppConfiguration` comes too late. Reading the response as JSON tests what Angular receives: reading it into `ShowModel` would pass with `"service": null` and with PascalCase names, since the web defaults ignore case – the two things that can break unnoticed. |
 
 ## 7. Open questions
 

@@ -55,7 +55,7 @@ namespace WatchTracker.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Shows");
+                    b.ToTable("Shows", (string)null);
                 });
 #pragma warning restore 612, 618
         }
