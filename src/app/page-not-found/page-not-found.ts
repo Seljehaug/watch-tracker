@@ -46,6 +46,6 @@ import {SvgIcon} from '../shared/svg-icon/svg-icon';
     <a routerLink="/" class="button button-primary">
       Go to the home page
     </a>
-  `,
+  `
 })
 export class PageNotFound {}

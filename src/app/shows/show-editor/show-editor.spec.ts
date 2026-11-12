@@ -196,6 +196,25 @@ describe('ShowEditor', () => {
     expect(TestBed.inject(ShowStore).shows()).toEqual([]);
   });
 
+  // D44 puts the error on the missing field; D83 shows it once, under both steppers.
+  it('shows a season/episode error under the steppers and focuses the missing field', async () => {
+    await open('/shows/add', []);
+    type('Title', 'Andor');
+    type('Season', '2');
+
+    save();
+    await harness.fixture.whenStable();
+
+    const episode = field('Episode');
+    const description = root().querySelector(`[id="${episode.getAttribute('aria-describedby')}"]`);
+    expect(description?.textContent?.trim()).toBe('Enter the episode too, or clear the season.');
+    expect(description?.closest('app-form-field')).toBeNull();
+    expect(root().textContent?.match(/Enter the episode too/g)).toHaveLength(1);
+    expect(episode.getAttribute('aria-invalid')).toBe('true');
+    expect(field('Season').hasAttribute('aria-invalid')).toBe(false);
+    expect(document.activeElement).toBe(episode);
+  });
+
   it('offers Delete show in edit mode only', async () => {
     await open('/shows/add');
     expect(pageDeleteButton()).toBeUndefined();

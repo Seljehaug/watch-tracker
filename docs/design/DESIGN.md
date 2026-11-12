@@ -39,7 +39,7 @@ the content max width, which is tied to the screen rather than the text (D28).
 | `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons ("next episode")    |
 | `--color-accent-border` | `#F5B84159` | Accent at 35%: their border (decorative, see §1.1)                    |
 | `--color-danger`        | `#FF453A`   | Errors (message, icon, the invalid control's border); destructive text |
-| `--color-danger-soft`   | `#D7B3B114` | Warm grey at 8%, behind danger text and icons: hover and press on quiet destructive buttons; the delete dialog's icon tile |
+| `--color-danger-soft`   | `#D7B3B114` | Warm grey at 8%, behind danger text and icons: hover and press on quiet destructive buttons |
 | `--color-danger-fill`   | `#B02A24`   | Fill of solid destructive buttons, with `--color-text` on it          |
 
 The tints are 8-digit hex (`#RRGGBBAA`, the last pair is the opacity: `14` ≈ 8%, `1F` ≈ 12%,
@@ -254,7 +254,10 @@ A polite live region announces the value after a button press.
 
 Season and episode are both filled or both empty (D44). With only one filled, the error goes on the
 empty one ("Enter the episode too, or leave both empty."), shown after a save attempt like every
-other error (D41), and only that field turns red.
+other error (D41), and only that field turns red. The message sits under both steppers, full width
+and left-aligned, not in its own stepper's half, where it wrapped into four lines at 320px (D83).
+The empty field is still the one described by it (`aria-describedby`) and focused after a failed
+save.
 
 ### Edit / add page
 
@@ -272,7 +275,9 @@ submit the form.
 ### Delete dialog
 
 Native `<dialog>` opened with `showModal()`, shown as a bottom sheet on phone (12px from the
-sides, 16px from the bottom, radius 20, surface). Icon tile with a soft red tint, title
+sides, 16px from the bottom, radius 20, surface) that slides up from the bottom edge, without the
+movement under `prefers-reduced-motion` – built last (D84); until then it is centred on every
+size. No icon tile: it looked out of place, so it was left out (D84). Title
 "Delete Severance?", text "This can't be undone." – the same text for every show: the title
 names the show, so the text only says what the title can't, and a show without progress needs no
 other wording. The dialog is named by the title (`aria-labelledby`) and described by the text
@@ -343,7 +348,7 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Not used at the moment (the alert icon is medium since D42)                       |
 | **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button |
-| **big** 24px    | Delete icon in the delete dialog, plus icon in the FAB, TV icon in the empty state, page-not-found icon on the not-found page |
+| **big** 24px    | Plus icon in the FAB, TV icon in the empty state, page-not-found icon on the not-found page |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
 state drew the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with

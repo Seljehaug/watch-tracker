@@ -4,11 +4,13 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-11
-**Current milestone:** M1 – My shows, with M2's part A alongside: the app is live at
-`https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5). Next: a home-screen shortcut on the
-Pixel (A6), then the rest of M2 – the app on several devices (D58), with backend, hosting and
-order decided 2026-11-10 in D60–D78; the floating add button is put off, 2026-11-10.
+**Last updated:** 2026-11-12
+**Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
+is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
+the Pixel's home screen since 2026-11-12 (A6). Next: part B, the backend locally (B1) – the app
+on several devices (D58), with backend, hosting and order decided 2026-11-10 in D60–D78. The
+floating add button is put off, 2026-11-10.
+The season and episode errors under both steppers (D83) done 2026-11-12.
 Delete with confirmation (D59) and the steppers at phone width done 2026-11-11 (M2 A1).
 The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
 `ShowListEmpty` done 2026-11-10; focus
@@ -123,8 +125,8 @@ goal (D63): it should take as little time from Angular as possible.
   the `page-not-found` icon in the same kind of tile, `<h1 tabindex="-1">Page not found</h1>`, a
   muted line and a "Go to the home page" button link to `/`, centred both ways – its `:host` has
   `flex: 1` in the shell's `main`. Reached by unknown URLs and, through the guard, by edit URLs
-  whose show isn't in the store. Not done: the muted line has no `text-align: center`, so on a
-  phone it wraps into left-aligned lines under the centred heading (DESIGN.md asks for centred).
+  whose show isn't in the store. The muted line has `text-align: center`, so it stays centred
+  when it wraps on a phone (DESIGN.md).
 - `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
   responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
   four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
@@ -143,8 +145,12 @@ goal (D63): it should take as little time from Angular as possible.
   show in the store; `onInvalid` sets `hasTriedToSave` and, once the errors are rendered, focuses
   the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
   a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
-  are secondary (D43, D46). `storedShow` is a `computed` that reads `showId()` once into a
-  `const` (TypeScript narrows variables, not the results of calls) and looks it up with
+  are secondary (D43, D46). The fieldset is a flex column – the `<legend>` stays outside its flex
+  box, as fieldsets lay it out themselves, so it gets no `gap`. Season and Episode carry
+  `#seasonField`/`#episodeField` and `errorsRenderedExternally`, and a `FormFieldErrors` for each
+  under the steppers shows their errors full width (D83). `storedShow` is a `computed` that reads
+  `showId()` once into a `const` (TypeScript narrows variables, not the results of calls) and
+  looks it up with
   `ShowStore.getShowById`, or is `null` in add mode. The model is a `linkedSignal` over it – the
   stored show mapped with `toShowEditorFormModel`, or the empty model when there is none (D48).
   An unknown id never reaches the editor (the guard, D53), so the empty model is only add mode –
@@ -156,7 +162,7 @@ goal (D63): it should take as little time from Angular as possible.
   `Router` too.
 - `DeleteShowDialog` (`src/app/shows/delete-show-dialog/`, `app-delete-show-dialog`, D59): a
   native `<dialog>` with the show as a required input and a public `open()` that calls
-  `showModal()`. Title "Delete <title>?" (still an `<h3>`) and the text "This can't be undone.",
+  `showModal()`. Title "Delete <title>?" (an `<h2>`, after the page's `<h1>`) and the text "This can't be undone.",
   linked as the dialog's name and description with `aria-labelledby`/`aria-describedby` and ids
   from `crypto.randomUUID()`. A close button (the `close` icon, `aria-label="Close"`) pulled into
   the corner, Cancel with `autofocus` and "Delete show" (`.button-delete`, `--color-danger-fill`).
@@ -171,9 +177,20 @@ goal (D63): it should take as little time from Angular as possible.
   neither" as `required` with `when` on the missing field (D44).
 - `FormFieldWrapper` (`app-form-field`, `src/app/shared/form-field/`): the label (`optional`;
   `labelSecondary` sets the global `.label-secondary`), the projected control, and the hint or the
-  errors in the same place (D41); the page passes `showErrors`. It finds the control with
-  `contentChild(FormField)`. The `appFormFieldControl` directive on the control injects the
-  wrapper and sets `id`, `aria-invalid` and `aria-describedby` (D45).
+  errors in the same place (D41) – the errors through `FormFieldErrors`; the page passes
+  `showErrors`. With `errorsRenderedExternally` it leaves the errors to a `FormFieldErrors` the
+  page places elsewhere (D83); the hint still shows only while no errors are visible, since the
+  two share the description id. It finds the control with `contentChild(FormField)`. The
+  `appFormFieldControl` directive on the control injects the wrapper and sets `id`,
+  `aria-invalid` and `aria-describedby` (D45).
+- `FormFieldErrors` (`app-form-field-errors`, `src/app/shared/form-field/form-field-errors/`,
+  D83): the error messages, each with the `alert-circle` icon, of the `FormFieldWrapper` passed
+  as its required `field` input – under the wrapper's description id, and only while the
+  wrapper's `errorsVisible()`, so the wrapper still decides when and the control's
+  `aria-describedby` finds them wherever they are. The wrapper passes itself with
+  `[field]="this"`; a page passes one through a template reference variable. Its host has
+  `display: contents`: the element stays in the DOM but makes no box, so an empty one takes no
+  `gap` in a flex parent. It imports the wrapper with `import type`, since the wrapper imports it.
 - `NumberStepper` (`app-number-stepper`, `src/app/shared/number-stepper/`), as decided in D43: a
   `FormValueControl<number | null>` with − · a text input with `role="spinbutton"` · +, text ↔
   number through `transformedValue`, the minimum from the schema, Arrow Up/Down 1, Page Up/Down 5,
@@ -217,7 +234,7 @@ goal (D63): it should take as little time from Angular as possible.
   through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
   no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
   `isEpisodeRef`, `isTrackedShow`.
-- Tests: 138, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- Tests: 142, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
   and an unknown show id show the not-found page and keep the URL in the address bar –
   `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
@@ -230,12 +247,15 @@ goal (D63): it should take as little time from Angular as possible.
   at open, a card stays in place after a tap, new shows first, empty state, the add link
   projected into it),
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
-  `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field) and
+  `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field),
+  `form-field-errors.spec.ts` (nothing until the errors show, errors outside the field still
+  describe the control, the hint hidden meanwhile) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
   errors, ARIA state, announcements, label through the wrapper, focus) and `show-editor.spec.ts`
   (edit mode loads the show, empty form in add mode, follows a new id when the
   router reuses the page, save updates or adds, Home after a save but not after an invalid one,
-  "Delete show" in edit mode only, Home after deleting in the dialog – on the app's real routes
+  "Delete show" in edit mode only, Home after deleting in the dialog, a season/episode error once
+  under the steppers with focus on the missing field – on the app's real routes
   through `RouterTestingHarness`), `delete-show-dialog.spec.ts` ("Delete show" removes the show,
   closes and emits `deleted`; Cancel and Close close without either; named and described through
   its ids). jsdom has no `showModal()` or `close()`, so both dialog specs give
@@ -391,26 +411,27 @@ Goal: something actually useful – a list of my shows with progress, entered by
       edit route – `true` when the store has the show, otherwise a `RedirectCommand` to a URL
       the `**` route catches, with `browserUrl: state.url` so the address bar keeps what the
       user asked for. Tests: the guard, the wildcard route, and the ShowEditor test that expects
-      an empty form for an unknown id changes. Done 2026-11-10 (see §3); the not-found
-      text's centring is still open.
+      an empty form for an unknown id changes. Done 2026-11-10 (see §3), the centred text
+      included.
 - [x] Delete with confirmation: native `<dialog>` wrapped in an own component – `DeleteShowDialog`
       in `shows/`, opened with its `open()` from the editor's "Delete show" button (D59;
       DESIGN.md §2, "Edit / add page" and "Delete dialog"). The dialog deletes and emits
       `deleted`; the editor then goes to Home. Done 2026-11-11 (see §3), with new tokens
       (`--color-danger` darkened to `#FF453A`, `--color-danger-soft`, `--color-danger-fill`,
-      `--color-text-soft`) and the icons renamed `close` and `delete`. Still open: the dialog's
-      title is an `<h3>` after the page's `<h1>`, which axe's `heading-order` flags – it should
-      be an `<h2>`; the bottom sheet on phones and the icon tile from DESIGN.md §2 are not built.
-- [ ] Season and episode errors under both steppers (D83), the developer's task, picked up after
-      delete. Today an error such as "Enter the episode too, or clear the season." sits under its
-      own stepper, in a 136px column on a phone, four lines high. Four parts: a `FieldErrors`
-      component (`app-field-errors`, `shared/form-field/`) with the error markup moved out of
-      `FormFieldWrapper`, which uses it too; a boolean input on the wrapper (e.g.
-      `externalErrors`) so it doesn't render its errors itself; in the editor, `#seasonField` and
-      `#episodeField` on the two `app-form-field`s and two `<app-field-errors [field]="…">`
-      under `.season-and-episode-steppers`; tests by Claude (errors outside, `aria-describedby`
-      pointing there, nothing inside the wrapper) and a line in DESIGN.md. New Angular: a
-      component instance passed as an input through a template reference variable.
+      `--color-text-soft`) and the icons renamed `close` and `delete`. The dialog's title is an
+      `<h2>`, so axe's `heading-order` passes. The icon tile from DESIGN.md §2 is left out on
+      purpose, and the bottom sheet on phones comes last, in the styling pass (D84).
+- [x] Season and episode errors under both steppers (D83), the developer's task, picked up after
+      delete. An error such as "Enter the episode too, or clear the season." sat under its own
+      stepper, in a 136px column on a phone, four lines high. Done 2026-11-12 (see §3):
+      `FormFieldErrors` (`app-form-field-errors`, `shared/form-field/form-field-errors/`) holds
+      the error markup moved out of `FormFieldWrapper`, which uses it too;
+      `errorsRenderedExternally` on the wrapper leaves its errors to the page; the editor puts
+      `#seasonField` and `#episodeField` on the two fields and a `FormFieldErrors` for each under
+      the steppers. `FormFieldErrors` checks `errorsVisible()` itself and has `display: contents`
+      on its host, so no page repeats the condition and an empty one takes no `gap`. Tests by
+      Claude and a line in DESIGN.md. New Angular: a component instance passed as an input
+      through a template reference variable.
 - [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
       "Show card"): a custom pipe on `Intl.RelativeTimeFormat`. The value changes as time passes
@@ -427,6 +448,7 @@ Goal: something actually useful – a list of my shows with progress, entered by
       header, never for the cards (Apple: no glass in the content layer). Buttons: one attribute
       directive on `button` and `a` with a typed `variant` replaces the button classes (D82) –
       after delete, so the delete dialog's buttons start on the classes and move over with the rest.
+      Last of all: the delete dialog as a bottom sheet that slides up on phones (D84).
 - [ ] Route transitions, after the functionality: the Router's View Transitions support
       (`withViewTransitions()` in `provideRouter`, developer preview in v22), styled in the global
       styles. Start with a crossfade, then animate the page content only (a `view-transition-name`
@@ -508,7 +530,10 @@ needed in between.
       `http://` redirects to `https://`, `index.html` has `Cache-Control: no-cache`.
       `watch-tracker.fly.dev` reaches the same machine, but localStorage belongs to the address, so
       the app is used at `watch.cseljehaug.no` only.
-- [ ] A6. A home-screen shortcut from Chrome on the Pixel – and start using the app.
+- [x] A6. A home-screen shortcut from Chrome on the Pixel – and start using the app. Done
+      2026-11-12: the shortcut is on the Pixel and the app tested there. Without a manifest it
+      is a plain Chrome shortcut, opening in a tab with the address bar; installing comes with the
+      PWA (E2).
 
 **B. The backend, locally**
 
@@ -771,7 +796,8 @@ reversed, mark it as superseded instead of deleting it.
 | D80 | 2026-11-11 | The repo stays public. It has been public since it was created on 2026-10-07 – found 2026-11-11 – so D74's "public after the deploy setup" never applied. From now on: secret scanning and push protection on, the whole history scanned with `gitleaks`, and the Actions settings kept as they are – a read-only default token, and approval before a first-time contributor's pull request runs a workflow. No `pull_request_target`, no self-hosted runners, and the login locks an account after repeated failed attempts (B3). | The developer wants the portfolio value (D74), and nothing secret has been committed. A public repo's risks are that a mistake is public for good and that anyone can read how the app works. The answer to the first is to keep secrets out (D74) and let push protection catch slips; the answer to the second is not to rely on secrecy – the API's routes and the login endpoint are visible, so the protection is the login itself, lockout and HTTPS. Workflows from forks get no secrets and a read-only token, and `ci` uses no secrets. |
 | D81 | 2026-11-11 | Claude wrote Dockerfile v1, its `.dockerignore` and `nginx.conf` (M2 A3) at the developer's request, with every line commented and explained; the developer reviews them (amends D65 and D79). Who writes Dockerfile v2 (M2 D1) is decided when it starts. | The developer didn't want to write it, but wants to understand it, so Docker is learnt by reading and asking rather than writing this time. The goal is the app on the phone soon (D66), and v1 is about twenty lines that D1 replaces. |
 | D82 | 2026-11-11 | Buttons get their look from one attribute directive on the native element – a selector such as `button[appButton], a[appButton]` – with one typed `variant` input, a union of the looks in use (for example `'primary' \| 'secondary' \| 'danger' \| 'danger-quiet'`), mapped to classes through `host`; the styles stay in `_base.scss`. Not a component per variant, not an `<app-button>` wrapping a `<button>`, and no `quiet` boolean beside the variant. The implicit accent style on `button[type="submit"]` goes, so the look is always written in the template. Built in M1's styling pass, after delete; until then buttons use the classes. | Wrapping the native element would mean forwarding `type`, `disabled`, `autofocus`, `form` and every `aria-*` as inputs, a host element in the layout (as the dialog's host in the form's flex column showed), and a second component for the links that look like buttons (D49). An attribute selector keeps the real `<button>` or `<a>`, as Angular Material does (`<button mat-flat-button>`, `<a mat-button>`), and is the pattern `appFormFieldControl` already follows. A union lets the compiler catch a misspelt variant, which a class string doesn't, and has no impossible combinations such as a "quiet primary". |
-| D83 | 2026-11-11 | The season and episode errors are shown together under both steppers, left-aligned and full width, by a `FieldErrors` component that the editor places there and points at each field's `FormFieldWrapper` through a template reference variable. The wrapper still owns the errors: their id, `aria-describedby` and when they show (D41); it only stops rendering them itself. The error stays on the field (D44), so that field still turns red and gets focus after a failed save. Built by the developer after delete. | D44's rule is about the pair, so its message reads better under both, and under one stepper it wraps into a 136px column on a phone. Moving the error to the `lastWatched` group instead would leave `focusBoundControl()` (D41) without a control to focus. Keeping ids and timing in the wrapper means the screen-reader link can't drift from the visible message, and moving the markup into `FieldErrors` keeps it in one place. |
+| D83 | 2026-11-11 | The season and episode errors are shown together under both steppers, left-aligned and full width, by a `FieldErrors` component that the editor places there and points at each field's `FormFieldWrapper` through a template reference variable. The wrapper still owns the errors: their id, `aria-describedby` and when they show (D41); it only stops rendering them itself. The error stays on the field (D44), so that field still turns red and gets focus after a failed save. Built by the developer after delete – on 2026-11-12, as `FormFieldErrors`, which checks `errorsVisible()` itself and has `display: contents` on its host. | D44's rule is about the pair, so its message reads better under both, and under one stepper it wraps into a 136px column on a phone. Moving the error to the `lastWatched` group instead would leave `focusBoundControl()` (D41) without a control to focus. Keeping ids and timing in the wrapper means the screen-reader link can't drift from the visible message, and moving the markup into `FieldErrors` keeps it in one place. |
+| D84 | 2026-11-12 | The delete dialog has no icon tile – the developer left it out on purpose, which amends DESIGN.md §2 ("Delete dialog"). On phones it becomes a bottom sheet that slides up from the bottom edge, without the movement under `prefers-reduced-motion`, like the route transitions. Built last, in M1's styling pass; until then the dialog is centred on every size. | The tile looked out of place in the dialog – the developer's visual call within the rules (D26); the red "Delete show" button still marks the action as destructive. The bottom sheet puts the buttons within the thumb's reach, but the centred dialog works on the phone today, so it doesn't hold up M2. |
 
 ## 7. Open questions
 

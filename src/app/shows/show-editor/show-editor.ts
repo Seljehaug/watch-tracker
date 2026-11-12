@@ -23,6 +23,7 @@ import {NumberStepper} from '../../shared/number-stepper/number-stepper';
 import {Router, RouterLink} from '@angular/router';
 import {DeleteShowDialog} from '../delete-show-dialog/delete-show-dialog';
 import {SvgIcon} from '../../shared/svg-icon/svg-icon';
+import {FormFieldErrors} from '../../shared/form-field/form-field-errors/form-field-errors';
 
 @Component({
   imports: [
@@ -33,7 +34,8 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
     NumberStepper,
     RouterLink,
     DeleteShowDialog,
-    SvgIcon
+    SvgIcon,
+    FormFieldErrors
   ],
   selector: 'app-show-editor',
   styles: `
@@ -53,6 +55,9 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
 
     .last-watched-episode {
       border: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-half);
     }
 
     .season-and-episode-steppers {
@@ -89,14 +94,27 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
           <legend>Last watched episode <span class="text-muted">(optional)</span></legend>
 
           <div class="season-and-episode-steppers">
-            <app-form-field label="Season" labelSecondary [showErrors]="hasTriedToSave()">
+            <app-form-field
+              #seasonField
+              label="Season"
+              labelSecondary
+              [showErrors]="hasTriedToSave()"
+              errorsRenderedExternally>
               <app-number-stepper [formField]="form.lastWatched.season" decreaseAriaLabel="Decrease season" increaseAriaLabel="Increase season"/>
             </app-form-field>
 
-            <app-form-field label="Episode" labelSecondary [showErrors]="hasTriedToSave()">
+            <app-form-field
+              #episodeField
+              label="Episode"
+              labelSecondary
+              [showErrors]="hasTriedToSave()"
+              errorsRenderedExternally>
               <app-number-stepper [formField]="form.lastWatched.episode" decreaseAriaLabel="Decrease episode" increaseAriaLabel="Increase episode"/>
             </app-form-field>
           </div>
+
+          <app-form-field-errors [field]="seasonField"/>
+          <app-form-field-errors [field]="episodeField"/>
         </fieldset>
 
         @if (storedShow()) {
