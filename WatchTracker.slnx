@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/server/">
+    <Project Path="server/WatchTracker.Api.Tests/WatchTracker.Api.Tests.csproj" />
+    <Project Path="server/WatchTracker.Api/WatchTracker.Api.csproj" />
+  </Folder>
+</Solution>

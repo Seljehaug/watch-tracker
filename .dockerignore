@@ -14,3 +14,7 @@ dist
 docs
 coverage
 *.md
+
+# The backend: Dockerfile v1 only builds Angular, and a C# change would rebuild it for nothing.
+# Comes out again in M2 D1, when Dockerfile v2 builds the API too.
+server

@@ -1,0 +1,3 @@
+# Text files are stored and checked out with LF line endings, whatever the machine's git
+# settings. dotnet new writes its templates with CRLF (Windows line endings).
+* text=auto eol=lf
