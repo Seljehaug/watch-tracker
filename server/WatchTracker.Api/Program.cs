@@ -1,20 +1,20 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using WatchTracker.Api.Auth;
 using WatchTracker.Api.Data;
 using WatchTracker.Api.Shows;
 using WatchTracker.Api.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Postgres: Compose's db in Development (appsettings.Development.json), Neon in production,
-// where a Fly secret sets it as the environment variable ConnectionStrings__Default (D74).
-// Npgsql tries Kerberos (GSS) encryption first by default, and the Docker image has no Kerberos
-// library, so .NET printed "Cannot load library libgssapi_krb5.so.2" – a harmless error, and not
-// JSON – at every start. Neither Compose's Postgres nor Neon uses Kerberos.
+// The database: Compose's Postgres locally, Neon in production (set as a Fly secret).
+// Kerberos (GSS) is turned off: neither database uses it, and without its library in the
+// Docker image, Npgsql wrote a confusing error line at every start.
 var connectionString = new NpgsqlConnectionStringBuilder(
     builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("ConnectionStrings:Default is not set."))
@@ -30,24 +30,22 @@ builder.Services.AddDbContext<WatchTrackerDbContext>(options =>
     }
 });
 
-// Login (M2 B3, D70): ASP.NET Core Identity's users and password hashing, and its sign-in
-// cookie, with the app's own endpoints rather than MapIdentityApi. AddIdentityCore leaves out
-// roles and the default UI; AddSignInManager is what checks a password and writes the cookie.
+// Login with ASP.NET Core Identity (D70): users, password hashing and the login cookie.
+// AddIdentityCore leaves out roles and Identity's built-in pages.
 builder.Services
     .AddIdentityCore<User>(options =>
     {
         options.User.RequireUniqueEmail = true;
-        // Length rather than character classes, as NIST SP 800-63B advises: at least 15
-        // characters, any mix. Checked when a user is created (the create-user command).
+
+        // At least 15 characters, with no rules about digits or symbols: length matters most.
         options.Password.RequiredLength = 15;
         options.Password.RequireDigit = false;
         options.Password.RequireLowercase = false;
         options.Password.RequireUppercase = false;
         options.Password.RequireNonAlphanumeric = false;
-        // Five wrong passwords in a row lock the account for five minutes (D80) – Identity's
-        // defaults, written out. Only when the login endpoint asks for it: lockoutOnFailure is
-        // false unless the call sets it. The repo is public, so is the login endpoint's address;
-        // the protection is the password and this.
+
+        // Five wrong passwords in a row lock the account for five minutes (D80).
+        // They are only counted when the login asks for it (lockoutOnFailure in AuthEndpoints).
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     })
@@ -55,33 +53,34 @@ builder.Services
     .AddSignInManager();
 
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
-builder.Services.AddAuthorization();
+
+// Every endpoint requires a login unless it is marked AllowAnonymous(),
+// so a new endpoint can't be left open by mistake.
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    // The __Host- prefix makes the browser refuse the cookie unless it is Secure, for the whole
-    // site (Path=/) and for this host alone (no Domain). Something else on cseljehaug.no then
-    // can't set or overwrite it – which could log the browser in to another account.
+    // The __Host- prefix stops other subdomains from setting or replacing this cookie.
     options.Cookie.Name = "__Host-watchtracker";
-    // JavaScript can't read it, so an XSS hole can't steal the session.
+
+    // JavaScript can't read the cookie, so a script injected into the page can't steal it.
     options.Cookie.HttpOnly = true;
-    // Fly's proxy ends HTTPS and talks plain HTTP to the app, so the default, SameAsRequest,
-    // would leave Secure off in production. Always sets it whatever the request came in as.
-    // Chrome and Firefox still take a Secure cookie from http://localhost (ng serve, C1).
+
+    // Only sent over HTTPS. "Always", because Fly passes requests on to the app as plain HTTP.
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    // The browser leaves it out of requests another site starts. A site is the whole domain,
-    // cseljehaug.no, so a page on cseljehaug.no or another of its subdomains still gets it sent
-    // along: this is one layer against CSRF, not all of it.
+
+    // Not sent with requests that start on another site (CSRF). Other subdomains count as the
+    // same site, so the Sec-Fetch-Site check further down covers those.
     options.Cookie.SameSite = SameSiteMode.Strict;
-    // 60 days, sliding: a request in the second half renews it, so it only runs out after 30–60
-    // days without the app being opened.
+
+    // Lasts 60 days, and is renewed while the app is in use.
     options.ExpireTimeSpan = TimeSpan.FromDays(60);
     options.SlidingExpiration = true;
-    // Identity sends a request that isn't logged in to /Account/Login and one that isn't allowed
-    // to /Account/AccessDenied – a redirect Angular would follow to index.html and get a 200. An
-    // API answers with the status code instead; Angular shows its login page on a 401 (C2).
-    // Set on the Events Identity already made, not a new CookieAuthenticationEvents: Identity has
-    // put its security stamp check there, which logs every device out within 30 minutes of a
-    // password change.
+
+    // Answer 401 and 403 instead of redirecting to login pages that don't exist. Set on the
+    // existing Events: replacing them would drop Identity's check that logs a user out
+    // after a password change.
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -94,30 +93,24 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-// The keys that encrypt and sign the cookie. By default they are files inside the container,
-// and every deploy starts a new container with new keys – everyone would be logged out. In the
-// database they survive deploys. They are stored unencrypted, which the app logs a warning about
-// when it makes a key (every 90 days): whoever can read the database could make a cookie, but
-// could read and change the shows directly anyway.
+// The keys that encrypt the cookie are kept in the database. Inside the container they would
+// be lost on every deploy, logging everyone out. They are stored unencrypted, which is why the
+// log warns about it when a new key is made.
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<WatchTrackerDbContext>()
-    // A cookie can only be read by an app with the same name. The default name is the folder the
-    // app runs from, so a new WORKDIR in the Dockerfile would quietly log everyone out.
+    // A fixed name, so the keys don't depend on the folder the app runs from.
     .SetApplicationName("WatchTracker");
 
-// The API's JSON leaves out null properties rather than sending "service": null, so an empty
-// optional field is missing, as in Angular's models (service?: …) and in localStorage.
+// Leave null properties out of the JSON, as in Angular's models (service?: …).
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull);
 
-// The health check Fly calls (D75). No checks are registered, so /healthz answers 200
-// "Healthy" as long as the app serves requests. Never add a database check: Neon sleeps when
-// idle, and a slow wake-up would make Fly stop sending traffic to the whole app.
+// /healthz for Fly (D75). Never add a database check: a sleeping Neon would make Fly
+// stop sending traffic to the app.
 builder.Services.AddHealthChecks();
 
-// One log line per request with the method, path, status and duration, and nothing else
-// (D75): headers and bodies are where cookies and passwords travel. appsettings.json lets
-// the middleware's category through, since the template keeps Microsoft.AspNetCore at Warning.
+// One log line per request: method, path, status and duration. Never headers or bodies,
+// which hold cookies and passwords (D75).
 builder.Services.AddHttpLogging(options =>
 {
     options.LoggingFields = HttpLoggingFields.RequestMethod
@@ -127,13 +120,8 @@ builder.Services.AddHttpLogging(options =>
     options.CombineLogs = true;
 });
 
-// Angular's files are sent compressed, as nginx did in v1: main.js is about half the size on
-// the first load. ASP.NET Core leaves compression off for HTTPS by default because of an attack
-// called BREACH: in a response that holds a secret (a token) beside text an attacker chooses,
-// a guess that matches the secret compresses better, and TLS hides the content but not the
-// size. Angular's files are the same for everyone and hold no secrets, so only their types are
-// compressed, over HTTPS too; the API's JSON is never compressed. Fly's proxy speaks plain HTTP
-// to the app today, but EnableForHttps keeps this working if the app ever sees HTTPS.
+// Compress Angular's files, which halves main.js. Only those: compressing a response that
+// holds a secret is unsafe over HTTPS (the BREACH attack), so the API's JSON is left alone.
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -142,8 +130,7 @@ builder.Services.AddResponseCompression(options =>
 
 var app = builder.Build();
 
-// Brings the database up to the latest migration before the app takes requests (D68), and
-// in Development seeds an empty one.
+// Run new migrations before taking requests (D68). In Development, also seed an empty database.
 using (var scope = app.Services.CreateScope())
 {
     scope.ServiceProvider.GetRequiredService<WatchTrackerDbContext>().Database.Migrate();
@@ -151,10 +138,8 @@ using (var scope = app.Services.CreateScope())
 
 app.UseResponseCompression();
 
-// The Angular build in wwwroot (Dockerfile v2, D71). Before the logging: a request for a file
-// that exists – the JS, CSS and fonts – is answered here and goes no further, so it gets no log
-// line. index.html names the bundles by their hash (main-XXXXXXXX.js), so after a deploy the
-// browser must ask for a fresh copy; an old one points at bundles that are gone.
+// Serve Angular's build from wwwroot. Before the logging, so its files get no log lines.
+// index.html is never cached: it names the current bundles, which change with every deploy.
 var angularFiles = new StaticFileOptions
 {
     OnPrepareResponse = context =>
@@ -169,21 +154,35 @@ app.UseStaticFiles(angularFiles);
 
 app.UseHttpLogging();
 
-// Reads the cookie into the request's user, then lets endpoints that require a login turn the
-// rest away with a 401. After the logging, so those requests get a log line too.
+// Block changes (anything but GET and HEAD) that don't come from the app's own pages (CSRF).
+// Browsers say where a request comes from in the Sec-Fetch-Site header. Requests without it,
+// such as curl and the tests, are let through.
+app.Use(async (context, next) =>
+{
+    var method = context.Request.Method;
+    var site = context.Request.Headers["Sec-Fetch-Site"].ToString();
+    if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) && site is not ("" or "same-origin"))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+
+    await next(context);
+});
+
+// Read the login cookie, then turn away requests that need a login (401).
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Not logged: Fly calls it every 30 seconds.
-app.MapHealthChecks("/healthz").WithHttpLogging(HttpLoggingFields.None);
+// Open, and not logged: Fly calls it every 30 seconds.
+app.MapHealthChecks("/healthz").WithHttpLogging(HttpLoggingFields.None).AllowAnonymous();
+app.MapAuthEndpoints();
 app.MapShowEndpoints();
 
-// The fallbacks answer only paths that none of the endpoints above has. An unknown /api path is
-// a 404, not index.html, so a wrong URL in Angular fails as an error instead of "succeeding"
-// with a page of HTML.
+// Unknown /api paths get a 404, not index.html.
 app.MapFallback("/api/{**path}", () => Results.NotFound());
-// Any other path that isn't a file is one of Angular's routes (/shows/add, /shows/1/edit): send
-// index.html, and Angular's router picks the page from the URL in the browser.
-app.MapFallbackToFile("index.html", angularFiles);
+// Every other path is one of Angular's pages: send index.html. Open, so a user who isn't
+// logged in can reach the login page.
+app.MapFallbackToFile("index.html", angularFiles).AllowAnonymous();
 
 app.Run();

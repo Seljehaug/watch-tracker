@@ -12,10 +12,10 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
     public async Task GetShows_ReturnsTheShowsAsAngularsTrackedShow()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
 
-        // Straight into the database, since no endpoint can add a show yet. The class's tests
-        // share one database, so each starts from an empty table.
+        // Added straight to the database, since no endpoint can add shows yet. The table is
+        // emptied first: the class's tests share the database.
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WatchTrackerDbContext>();
         await db.Shows.ExecuteDeleteAsync(cancellationToken);
@@ -41,10 +41,9 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var json = await client.GetStringAsync("/api/shows", cancellationToken);
 
-        // The JSON as Angular reads it: a number id (D67), camelCase names, lastWatched as an
-        // object, and no service or lastWatched at all for a show without them – not
-        // "service": null (WhenWritingNull in Program.cs, D89). DeepEquals ignores the order of
-        // the properties but not of the shows, which come by id.
+        // The JSON Angular expects: a number id, camelCase names, lastWatched as an object, and
+        // no service or lastWatched at all when they are empty (not "service": null).
+        // DeepEquals ignores the order of the properties, but not of the shows.
         var expected = JsonNode.Parse($$"""
             [
               {

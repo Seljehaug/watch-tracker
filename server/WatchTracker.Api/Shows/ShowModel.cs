@@ -1,7 +1,7 @@
 namespace WatchTracker.Api.Shows;
 
-// A show as the API returns it: the shape of Angular's TrackedShow, with a number id (D67).
-// A null service or lastWatched is left out of the JSON (Program.cs), as in localStorage.
+// A show as the API returns it: Angular's TrackedShow, with a number id (D67). A null service
+// or lastWatched is left out of the JSON (see Program.cs).
 public record ShowModel(
     int Id,
     string Title,

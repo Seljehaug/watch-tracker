@@ -6,9 +6,8 @@ using WatchTracker.Api.Users;
 
 namespace WatchTracker.Api.Data;
 
-// IdentityUserContext adds Identity's user tables (AspNetUsers and its claims, logins and tokens)
-// without the role tables IdentityDbContext would bring – the app has no roles. The Data
-// Protection keys that sign the login cookie live here too (Program.cs), so they survive deploys.
+// IdentityUserContext adds Identity's user tables (AspNetUsers and three side tables), without
+// roles. DataProtectionKeys holds the keys that encrypt the login cookie (see Program.cs).
 public class WatchTrackerDbContext(DbContextOptions<WatchTrackerDbContext> options)
     : IdentityUserContext<User>(options), IDataProtectionKeyContext
 {

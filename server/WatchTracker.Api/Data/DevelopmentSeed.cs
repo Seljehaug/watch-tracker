@@ -3,9 +3,9 @@ using WatchTracker.Api.Shows;
 
 namespace WatchTracker.Api.Data;
 
-// Shows for an empty development database (D76): every status and the odd cases – not started,
-// no service, a long title. Database.Migrate() runs it in Development only; after
-// docker compose down -v, the next start seeds a fresh copy.
+// Test shows for an empty development database (D76): every status, plus the odd cases (not
+// started, no service, a long title). Development only. `docker compose down -v` empties the
+// database, and the next start seeds it again.
 public static class DevelopmentSeed
 {
     public static void Seed(DbContext context)

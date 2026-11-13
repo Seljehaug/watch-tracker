@@ -6,23 +6,22 @@ namespace WatchTracker.Api.Tests;
 
 public class HealthCheckTests
 {
-    // Guards D75 and D87: Fly stops sending traffic to a machine whose check fails, so a
-    // database check on /healthz would turn a sleeping Neon into a 503 for the whole app.
+    // /healthz must answer without the database: when it fails, Fly stops sending traffic to
+    // the app (D75). It must also be open without a login.
     [Fact]
     public async Task Healthz_AnswersWhileTheDatabaseIsDown()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        // Its own factory and container rather than a class fixture: the test stops the
-        // database, which would leave a shared one gone for the next test.
+        // Its own container rather than the class's, since the test stops it.
         await using var factory = new ApiFactory();
         await factory.InitializeAsync();
-        // Starts the app, which migrates the database while it is still up.
+        // Starts the app while the database is still up.
         var client = factory.CreateClient();
 
         await factory.Postgres.StopAsync(cancellationToken);
 
-        // The app really has lost its database – otherwise the test would prove nothing.
+        // Make sure the database really is gone, or the test proves nothing.
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WatchTrackerDbContext>();
         Assert.False(await db.Database.CanConnectAsync(cancellationToken));
