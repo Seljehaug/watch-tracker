@@ -26,7 +26,14 @@ public static class CreateUserCommand
         }
 
         var password = ReadHiddenLine("Password: ");
-        if (ReadHiddenLine("Password again: ") != password)
+        var again = ReadHiddenLine("Password again: ");
+        if (password is null || again is null)
+        {
+            Console.Error.WriteLine("The input had an escape sequence in it, such as the Esc key. No user was created.");
+            return 1;
+        }
+
+        if (again != password)
         {
             Console.Error.WriteLine("The passwords don't match. No user was created.");
             return 1;
@@ -55,10 +62,15 @@ public static class CreateUserCommand
         userManager.CreateAsync(new User { UserName = email, Email = email }, password);
 
     // Reads a line without showing it, not even as asterisks. Backspace works; pasting works too.
-    private static string ReadHiddenLine(string prompt)
+    // Null if the line had an escape sequence in it.
+    private static string? ReadHiddenLine(string prompt)
     {
+        // Turn off the terminal's "bracketed paste". When it is on, pasted text comes wrapped in
+        // ESC[200~ … ESC[201~, and ReadKey returns the markers' characters as part of the line.
+        Console.Write("\u001b[?2004l");
         Console.Write(prompt);
         var text = new StringBuilder();
+        var hadEscape = false;
         while (true)
         {
             var key = Console.ReadKey(intercept: true);
@@ -67,7 +79,13 @@ public static class CreateUserCommand
                 break;
             }
 
-            if (key.Key == ConsoleKey.Backspace)
+            // An Esc starts a terminal sequence, whose characters would end up in the password.
+            // The whole line is rejected rather than guessing where the sequence ends.
+            if (key.Key == ConsoleKey.Escape)
+            {
+                hadEscape = true;
+            }
+            else if (key.Key == ConsoleKey.Backspace)
             {
                 if (text.Length > 0)
                 {
@@ -81,6 +99,6 @@ public static class CreateUserCommand
         }
 
         Console.WriteLine();
-        return text.ToString();
+        return hadEscape ? null : text.ToString();
     }
 }

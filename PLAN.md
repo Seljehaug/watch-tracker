@@ -8,10 +8,11 @@
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
-production runs the ASP.NET Core image, and `GET /api/shows` answers `200 []` from Neon (D2,
-D92) – Angular still on localStorage, the Pixel's shows untouched. B1, B2's skeleton part and
-D1 were done 2026-11-12. Next is B3, login (Claude), then B4, the developer's endpoints and
-migrations (D64). The goal is
+production runs the ASP.NET Core image against Neon (D2, D92). Login (B3) is done 2026-11-13:
+the API requires a login everywhere but `/healthz` and Angular's pages, and my user exists in
+production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. B1, B2's
+skeleton part and D1 were done 2026-11-12. Next is B5, a set-password command (Claude), and
+B4, the developer's endpoints and migrations (D64). The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
 off, 2026-11-10.
@@ -321,19 +322,40 @@ goal (D63): it should take as little time from Angular as possible.
   Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
   `Title`, `Status` and `Service` holding Angular's ids (D31), `LastWatchedSeason` and
   `LastWatchedEpisode` (both null: not started), `AddedAt` and `UpdatedAt` as `timestamptz`; no
-  owner until login (B3). `Data/WatchTrackerDbContext.cs` has `Shows`, and `Migrations/` holds
-  `InitialCreate`. `Program.cs` reads `ConnectionStrings:Default` – Compose's `db` in
+  owner until B4. `Data/WatchTrackerDbContext.cs` is an `IdentityUserContext<User>` – Identity's
+  user tables without roles – with `Shows` and `DataProtectionKeys`, and `Migrations/` holds
+  `InitialCreate` and `AddLogin`. `Program.cs` reads `ConnectionStrings:Default` – Compose's `db` in
   `appsettings.Development.json`, a Fly secret in production – and stops at startup without it,
-  then runs `Database.Migrate()` before taking requests (D68). In Development, `UseSeeding` runs
-  `Data/DevelopmentSeed.cs` on an empty database: 10 shows with every status, not started, no
-  service and a long title. On a brand-new database the first `Migrate()` logs one failed
+  then runs `Database.Migrate()` before taking requests (D68). In Development it then runs
+  `Data/DevelopmentSeed.cs` (D95): the dev user from `appsettings.Development.json`'s
+  `DevelopmentUser` (test values) if it is missing, then 10 shows with every status, not started,
+  no service and a long title if the table is empty. On a brand-new database the first `Migrate()` logs one failed
   `SELECT` from `__EFMigrationsHistory` before it creates the table – EF's normal behaviour.
   `GET /api/shows` (`Shows/ShowEndpoints.cs`, a `MapGroup("/api/shows")` the other endpoints
   join) returns every show, ordered by id, as `ShowModel` (`Shows/ShowModel.cs`, built with
   `MapFrom`, or `MapListFrom` for a list): Angular's `TrackedShow` with a number id. `Program.cs` sets
   `WhenWritingNull` for all of the API's JSON, so an empty `service` or `lastWatched` is left
   out rather than sent as `null` (D89).
-  Open until login (D88). EF's SQL (`Microsoft.EntityFrameworkCore.Database.Command`) is logged
+  Login (M2 B3, D93–D95): ASP.NET Core Identity with `AddIdentityCore<User>` (`Users/User.cs`) –
+  a unique email, passwords of at least 15 characters with no class rules, and five wrong
+  passwords lock the account for five minutes. The session is Identity's cookie
+  `__Host-watchtracker`: `HttpOnly`, `Secure` always (Fly forwards plain HTTP), `SameSite=Strict`,
+  60 days, sliding, with `401`/`403` instead of redirects to login pages – set on the existing
+  `Events`, so the security stamp check stays. The keys that encrypt it are in the database
+  (`PersistKeysToDbContext`, application name `WatchTracker`), so a deploy logs nobody out. A
+  fallback policy requires a login on every endpoint not marked `AllowAnonymous()` – only
+  `/healthz` and Angular's pages are – and a middleware before it answers `403` to a change (not
+  `GET`/`HEAD`) whose `Sec-Fetch-Site` is present and not `same-origin`. `Auth/AuthEndpoints.cs`
+  has `POST /api/auth/login` (`200 { email }`, or the same empty `401` for every failure),
+  `POST /api/auth/logout` (`204`) and `GET /api/auth/user` (`200 { email }` or `401`), with
+  `TypedResults` return types; `Auth/LoginPostModel.cs` leaves the password out of `ToString()`.
+  `Users/CreateUserCommand.cs` is `dotnet WatchTracker.Api.dll create-user <email>`: after
+  `Migrate()` and before `app.Run()`, it reads the password twice at a hidden prompt, turns off
+  the terminal's bracketed paste, rejects a line with an escape sequence, and exits with 0 on
+  success. In production it runs through `fly ssh console`, from `/app` – the content root is
+  the working directory. `appsettings.Development.json` is left out of the publish output, so
+  the image never holds the dev user's login.
+  EF's SQL (`Microsoft.EntityFrameworkCore.Database.Command`) is logged
   at `Information` in Development only; elsewhere at `Warning`, so failed commands still show.
   `/healthz` is `MapHealthChecks` with no checks
   registered, so it answers `200 Healthy` whenever the app serves requests – never a database
@@ -350,7 +372,7 @@ goal (D63): it should take as little time from Angular as possible.
   hashed bundles). `MapFallbackToFile("index.html")` answers the app's routes (`/`,
   `/shows/add`), and `MapFallback("/api/{**path}")` gives an unknown `/api` path a `404`
   instead of `index.html`; a missing file (`/main-old.js`) is a `404` too, as the fallback skips
-  paths with a file extension. `UseResponseCompression` compresses HTML, CSS and JavaScript only –
+  paths with a file extension – both when logged in; without a login they get `401` (D94). `UseResponseCompression` compresses HTML, CSS and JavaScript only –
   `main.js` goes from 272 kB to 120 kB with gzip, 109 kB with Brotli, as nginx gzipped in v1 –
   never the API's JSON. In production Fly's proxy compresses what the app leaves uncompressed,
   so the API's JSON reaches the browser compressed after all (D92). Locally there is no
@@ -381,12 +403,21 @@ goal (D63): it should take as little time from Angular as possible.
   container, runs the app as `Testing` so the Development seed stays out, and hands it the
   container's connection string with `UseSetting`: `Program.cs` reads it before
   `builder.Build()`, and `ConfigureAppConfiguration` is only applied at `Build()`, too late
-  (tried). `Shows/ShowEndpointsTests` checks that `GET /api/shows` sends Angular's
+  (tried). It makes users with `CreateUserCommand.CreateAsync`, and logged-in clients through
+  the login endpoint, on `https://localhost`, as the cookie is `Secure`.
+  `Shows/ShowEndpointsTests` logs in, then checks that `GET /api/shows` sends Angular's
   `TrackedShow` – a number id, camelCase, `lastWatched` as `{ season, episode }`, and no
   `service` or `lastWatched` at all when they are null – by comparing the response with the
   expected JSON. `HealthCheckTests` stops its container and checks that `/healthz` still
-  answers `200 Healthy` (D75). Each test was seen to fail with the rule it guards broken
-  (`WhenWritingNull` removed, a database check added). `dotnet test` needs Docker running –
+  answers `200 Healthy` (D75). `Auth/AuthEndpointsTests` covers login and `/api/auth/user` (only
+  the email in the answer), the cookie's attributes, the same `401` for a wrong password and an
+  unknown email, the lockout after five, logout, and a cookie that still works in a new instance
+  of the app (the keys in the database); `Auth/AccessTests` a `401` on `/api` without a login,
+  Angular's pages open, and a `403` for a change from another site or subdomain while the app's
+  own changes and a read from another site go through; `Users/CreateUserCommandTests` that a
+  password under 15 characters and an email already in use, in any case, are refused – 17 tests.
+  Each test was seen to fail with the rule it guards broken (`WhenWritingNull` removed, a
+  database check added, `lockoutOnFailure` off, `RequiredLength` lowered, and so on). `dotnet test` needs Docker running –
   Docker Desktop on the Mac, built in on CI's ubuntu-latest – and takes a few seconds.
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
@@ -589,7 +620,7 @@ runs the ASP.NET image – Angular still on localStorage – with one endpoint a
 B3 (login, Claude), B4 (the other endpoints and migrations, the developer), C1, C2 and D3. The
 original order paused the deploy button from C1 to D2, since from C1 Angular calls `/api` and
 the nginx image has none; with production on the new image first, that pause is gone. **The
-skeleton is done 2026-11-13** (D2); next is B3.
+skeleton is done 2026-11-13** (D2), and B3, login, the same day; next are B5 and B4.
 
 **A. In use on the phone – frontend only, localStorage**
 
@@ -670,25 +701,50 @@ skeleton is done 2026-11-13** (D2); next is B3.
       the 10 shows, and a second start neither migrates nor seeds again. The first tests, by
       Claude 2026-11-12 (D90): `GET /api/shows`'s JSON shape and `/healthz` with the database
       down, with `WebApplicationFactory` and Testcontainers, replacing the placeholder (D86).
-      Next in the skeleton: D1.
-- [ ] B3. Login – Claude writes it when asked (D64, D70): Identity with a cookie that is `HttpOnly`,
+      _2026-11-13, with login (B3, D95):_ the dev user, made with the create-user command's code,
+      and the seed moved from `UseSeeding` to after `Migrate()` – the user first, so B4 can give
+      the shows an owner. Left: the owner (B4).
+- [x] B3. Login – Claude writes it when asked (D64, D70): Identity with a cookie that is `HttpOnly`,
       `Secure`, `SameSite=Strict` and lasts 60 days, sliding; a `401` instead of the redirect to
       a login page; Data Protection keys in the database (`PersistKeysToDbContext`), or every
       deploy logs everyone out; lockout after repeated failed attempts (`lockoutOnFailure`, D80); a
       create-user command; `POST /api/auth/login`,
-      `POST /api/auth/logout` and `GET /api/auth/me`; no registration endpoint. Tests by Claude.
+      `POST /api/auth/logout` and `GET /api/auth/user`; no registration endpoint. Tests by Claude.
       Then the developer's user is created in production with the command through
       `fly ssh console` (moved here from D2). Keep in mind (D92): Fly's proxy compresses the
       API's responses, so no response body should hold a token next to input an attacker
       chooses – `SameSite=Strict` already keeps other sites' requests from carrying the cookie.
+      _Done 2026-11-13_ (D93–D96), by Claude in three reviewed commits: `6ffef61` Identity, the
+      cookie and the Data Protection keys, with the `AddLogin` migration; `5bcc947` the three
+      endpoints, the fallback policy and the `Sec-Fetch-Site` check; `dfd0aeb` the create-user
+      command and the dev user. Rehearsed in the Compose `app` profile; the `__Host-` cookie
+      works on `http://localhost` in Chromium, which counts localhost as secure. Deployed with
+      run 43448017791 after reading the SQL (five `CREATE TABLE`, four indexes, nothing altered),
+      with v3's image ready for a rollback; `fly logs` shows `AddLogin` applied. My user was
+      made through `fly ssh console`, the password typed by hand: pasting it failed, and a
+      bracketed paste would have stored the terminal's markers with the password – fixed
+      afterwards (D95), deployed with B5. Checked in production with `op read` into curl, so the
+      password never showed: login `200`, `/api/auth/user` `200`, logout `204`, then `401`;
+      without a login `/api/shows` is `401`, and a cross-site `POST` `403`. Nothing changes in
+      the app yet – Angular still uses localStorage, and the login page comes in C2.
 - [ ] B4. The show endpoints – the developer writes them (D69): `GET /api/shows`, `POST /api/shows`
       (`201` with `Location`), `PUT /api/shows/{id}` with all of `EditableShowFields`,
       `DELETE /api/shows/{id}` (`204`) and `POST /api/shows/{id}/next-episode` (the D34 rule, now
       on the server). Every query is filtered on the logged-in user, so another user's show is a
       `404`; status, service and episode are validated. Tests by Claude (`WebApplicationFactory`
       and Testcontainers): ownership, `401` without login, next episode, validation.
+- [ ] B5. A `set-password <email>` command beside create-user – Claude writes it (D64, D96),
+      before real data goes in (D3): the same hidden prompt; Identity checks the new password
+      before anything changes; the new password renews the security stamp, so every other
+      session ends within 30 minutes; it also lifts a lockout. Without it, a lost phone or a
+      leaked password means editing the database by hand. Deployed together with create-user's
+      paste fix (D95).
 
 **C. Angular against the API, the classic way (D57, D77)**
+
+C1 and C2 go to production together: from C1 Angular reads `/api/shows`, which needs a login
+since B3 (D93), and the login page is C2 – deployed alone, C1 would leave the app on the Pixel
+with no shows. Until C2, log in locally as the dev user from the browser's console.
 
 - [ ] C1. `proxy.conf.json` for `ng serve` (`/api` → the API on the Mac, `http://localhost:5080`
       from `launchSettings.json` – the two must match). `ShowApi` – one method per
@@ -706,7 +762,7 @@ skeleton is done 2026-11-13** (D2); next is B3.
 
   Tests with `HttpTestingController`, by Claude.
 - [ ] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
-      error, the logged-in user from `/api/auth/me`, a guard that sends to `/login?returnUrl=…`,
+      error, the logged-in user from `/api/auth/user`, a guard that sends to `/login?returnUrl=…`,
       an interceptor that turns a `401` into the login page (`catchError`), and logging out.
 - [ ] C3. Commit the classic version on its own (D57).
 
@@ -743,10 +799,16 @@ skeleton is done 2026-11-13** (D2); next is B3.
       `__EFMigrationsHistory`, the migration lock and `InitialCreate` applied, the app as uid
       1654; `fly scale show` one shared 512 MB machine in `fra`; the shows on the Pixel still
       there. **Creating my user waits for login (B3)** – there is no create-user command yet.
+      _Done 2026-11-13 in B3._
 - [ ] D3. Log in on the Pixel and the Mac, type my shows in again (D66), and check that a change on
       one shows on the other. Then remove `LocalStorageShowStorage` and its tests.
 - [x] D4. ~~Make the repo public (D74), after scanning the whole history with `gitleaks`.~~ It has
       been public since it was created (D80); the scan and push protection moved to A2.
+- [ ] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
+      and protection against framing – production sends none (checked 2026-11-13). `UseHsts()`
+      sends nothing behind Fly, which forwards plain HTTP: set the headers in a small middleware,
+      through forwarded headers, or at Fly's edge if `fly.toml` allows it. A full CSP waits for
+      Angular's inline styles. Its own session.
 
 **E. Last**
 
@@ -936,7 +998,7 @@ reversed, mark it as superseded instead of deleting it.
 | D67 | 2026-11-10 | A show's id is an integer made by the database – an identity column, one counter for all users – so URLs read `/shows/1/edit`. The server also sets `addedAt` and `updatedAt`. Another user's id gives `404`. Replaces the UUID in D38; the URL's shape stays. | The developer wants readable URLs, and only the database can hand out the next number without two devices picking the same one. D38 rejected numbers because of a counter in localStorage and collisions when syncing; neither applies with a server and online only (D62). Waiting for the server's id is the most common pattern in Angular and .NET code – `201` with the created resource, a pending Save button, navigation and error handling after the answer – which is the training the developer chose over a client-made UUID. One clock decides "most recently updated" across devices. Accepted: once friends join, a user's shows get gaps in their numbers; numbers per user are more work than they are worth now. |
 | D68 | 2026-11-10 | Migrations run at startup (`Database.Migrate()`) in M2. Before each deploy with a migration, the generated SQL is read (`dotnet ef migrations script`); before one that can lose data, a manual `pg_dump` is taken (D61). A migration bundle run as its own step comes if there is ever more than one instance. **D92: on Fly a deploy updates the one machine in place, so a release that fails to start is downtime until a rollback – the old version does not keep running.** | It works on any host with nothing to set up. Microsoft advises against it in production because several instances migrate at once and the app needs broad database rights; with one instance, neither applies. A failed migration stops the start, the health check fails and the old version keeps running. Reading the SQL and taking the dump are cheap insurance when backup is only wanted. Easy to change later: the migrations are the same however they are run. |
 | D69 | 2026-11-10 | The API works on one show at a time: `GET /api/shows`, `POST /api/shows` (`201` with `Location`), `PUT /api/shows/{id}` with all of `EditableShowFields`, `DELETE /api/shows/{id}` (`204`), and "next episode" as a command, `POST /api/shows/{id}/next-episode`: the server applies D34's rule to what the database holds and returns the show. The command is never retried automatically; quick taps go through `concatMap` (D57). For the form, the last save wins – no version check until edits actually get lost (Later). The app fetches the list again when it comes to the foreground (`visibilitychange`). | A `PUT` of the whole list lets a device with a stale list delete what another device added, silently. `PUT` with all fields rather than `PATCH`: the form has them all (D40), and C# can't easily tell a missing field from `null` (clearing the service). With a stale list, an absolute "E06" would step back from E07, and a full `PUT` from the card could overwrite a title fixed on the Mac; the command says what the user means, "one more episode". Two edits of the same show at once are very unlikely with one user, and refetching on focus removes most stale data. Accepted: the next-episode rule is in C# too, so D34's "one pure function" holds only on the client, where `canMarkNextEpisodeAsWatched` still decides whether the button shows. |
-| D70 | 2026-11-10 | Login is email and password with ASP.NET Core Identity, with no public registration – no registration endpoint at all. The developer's account is made with a one-off create-user command run through `fly ssh console`. Three own endpoints – `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` – rather than `MapIdentityApi`. The session is Identity's cookie: `HttpOnly`, `Secure`, `SameSite=Strict`, 60 days, sliding; the API answers `401` instead of redirecting to a login page, and the Data Protection keys are stored in the database. In Angular: a login page, the user from `/me`, a guard with `returnUrl`, and an interceptor that turns a `401` into the login page. Google sign-in, passkeys or password reset by email are decided when other users come (§7). | Everything stays in the own app and database, works the same locally and in production, and can be tested; the password manager on the Pixel makes the password a once-per-device thing. It also gives the most Angular: a form with server errors, a guard, an interceptor, user state. `MapIdentityApi` adds an open `/register` to close and endpoints not needed. A cookie JavaScript can't read can't be stolen through an XSS hole and needs no token refresh – OWASP's and the IETF's advice for browser apps – and the interceptor still has a job (D57). Identity redirects to `/Account/Login` by default, which would hand Angular an HTML page. Without stored keys, every deploy makes new ones and logs everyone out. Accepted: no token-refresh exercise (MSAL does it in enterprise Angular), and friends will need password resets, which means an email service then. |
+| D70 | 2026-11-10 | Login is email and password with ASP.NET Core Identity, with no public registration – no registration endpoint at all. The developer's account is made with a one-off create-user command run through `fly ssh console`. Three own endpoints – `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/user` – rather than `MapIdentityApi`. The session is Identity's cookie: `HttpOnly`, `Secure`, `SameSite=Strict`, 60 days, sliding; the API answers `401` instead of redirecting to a login page, and the Data Protection keys are stored in the database. In Angular: a login page, the user from `/user`, a guard with `returnUrl`, and an interceptor that turns a `401` into the login page. Google sign-in, passkeys or password reset by email are decided when other users come (§7). **D93: the endpoint is `/api/auth/user`, renamed from `/me`; login as built is in D93–D95.** | Everything stays in the own app and database, works the same locally and in production, and can be tested; the password manager on the Pixel makes the password a once-per-device thing. It also gives the most Angular: a form with server errors, a guard, an interceptor, user state. `MapIdentityApi` adds an open `/register` to close and endpoints not needed. A cookie JavaScript can't read can't be stolen through an XSS hole and needs no token refresh – OWASP's and the IETF's advice for browser apps – and the interceptor still has a job (D57). Identity redirects to `/Account/Login` by default, which would hand Angular an HTML page. Without stored keys, every deploy makes new ones and logs everyone out. Accepted: no token-refresh exercise (MSAL does it in enterprise Angular), and friends will need password resets, which means an email service then. |
 | D71 | 2026-11-10 | The frontend and the API share one origin: one container at `watch.cseljehaug.no` serves the Angular build, with `index.html` as the fallback for app routes, and `/api`. Locally, `ng serve` forwards `/api` to the API with `proxy.conf.json`. No `api.` subdomain, no CORS. | One deploy, one DNS record, no CORS, and the cookie works with `SameSite=Strict` without tricks; an API on another site (`*.fly.dev`) would make the cookie third-party, which Safari blocks. The developer had no strong view and took the recommendation. Accepted: a frontend change redeploys the API and the other way round, and CORS isn't learnt here. |
 | D72 | 2026-11-10 | Hosting is Fly.io and Neon. The app is one Fly machine (personal organization, shared-cpu-1x, 256 MB for nginx, then 512 MB for .NET), always on (`auto_stop_machines = "off"`), region `fra`, no dedicated IPv4, never more than one machine. The database is Neon's free plan in Frankfurt; the health check never touches it. `watch.cseljehaug.no` is a CNAME in one.com's DNS, which stays at one.com, mail included. Prices checked 2026-11-10: Fly waives a personal organization's bill under $5 a month and the 512 MB machine is $3.69, so it costs 0 kr – about 40 kr if the waiver goes. **D92: $3.69 is the price in Fly's cheapest regions; in `fra` the 512 MB machine is about $4.26 – still 0 kr, about 45 kr without the waiver.** | The only option that is free and has no cold start for the app (Neon wakes in a few hundred ms after 5 idle minutes); it builds the developer's Dockerfile (D65), and its worst case stays within the budget (D60). Railway Hobby was the simplest – one dashboard, Postgres in a click, daily backups with a restore button – at about 55–70 kr a month (a $5 floor, a hard limit of at least $10); the developer prefers free and accepted one more evening of setup with Claude's guidance. Railway's free plan allows no custom domain and gives $1 of credit a month. Cloud Run with Neon is free but has .NET cold starts and the most cloud setup; Render's free tier sleeps for a minute; Supabase, see D63; Fly's own Postgres starts at $38 a month. A health check that queried the database every few seconds would keep Neon awake and use up its 100 CU-hours. Accepted: two places to look (`fly logs` and Neon's console), no hard spending cap at Fly (one machine is the cap), and the waiver is a policy that can change. |
 | D73 | 2026-11-10 | CI and deploy. A GitHub Actions workflow, `ci`, runs lint, tests and the build – and `dotnet build` and `dotnet test` once the backend exists – on every push and pull request. Deploy is a button (`workflow_dispatch`) that runs only from `main` after a green `ci`, with `flyctl deploy --remote-only` and an app-scoped deploy token; never `fly deploy` from the Mac. Everything stays on `main`, with no deploy between M2's steps C1 and D2. | The developer wants to decide when the phone gets a new version and nothing half-finished deployed; a button gives that, and every deploy is a commit that passed CI. `fly deploy` from the Mac builds the folder as it is, uncommitted changes included, so what runs is no longer in the history. An app-scoped token can deploy that app and nothing else if it leaks. A branch for the backend was considered; with one user, going a few weeks without fixes to the phone's version is cheaper than a long-lived branch. |
@@ -959,6 +1021,10 @@ reversed, mark it as superseded instead of deleting it.
 | D90 | 2026-11-12 | The backend's integration tests (by Claude, D64): `ApiFactory` – a `WebApplicationFactory<Program>` with its own `postgres:18` container from Testcontainers – is a class fixture (`IClassFixture<ApiFactory>`), so each test class gets its own container and database and the classes run in parallel; the tests in one class share it, and each starts by emptying the tables it uses. A test that stops or breaks its database makes its own `ApiFactory`. The app runs as `Testing`, not Development, and gets the connection string with `UseSetting`. Test data goes straight into the database through the app's `DbContext` until an endpoint can make it. A response's shape is checked against the expected JSON (`JsonNode.DeepEquals`), not by reading it back into the API's own models. | A container per class costs a couple of seconds and keeps the classes from seeing each other's data, without a reset library (Respawn) or a database per test; one container for the whole run (an xUnit assembly fixture) is the next step if the classes get many. `Testing` keeps the Development seed out. `UseSetting` is the way that reaches `Program.cs` before `builder.Build()` – the factory passes it on as a command-line argument – where `ConfigureAppConfiguration` comes too late. Reading the response as JSON tests what Angular receives: reading it into `ShowModel` would pass with `"service": null` and with PascalCase names, since the web defaults ignore case – the two things that can break unnoticed. |
 | D91 | 2026-11-12 | Dockerfile v2 and how the API serves Angular (M2 D1, written by Claude per D88). Three stages – Node builds Angular from only the files it reads, the .NET SDK restores from the `.csproj` and publishes, `aspnet:10.0` runs it as the non-root `app` user on 8080 with Angular in `wwwroot`. In `Program.cs`: `UseStaticFiles` before `UseHttpLogging`, `index.html` with `Cache-Control: no-cache`, `MapFallbackToFile("index.html")` for Angular's routes and `MapFallback("/api/{**path}")` returning `404`; `UseResponseCompression` for HTML, CSS and JavaScript only (`EnableForHttps`); `GssEncryptionMode = Disable` on the connection string. `nginx.conf` goes. The Compose profile `app` runs the image against `db` on port 8091. **D92: in production Fly's proxy compresses the API's JSON anyway.** | One origin as D71 decided, with what nginx did in v1 kept: the fallback, `no-cache` on `index.html` and compression – without it `main.js` would go from 120 kB to 272 kB on the phone's first load. Compression is limited to Angular's file types so no response that could hold a secret is compressed, which is what makes compressing over HTTPS unsafe (BREACH); the API's JSON is small anyway. Without the `/api` fallback a mistyped API URL would answer `200` with `index.html`, and `HttpClient` would fail on parsing HTML instead of reporting a `404`. Static files before the logging keep a page load to one log line, not one per bundle and font. The non-root user means a hole in the app can't rewrite the image's files. The GSS setting removes a misleading plain-text "Error:" line at every start from logs that are otherwise JSON; neither Postgres here nor Neon uses Kerberos, and setting it in code means the Neon secret needs nothing extra. Port 8091 because 8080 and 8090 are taken on the Mac. |
 | D92 | 2026-11-13 | Production on Neon and the ASP.NET image (M2 D2, the end of the walking skeleton, D88). Neon: Postgres 18 in `aws-eu-central-1`, the default database `neondb`, and the **direct** connection, not the `-pooler` host, in Npgsql's key=value form with `SSL Mode=VerifyFull` and `Channel Binding=Require` – the value without the quotes Neon's C# snippet has. `fly.toml`: port 8080, the check on `/healthz` with a 30-second `grace_period`, 512 MB. A new secret is set with `--stage` and goes live with the next deploy. A rollback is `fly deploy --image <the previous release's image>` from the Mac – the one exception to D73, as it builds nothing – with `--config` pointing at the old `fly.toml` when the deploy changed it too. Prices are written in PLAN.md only, not in code comments or commit messages. Fly's proxy compressing the API's JSON is accepted. | EF Core's migration lock ("Acquiring an exclusive lock") is a session-level advisory lock, which the transaction pooling of Neon's PgBouncer breaks; one app with Npgsql's own in-process pool doesn't need PgBouncer. Npgsql doesn't read `postgresql://` URLs, and left-over quotes make the first key `"Host`. VerifyFull checks Neon's certificate against the image's CA store, and channel binding ties the login to the TLS connection; Npgsql has both since 8.0. The grace period covers the migrations and a waking Neon before the app listens; the first start took 4 seconds. `--stage`, because deploying the secret alone would restart nginx for a value it never reads. Fly's rolling deploy updates the one machine in place and doesn't reliably roll back by itself, so the rollback was ready before the first deploy; the nginx image needs its own config, as it listens on 80 and has no `/healthz`. Fly prices a region as the cheapest region's price times a multiplier – 1.154 in `fra` – which D72 missed; prices change, and one place is easier to keep right. The proxy compresses whatever the app hasn't (`Content-Encoding: none` opts a response out); BREACH needs a secret in a body beside text the attacker chooses, fetched with the victim's cookie, and `SameSite=Strict` (D70) keeps other sites' requests from carrying it. |
+| D93 | 2026-11-13 | Login as built (M2 B3, by Claude, D64; amends D70). An own `User : IdentityUser` with Identity's table names (`AspNetUsers` and three side tables) through `IdentityUserContext` – users without roles – and `AddIdentityCore`, not `AddIdentity`. Passwords of at least 15 characters with no class rules; a unique email. The cookie is `__Host-watchtracker`, with `CookieSecurePolicy.Always`, since Fly forwards plain HTTP. Every failed login gets the same empty `401` – an unknown email, a wrong password, a locked account; an idea of `429` for a locked account was dropped. Every endpoint requires a login through a fallback policy (`RequireAuthenticatedUser`), and only `/healthz` and Angular's pages are `AllowAnonymous()`. A middleware answers `403` to a change (not `GET` or `HEAD`) whose `Sec-Fetch-Site` header is present and not `same-origin`. The logged-in user is `GET /api/auth/user`, not `/me`, and the endpoints have `TypedResults` return types. Claude wrote the `AddLogin` migration; the owner column on `Show` and its migration are the developer's in B4, and `/api/shows` requires a login from B3. | A table named `User` clashes with Postgres' reserved `user` – `SELECT * FROM user` returns the role's name. The `__Host-` prefix stops another subdomain from setting or replacing the cookie. One `401` for every failure doesn't tell whether an account exists or is locked. With the fallback policy a new endpoint can't be left open by mistake. `SameSite=Strict` counts other subdomains of the same domain as the same site; the browser's `Sec-Fetch-Site` tells same-origin from same-site and closes that gap, while curl and the tests, which send no such header, are let through. `/user` names the thing returned rather than the caller, at the developer's request; return types make the endpoints' answers readable at a glance. |
+| D94 | 2026-11-13 | Accepted with login (B3): logout only deletes the browser's cookie – a copied cookie works until it expires or the password changes, as the security stamp is checked every 30 minutes (hence B5); five wrong passwords lock the account for five minutes, which anyone who knows the email can repeat; the Data Protection keys are stored unencrypted in `DataProtectionKeys` – the log warns when a key is made, every 90 days – and follow every Neon branch and dump; without a login, an unknown `/api` path or a missing file gets `401`, not `404`. One account per email is enforced in the database by the unique `UserNameIndex`, since the user name is the email; `EmailIndex` stays non-unique. | Ending sessions on the server needs a session table; for one user, changing the password does the same. Lockout protects the public login against guessing (D80), and five minutes is short enough to wait out. Encrypting the keys needs a certificate or a key vault – more secrets to keep, while the database is the thing to protect anyway, and D74 already keeps dumps out of artifacts. The `401` comes from the fallback policy, which runs before the `404` fallbacks; a logged-out user can do nothing on `/api` anyway. A unique `EmailIndex` would be a third lock and a migration. |
+| D95 | 2026-11-13 | Users are made by commands in the app itself (D70). `dotnet WatchTracker.Api.dll create-user <email>` runs after `Migrate()` and stops before `app.Run()`; it reads the password twice at a hidden prompt, never as an argument, refuses input from a pipe, turns off the terminal's bracketed paste and rejects a line with an escape sequence in it. In production it runs through `fly ssh console`, from `/app`. The Development seed runs in `Program.cs` after `Migrate()` instead of in EF's `UseSeeding`: the dev user from `appsettings.Development.json` (test values) through the same `CreateUserCommand.CreateAsync`, then the shows; the tests' users are made through it too. `appsettings.Development.json` is left out of the publish output (`CopyToPublishDirectory="Never"`). | One program with the app's own setup – the connection string, Identity's rules, the hashing – rather than a second tool in the image; the running app holds port 8080, so the command must not start Kestrel. An argument would land in the shell history and the process list. With bracketed paste on, a terminal wraps pasted text in `ESC[200~ … ESC[201~`, and `ReadKey` returns the markers' characters: both prompts got the same extra characters and matched, so a pasted password was stored wrongly – found when pasting into the production prompt failed; the password was typed by hand instead, and the fix came after. `UseSeeding` only gets a `DbContext`, and a user needs `UserManager` to hash the password; the user comes first so B4 can give the shows an owner. Without the file in the image, `ASPNETCORE_ENVIRONMENT=Development` on Fly stops the app at start-up instead of creating a user whose password is public. `/app` is the content root; elsewhere `appsettings.json` isn't found. |
+| D96 | 2026-11-13 | Two review findings after B3. A `set-password <email>` command, written by Claude (D64), comes before real data goes in (D3) – B5. Security headers – `Strict-Transport-Security`, `X-Content-Type-Options` and protection against framing – are their own task (D5), not part of login. | Without a way to change the password, a lost phone or a leaked password means editing the database by hand, and D94's answer to a copied cookie doesn't exist. The session is safe without the headers – the `__Host-` cookie is never sent over HTTP, and `SameSite=Strict` keeps it out of other sites' frames – but HSTS sends the browser straight to HTTPS after a first visit, so a hostile network can't answer an `http://` request with a fake login page. `UseHsts()` sends nothing behind Fly, as it only acts when `Request.IsHttps`. |
 
 ## 7. Open questions
 
