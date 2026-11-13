@@ -19,4 +19,11 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Never in the Docker image: with ASPNETCORE_ENVIRONMENT=Development on Fly, the seed would
+         create the dev user, whose password is public, in production. Without the file, the app
+         stops at start-up instead. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

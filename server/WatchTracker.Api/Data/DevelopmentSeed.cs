@@ -1,17 +1,42 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WatchTracker.Api.Shows;
+using WatchTracker.Api.Users;
 
 namespace WatchTracker.Api.Data;
 
-// Test shows for an empty development database (D76): every status, plus the odd cases (not
-// started, no service, a long title). Development only. `docker compose down -v` empties the
-// database, and the next start seeds it again.
+// Test data for the development database (D76): a user to log in as, and shows with every status,
+// plus the odd cases (not started, no service, a long title). Development only. `docker compose
+// down -v` empties the database, and the next start seeds it again.
 public static class DevelopmentSeed
 {
-    public static void Seed(DbContext context)
+    // The user first: the shows will get an owner (B4).
+    public static async Task SeedAsync(IServiceProvider services)
     {
-        var shows = context.Set<Show>();
-        if (shows.Any()) return;
+        await SeedUserAsync(services.GetRequiredService<UserManager<User>>(), services.GetRequiredService<IConfiguration>());
+        await SeedShowsAsync(services.GetRequiredService<WatchTrackerDbContext>());
+    }
+
+    // The login in appsettings.Development.json, made the same way as with the create-user command.
+    private static async Task SeedUserAsync(UserManager<User> userManager, IConfiguration configuration)
+    {
+        var email = configuration["DevelopmentUser:Email"]
+            ?? throw new InvalidOperationException("DevelopmentUser:Email is not set.");
+        var password = configuration["DevelopmentUser:Password"]
+            ?? throw new InvalidOperationException("DevelopmentUser:Password is not set.");
+        if (await userManager.FindByEmailAsync(email) is not null) return;
+
+        var result = await CreateUserCommand.CreateAsync(userManager, email, password);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "The development user could not be created: " + string.Join(" ", result.Errors.Select(error => error.Description)));
+        }
+    }
+
+    private static async Task SeedShowsAsync(WatchTrackerDbContext db)
+    {
+        if (await db.Shows.AnyAsync()) return;
 
         var now = DateTimeOffset.UtcNow;
 
@@ -26,7 +51,7 @@ public static class DevelopmentSeed
             UpdatedAt = now.AddDays(-daysAgo),
         };
 
-        shows.AddRange(
+        db.Shows.AddRange(
             NewShow("Severance", "watching", "apple-tv-plus", 2, 5, daysAgo: 1),
             NewShow("The Bear", "watching", "disney-plus", 3, 2, daysAgo: 3),
             NewShow("Slow Horses", "watching", "apple-tv-plus", 4, 1, daysAgo: 6),
@@ -37,6 +62,6 @@ public static class DevelopmentSeed
             NewShow("Fleabag", "finished", "prime-video", 2, 6, daysAgo: 40),
             NewShow("Skam", "finished", "nrk-tv", 4, 10, daysAgo: 60),
             NewShow("Lost", "dropped", null, 3, 7, daysAgo: 90));
-        context.SaveChanges();
+        await db.SaveChangesAsync();
     }
 }

@@ -21,14 +21,7 @@ var connectionString = new NpgsqlConnectionStringBuilder(
 {
     GssEncryptionMode = GssEncryptionMode.Disable,
 }.ConnectionString;
-builder.Services.AddDbContext<WatchTrackerDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-    if (builder.Environment.IsDevelopment())
-    {
-        options.UseSeeding((context, _) => DevelopmentSeed.Seed(context));
-    }
-});
+builder.Services.AddDbContext<WatchTrackerDbContext>(options => options.UseNpgsql(connectionString));
 
 // Login with ASP.NET Core Identity (D70): users, password hashing and the login cookie.
 // AddIdentityCore leaves out roles and Identity's built-in pages.
@@ -130,10 +123,23 @@ builder.Services.AddResponseCompression(options =>
 
 var app = builder.Build();
 
-// Run new migrations before taking requests (D68). In Development, also seed an empty database.
+// Run new migrations before taking requests (D68). In Development, also add the dev user and the
+// test shows, if they are missing.
 using (var scope = app.Services.CreateScope())
 {
     scope.ServiceProvider.GetRequiredService<WatchTrackerDbContext>().Database.Migrate();
+    if (app.Environment.IsDevelopment())
+    {
+        await DevelopmentSeed.SeedAsync(scope.ServiceProvider);
+    }
+}
+
+// `dotnet WatchTracker.Api.dll create-user <email>` creates a user and stops, without starting the
+// web server – the app that is already running has the port.
+if (args is ["create-user", ..])
+{
+    Environment.ExitCode = await CreateUserCommand.RunAsync(app.Services, args);
+    return;
 }
 
 app.UseResponseCompression();

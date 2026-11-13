@@ -47,17 +47,17 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await Postgres.DisposeAsync();
     }
 
-    // A new user with a unique email. The tests in a class share the database, so each test makes
-    // its own user, and can't lock out or log out another test's user.
+    // A new user with a unique email, made the same way as with the create-user command. The tests
+    // in a class share the database, so each test makes its own user, and can't lock out or log out
+    // another test's user.
     public async Task<User> CreateUserAsync()
     {
         using var scope = Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         var email = $"{Guid.NewGuid():N}@example.test";
-        var user = new User { UserName = email, Email = email };
-        var result = await userManager.CreateAsync(user, Password);
+        var result = await CreateUserCommand.CreateAsync(userManager, email, Password);
         Assert.True(result.Succeeded, string.Join(" ", result.Errors.Select(error => error.Description)));
-        return user;
+        return (await userManager.FindByEmailAsync(email))!;
     }
 
     // A client logged in as a new user through the login endpoint. It sends the cookie with every
