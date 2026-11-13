@@ -1,9 +1,12 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using WatchTracker.Api.Data;
 using WatchTracker.Api.Shows;
+using WatchTracker.Api.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +29,81 @@ builder.Services.AddDbContext<WatchTrackerDbContext>(options =>
         options.UseSeeding((context, _) => DevelopmentSeed.Seed(context));
     }
 });
+
+// Login (M2 B3, D70): ASP.NET Core Identity's users and password hashing, and its sign-in
+// cookie, with the app's own endpoints rather than MapIdentityApi. AddIdentityCore leaves out
+// roles and the default UI; AddSignInManager is what checks a password and writes the cookie.
+builder.Services
+    .AddIdentityCore<User>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        // Length rather than character classes, as NIST SP 800-63B advises: at least 15
+        // characters, any mix. Checked when a user is created (the create-user command).
+        options.Password.RequiredLength = 15;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        // Five wrong passwords in a row lock the account for five minutes (D80) – Identity's
+        // defaults, written out. Only when the login endpoint asks for it: lockoutOnFailure is
+        // false unless the call sets it. The repo is public, so is the login endpoint's address;
+        // the protection is the password and this.
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    })
+    .AddEntityFrameworkStores<WatchTrackerDbContext>()
+    .AddSignInManager();
+
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+builder.Services.AddAuthorization();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // The __Host- prefix makes the browser refuse the cookie unless it is Secure, for the whole
+    // site (Path=/) and for this host alone (no Domain). Something else on cseljehaug.no then
+    // can't set or overwrite it – which could log the browser in to another account.
+    options.Cookie.Name = "__Host-watchtracker";
+    // JavaScript can't read it, so an XSS hole can't steal the session.
+    options.Cookie.HttpOnly = true;
+    // Fly's proxy ends HTTPS and talks plain HTTP to the app, so the default, SameAsRequest,
+    // would leave Secure off in production. Always sets it whatever the request came in as.
+    // Chrome and Firefox still take a Secure cookie from http://localhost (ng serve, C1).
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    // The browser leaves it out of requests another site starts. A site is the whole domain,
+    // cseljehaug.no, so a page on cseljehaug.no or another of its subdomains still gets it sent
+    // along: this is one layer against CSRF, not all of it.
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    // 60 days, sliding: a request in the second half renews it, so it only runs out after 30–60
+    // days without the app being opened.
+    options.ExpireTimeSpan = TimeSpan.FromDays(60);
+    options.SlidingExpiration = true;
+    // Identity sends a request that isn't logged in to /Account/Login and one that isn't allowed
+    // to /Account/AccessDenied – a redirect Angular would follow to index.html and get a 200. An
+    // API answers with the status code instead; Angular shows its login page on a 401 (C2).
+    // Set on the Events Identity already made, not a new CookieAuthenticationEvents: Identity has
+    // put its security stamp check there, which logs every device out within 30 minutes of a
+    // password change.
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+
+// The keys that encrypt and sign the cookie. By default they are files inside the container,
+// and every deploy starts a new container with new keys – everyone would be logged out. In the
+// database they survive deploys. They are stored unencrypted, which the app logs a warning about
+// when it makes a key (every 90 days): whoever can read the database could make a cookie, but
+// could read and change the shows directly anyway.
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<WatchTrackerDbContext>()
+    // A cookie can only be read by an app with the same name. The default name is the folder the
+    // app runs from, so a new WORKDIR in the Dockerfile would quietly log everyone out.
+    .SetApplicationName("WatchTracker");
 
 // The API's JSON leaves out null properties rather than sending "service": null, so an empty
 // optional field is missing, as in Angular's models (service?: …) and in localStorage.
@@ -90,6 +168,11 @@ var angularFiles = new StaticFileOptions
 app.UseStaticFiles(angularFiles);
 
 app.UseHttpLogging();
+
+// Reads the cookie into the request's user, then lets endpoints that require a login turn the
+// rest away with a 401. After the logging, so those requests get a log line too.
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Not logged: Fly calls it every 30 seconds.
 app.MapHealthChecks("/healthz").WithHttpLogging(HttpLoggingFields.None);
