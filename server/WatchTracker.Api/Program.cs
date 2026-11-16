@@ -98,6 +98,10 @@ builder.Services.AddDataProtection()
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull);
 
+// Check the validation attributes on what the endpoints take (ShowPostModel) before they run,
+// and answer 400 with the fields that are wrong.
+builder.Services.AddValidation();
+
 // /healthz for Fly (D75). Never add a database check: a sleeping Neon would make Fly
 // stop sending traffic to the app.
 builder.Services.AddHealthChecks();

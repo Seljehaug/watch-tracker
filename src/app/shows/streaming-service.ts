@@ -1,3 +1,5 @@
+// The API allows the same ids (ShowPostModel in server/WatchTracker.Api/Shows);
+// AngularListsTests in server/WatchTracker.Api.Tests fails when the two differ.
 export const STREAMING_SERVICES = [
   { id: 'netflix', label: 'Netflix' },
   { id: 'prime-video', label: 'Prime Video' },

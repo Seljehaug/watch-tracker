@@ -1,4 +1,6 @@
 // The id is stored on the show and used as the route segment: /shows/want-to-watch.
+// The API allows the same ids (ShowStatuses and ShowPostModel in server/WatchTracker.Api/Shows);
+// AngularListsTests in server/WatchTracker.Api.Tests fails when the two differ.
 export const SHOW_STATUSES = [
   { id: 'watching', label: 'Watching' },
   { id: 'want-to-watch', label: 'Want to watch' },

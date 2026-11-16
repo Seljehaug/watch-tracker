@@ -12,6 +12,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Angular's lists of statuses and streaming services, copied next to the tests for
+         Shows/AngularListsTests, which checks that the API allows the same ids. -->
+    <None Include="..\..\src\app\shows\show-status.ts" Link="Angular\show-status.ts" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\app\shows\streaming-service.ts" Link="Angular\streaming-service.ts" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

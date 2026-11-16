@@ -911,6 +911,17 @@ Roughly in priority order; most of these require a backend.
   device" and loads the show again.
 - **API types from OpenAPI** – `openapi-typescript`, types only, if the hand-written types start
   drifting from the API (D63). Never a generator that writes the Angular services.
+- **Lists generated from C#** – the status and streaming-service ids written once, in C#, and
+  generated into a TypeScript file Angular imports, instead of written on both sides (D31, D63).
+  Today `AngularListsTests` (M2 B4) only checks that the two sides match. Sketched 2026-11-16:
+  the `[AllowedValues]` on `ShowPostModel` are the source; the test writes
+  `src/app/shows/api-ids.generated.ts` (`SHOW_STATUS_IDS`, `STREAMING_SERVICE_IDS`, `as const`)
+  and fails when the file was out of date, so CI catches a file not committed; Angular keeps
+  only the labels, as a `Record<ShowStatus, string>`, so the build fails when an id has no
+  label, and builds `SHOW_STATUSES` from ids and labels. The cost is a rewrite of
+  `show-status.ts` and `streaming-service.ts`, and a test that writes source code. Look at it
+  again with M4: where a show streams comes from TMDB (D100, D101), which may change what the
+  service list is.
 - **IMDb rating** – via OMDb (simple) or the IMDb non-commercial datasets imported by a scheduled
   job (more interesting).
 - **Movies** – simpler model: want to watch / watched, plus a rating.
