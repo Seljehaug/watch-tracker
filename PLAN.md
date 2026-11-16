@@ -13,7 +13,7 @@ the API requires a login everywhere but `/healthz` and Angular's pages, and my u
 production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. The
 set-password command (B5) is done 2026-11-16: my password was changed with it in production
 (D97). The show endpoints (B4) are done 2026-11-16: every show has an owner, and the API reads,
-adds, saves, deletes and steps on a user's own shows only (D104–D106) – not deployed yet, and
+adds, saves, deletes and steps on a user's own shows only (D104–D106) – deployed the same day,
 Angular still on localStorage. B1, B2's skeleton part and D1 were done 2026-11-12. Next is C1,
 Angular against the API. The goal is
 the app on several devices (D58), with backend, hosting and order
@@ -791,10 +791,11 @@ show endpoints, 2026-11-16; next is C1.
       Every endpoint's tests were seen to fail with its rule broken in a copy of the code, never
       in the repo – the user filter left out, `Trim()` removed, `AddValidation()` or the
       attributes removed, the old service kept on a `null`, `DELETE` without the id, Dropped
-      counted as Watching, a clock with 100 ns ticks, and so on. Not deployed: production's
-      `Shows` table is empty (`[]` since D2, and nothing could add shows), so `AddShowUser`'s
-      `NOT NULL DEFAULT ''` column and foreign key go through there – read the SQL before the
-      deploy all the same (D68).
+      counted as Watching, a clock with 100 ns ticks, and so on. Deployed with run 43881362363
+      after reading the SQL (a column, an index and a foreign key, nothing that can lose data):
+      production's `Shows` table was empty (`[]` since D2, and nothing could add shows), so
+      `AddShowUser`'s `NOT NULL DEFAULT ''` column and foreign key went through. Checked from
+      the Mac: `/healthz` `200`, and `GET` and `POST /api/shows` without a login `401`.
 - [x] B5. A `set-password <email>` command beside create-user – Claude writes it (D64, D96),
       before real data goes in (D3): the same hidden prompt; Identity checks the new password
       before anything changes; the new password renews the security stamp, so every other
