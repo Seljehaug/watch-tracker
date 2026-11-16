@@ -4,15 +4,16 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-13
+**Last updated:** 2026-11-16
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
 production runs the ASP.NET Core image against Neon (D2, D92). Login (B3) is done 2026-11-13:
 the API requires a login everywhere but `/healthz` and Angular's pages, and my user exists in
-production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. B1, B2's
-skeleton part and D1 were done 2026-11-12. Next is B5, a set-password command (Claude), and
-B4, the developer's endpoints and migrations (D64). The goal is
+production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. The
+set-password command (B5) is done 2026-11-16: my password was changed with it in production
+(D97). B1, B2's skeleton part and D1 were done 2026-11-12. Next is B4, the developer's
+endpoints and migrations (D64). The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
 off, 2026-11-10.
@@ -68,7 +69,7 @@ goal (D63): it should take as little time from Angular as possible.
   tests for static markup or text, for "the component renders", or for framework behaviour.
 - **Backend (D64):** the developer writes the endpoints, the EF Core model, the migrations and the
   Dockerfile. When asked, Claude writes the authentication plumbing (Identity, cookie setup, Data
-  Protection keys, the create-user command), which the developer reviews.
+  Protection keys, the create-user and set-password commands), which the developer reviews.
 - **When the developer is stuck:** explain the concept and show a small example of a _similar, not
   identical_ case, which the developer adapts. Don't hand over the finished solution unless asked.
 - **UI and design (D26):** Claude points to the rules that apply – tokens, accessibility, existing
@@ -349,12 +350,16 @@ goal (D63): it should take as little time from Angular as possible.
   has `POST /api/auth/login` (`200 { email }`, or the same empty `401` for every failure),
   `POST /api/auth/logout` (`204`) and `GET /api/auth/user` (`200 { email }` or `401`), with
   `TypedResults` return types; `Auth/LoginPostModel.cs` leaves the password out of `ToString()`.
-  `Users/CreateUserCommand.cs` is `dotnet WatchTracker.Api.dll create-user <email>`: after
-  `Migrate()` and before `app.Run()`, it reads the password twice at a hidden prompt, turns off
-  the terminal's bracketed paste, rejects a line with an escape sequence, and exits with 0 on
-  success. In production it runs through `fly ssh console`, from `/app` – the content root is
-  the working directory. `appsettings.Development.json` is left out of the publish output, so
-  the image never holds the dev user's login.
+  Two user commands run after `Migrate()`, stop before `app.Run()` and exit with 0 on success:
+  `Users/CreateUserCommand.cs` is `dotnet WatchTracker.Api.dll create-user <email>`, and
+  `Users/SetPasswordCommand.cs` is `… set-password <email>` (B5, D97) – it looks the user up
+  before the prompt, checks Identity's password rules before anything changes, then saves the
+  new hash, a lifted lockout and a new security stamp in one `UPDATE`. Both read the password
+  twice at the hidden prompt in `Users/PasswordPrompt.cs`, which refuses a pipe, turns off the
+  terminal's bracketed paste and rejects a line with an escape sequence. In production they run
+  through `fly ssh console`, from `/app` – the content root is the working directory; pasting
+  works there since 2026-11-16. `appsettings.Development.json` is left out of the publish
+  output, so the image never holds the dev user's login.
   EF's SQL (`Microsoft.EntityFrameworkCore.Database.Command`) is logged
   at `Information` in Development only; elsewhere at `Warning`, so failed commands still show.
   `/healthz` is `MapHealthChecks` with no checks
@@ -415,9 +420,13 @@ goal (D63): it should take as little time from Angular as possible.
   of the app (the keys in the database); `Auth/AccessTests` a `401` on `/api` without a login,
   Angular's pages open, and a `403` for a change from another site or subdomain while the app's
   own changes and a read from another site go through; `Users/CreateUserCommandTests` that a
-  password under 15 characters and an email already in use, in any case, are refused – 17 tests.
+  password under 15 characters and an email already in use, in any case, are refused;
+  `Users/SetPasswordCommandTests` that a new password ends a login made before it (the stamp
+  checked at every request in that test's host), that a too-short password is refused and
+  leaves the old one working, and that a locked account gets in with the new one – 20 tests.
   Each test was seen to fail with the rule it guards broken (`WhenWritingNull` removed, a
-  database check added, `lockoutOnFailure` off, `RequiredLength` lowered, and so on). `dotnet test` needs Docker running –
+  database check added, `lockoutOnFailure` off, `RequiredLength` lowered, `RemovePasswordAsync`
+  before `AddPasswordAsync`, and so on). `dotnet test` needs Docker running –
   Docker Desktop on the Mac, built in on CI's ubuntu-latest – and takes a few seconds.
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
@@ -620,7 +629,8 @@ runs the ASP.NET image – Angular still on localStorage – with one endpoint a
 B3 (login, Claude), B4 (the other endpoints and migrations, the developer), C1, C2 and D3. The
 original order paused the deploy button from C1 to D2, since from C1 Angular calls `/api` and
 the nginx image has none; with production on the new image first, that pause is gone. **The
-skeleton is done 2026-11-13** (D2), and B3, login, the same day; next are B5 and B4.
+skeleton is done 2026-11-13** (D2), and B3, login, the same day; B5, set-password, 2026-11-16;
+next is B4.
 
 **A. In use on the phone – frontend only, localStorage**
 
@@ -723,7 +733,7 @@ skeleton is done 2026-11-13** (D2), and B3, login, the same day; next are B5 and
       with v3's image ready for a rollback; `fly logs` shows `AddLogin` applied. My user was
       made through `fly ssh console`, the password typed by hand: pasting it failed, and a
       bracketed paste would have stored the terminal's markers with the password – fixed
-      afterwards (D95), deployed with B5. Checked in production with `op read` into curl, so the
+      afterwards (D95) and deployed with B5, where pasting worked. Checked in production with `op read` into curl, so the
       password never showed: login `200`, `/api/auth/user` `200`, logout `204`, then `401`;
       without a login `/api/shows` is `401`, and a cross-site `POST` `403`. Nothing changes in
       the app yet – Angular still uses localStorage, and the login page comes in C2.
@@ -733,12 +743,25 @@ skeleton is done 2026-11-13** (D2), and B3, login, the same day; next are B5 and
       on the server). Every query is filtered on the logged-in user, so another user's show is a
       `404`; status, service and episode are validated. Tests by Claude (`WebApplicationFactory`
       and Testcontainers): ownership, `401` without login, next episode, validation.
-- [ ] B5. A `set-password <email>` command beside create-user – Claude writes it (D64, D96),
+- [x] B5. A `set-password <email>` command beside create-user – Claude writes it (D64, D96),
       before real data goes in (D3): the same hidden prompt; Identity checks the new password
       before anything changes; the new password renews the security stamp, so every other
       session ends within 30 minutes; it also lifts a lockout. Without it, a lost phone or a
       leaked password means editing the database by hand. Deployed together with create-user's
-      paste fix (D95).
+      paste fix (D95). _Done 2026-11-16_ (D97), by Claude in `086ce59`: the command, the prompt
+      moved to `PasswordPrompt` for both commands, and three tests. Rehearsed in the Compose
+      `app` profile with `expect` and a throwaway user, deleted afterwards: an unknown email,
+      two different passwords, a too-short one, a pasted line with bracketed-paste markers and a
+      pipe are all refused with exit 1 and nothing changed; on a locked account a new password
+      works at once, the old one gets `401`, and the row has a new stamp, no `LockoutEnd` and no
+      failed count. A cookie from before still works right after – the stamp is checked every 30
+      minutes. The rebuilt image has no `appsettings.Development.json`; the local one from B3 was
+      built before `dfd0aeb` left it out. Deployed with run 43838398026 – no migration,
+      `fly.toml` or Dockerfile change since `dfd0aeb` – with the running release's image noted
+      for a rollback. In production: a cookie saved first, then a new password made in
+      1Password (the old one stays in the item's history) and set through `fly ssh console`,
+      pasted at both prompts; login with it `200`, `/api/auth/user` `200`, and the cookie from
+      before `401` once 30 minutes had passed.
 
 **C. Angular against the API, the classic way (D57, D77)**
 
@@ -1025,6 +1048,7 @@ reversed, mark it as superseded instead of deleting it.
 | D94 | 2026-11-13 | Accepted with login (B3): logout only deletes the browser's cookie – a copied cookie works until it expires or the password changes, as the security stamp is checked every 30 minutes (hence B5); five wrong passwords lock the account for five minutes, which anyone who knows the email can repeat; the Data Protection keys are stored unencrypted in `DataProtectionKeys` – the log warns when a key is made, every 90 days – and follow every Neon branch and dump; without a login, an unknown `/api` path or a missing file gets `401`, not `404`. One account per email is enforced in the database by the unique `UserNameIndex`, since the user name is the email; `EmailIndex` stays non-unique. | Ending sessions on the server needs a session table; for one user, changing the password does the same. Lockout protects the public login against guessing (D80), and five minutes is short enough to wait out. Encrypting the keys needs a certificate or a key vault – more secrets to keep, while the database is the thing to protect anyway, and D74 already keeps dumps out of artifacts. The `401` comes from the fallback policy, which runs before the `404` fallbacks; a logged-out user can do nothing on `/api` anyway. A unique `EmailIndex` would be a third lock and a migration. |
 | D95 | 2026-11-13 | Users are made by commands in the app itself (D70). `dotnet WatchTracker.Api.dll create-user <email>` runs after `Migrate()` and stops before `app.Run()`; it reads the password twice at a hidden prompt, never as an argument, refuses input from a pipe, turns off the terminal's bracketed paste and rejects a line with an escape sequence in it. In production it runs through `fly ssh console`, from `/app`. The Development seed runs in `Program.cs` after `Migrate()` instead of in EF's `UseSeeding`: the dev user from `appsettings.Development.json` (test values) through the same `CreateUserCommand.CreateAsync`, then the shows; the tests' users are made through it too. `appsettings.Development.json` is left out of the publish output (`CopyToPublishDirectory="Never"`). | One program with the app's own setup – the connection string, Identity's rules, the hashing – rather than a second tool in the image; the running app holds port 8080, so the command must not start Kestrel. An argument would land in the shell history and the process list. With bracketed paste on, a terminal wraps pasted text in `ESC[200~ … ESC[201~`, and `ReadKey` returns the markers' characters: both prompts got the same extra characters and matched, so a pasted password was stored wrongly – found when pasting into the production prompt failed; the password was typed by hand instead, and the fix came after. `UseSeeding` only gets a `DbContext`, and a user needs `UserManager` to hash the password; the user comes first so B4 can give the shows an owner. Without the file in the image, `ASPNETCORE_ENVIRONMENT=Development` on Fly stops the app at start-up instead of creating a user whose password is public. `/app` is the content root; elsewhere `appsettings.json` isn't found. |
 | D96 | 2026-11-13 | Two review findings after B3. A `set-password <email>` command, written by Claude (D64), comes before real data goes in (D3) – B5. Security headers – `Strict-Transport-Security`, `X-Content-Type-Options` and protection against framing – are their own task (D5), not part of login. | Without a way to change the password, a lost phone or a leaked password means editing the database by hand, and D94's answer to a copied cookie doesn't exist. The session is safe without the headers – the `__Host-` cookie is never sent over HTTP, and `SameSite=Strict` keeps it out of other sites' frames – but HSTS sends the browser straight to HTTPS after a first visit, so a hostile network can't answer an `http://` request with a fake login page. `UseHsts()` sends nothing behind Fly, as it only acts when `Request.IsHttps`. |
+| D97 | 2026-11-16 | set-password as built (M2 B5, by Claude, D64, D96). `SetPasswordCommand.SetAsync` runs `UserManager.PasswordValidators` itself, then sets `PasswordHash`, `LockoutEnd = null` and `AccessFailedCount = 0` on the user and saves them with `UpdateSecurityStampAsync` – one `UPDATE`; not `ResetPasswordAsync`, nor `RemovePasswordAsync` then `AddPasswordAsync`. The command looks the user up before the prompt, says plainly when no user has the email, and never asks for the old password. The hidden prompt moved from `CreateUserCommand` to `PasswordPrompt`, shared by both commands. The commands return Unix exit codes as `int`. The 30-minute stamp check is tested with `SecurityStampValidatorOptions.ValidationInterval` at zero in that test's own host, and was checked in production with a cookie saved before the change. Accepted: `AccessFailedCount = 0` has no test of its own; a login attempt that changes the user while the password is typed makes Identity report a concurrency failure, with nothing changed. | `ResetPasswordAsync` needs a reset token, and with it `AddDefaultTokenProviders()`, which the app doesn't register; removing and then adding saves twice, so a refused password would leave the user with none – the test saw it. One `UPDATE` means everything changes or nothing does, and the validators carry the same rules as create-user. Looking up first catches a mistyped email before the password is typed twice. Telling an unknown email apart is fine in a terminal on the server: whoever can run the command can already read the database, and being there is the permission – the public login keeps its one `401` (D93). Exit codes are what the shell's `&&` and CI read: 0 is success, anything else an error. A zero interval tests what a lost phone would see rather than the stamp column, and the request before the change shows the `401` comes from the new password. The first successful login resets the failed count anyway. |
 
 ## 7. Open questions
 
