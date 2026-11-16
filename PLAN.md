@@ -15,8 +15,9 @@ set-password command (B5) is done 2026-11-16: my password was changed with it in
 (D97). B1, B2's skeleton part and D1 were done 2026-11-12. Next is B4, the developer's
 endpoints and migrations (D64). The goal is
 the app on several devices (D58), with backend, hosting and order
-decided 2026-11-10 in D60–D78 and the order changed by D88. The floating add button is put
-off, 2026-11-10.
+decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
+navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
+add button is dropped (D98).
 The season and episode errors under both steppers (D83) done 2026-11-12.
 Delete with confirmation (D59) and the steppers at phone width done 2026-11-11 (M2 A1).
 The not-found page – the `**` route and the guard for unknown show ids – with `PageHeader` and
@@ -499,8 +500,11 @@ Goal: something actually useful – a list of my shows with progress, entered by
     missing fields, an old format version) and decide what to do with data that does not fit.
 - [x] Home screen "Continue watching": shows with status Watching, most recently updated first,
       each with a thumb-friendly "watched next episode" action. Empty state.
-- [ ] The other statuses one tap away: status tabs as router links, one route per status
-      (DESIGN.md, "Status tabs"). One status at a time – not radio buttons, and not a filter with
+- [ ] The other statuses one tap away – **on Library since D99 (2026-11-16)**: status tabs as router
+      links, one route per status (`/library/want-to-watch`, `/finished`, `/dropped`; DESIGN.md,
+      "Status tabs on Library"), Watching staying alone on Home. Comes with the navigation (D98):
+      the bottom navigation on phones and the header links from 48rem, for Watching and Library;
+      Search joins them in M3. One status at a time – not radio buttons, and not a filter with
       several statuses at once; if "everything" is missed, an "All" tab is simpler, and "do I
       already have X?" is answered by search (M3/M4). Comes with two components, noted on
       2026-11-09:
@@ -526,13 +530,12 @@ Goal: something actually useful – a list of my shows with progress, entered by
       the show in edit mode (D48), the card link (D51), Home after a save and Cancel (D49, D52)
       and the empty-state button. The steppers' styling moved to the styling pass; unknown ids
       to the not-found task.
-- [ ] "Add show" entry points, both links (D49, D50): on phones a floating add button – plus icon
+- [x] ~~"Add show" entry points, both links (D49, D50): on phones a floating add button – plus icon
       only, `aria-label="Add show"` – and nothing in the header; on desktop an "Add show" link in
-      the header; on tablets perhaps both, decided when it is built. Not on the empty state, which
-      has its own button. _Progress:_ the header link is in, shown at every width for now; left
-      are the floating button on phones and hiding the header link there. Put off on
-      2026-11-10: the header link already works on phones, so a second way to add is less
-      important than delete and getting the app onto the phone (M2).
+      the header; on tablets perhaps both, decided when it is built.~~ **Dropped 2026-11-16 (D98):**
+      shows are added from Search (M3), so there is no floating button and no "Add show" in the
+      header. The header link stays until Search exists; then it goes, and the empty state's
+      button links to Search.
 - [x] Focus after navigation: when Save or a link swaps the page, focus must not fall back to
       `<body>`. Move it to the new page's heading on `NavigationEnd`, once for the whole app
       (angular.dev, "Accessibility in Angular" → "Focus management after navigation").
@@ -577,14 +580,16 @@ Goal: something actually useful – a list of my shows with progress, entered by
       "Show card"): a custom pipe on `Intl.RelativeTimeFormat`. The value changes as time passes
       while the input stays the same, so decide whether the pipe can be pure. Until then the card
       shows `updatedAt` with `DatePipe` (`d MMM`).
-- [ ] Styling pass, put off on 2026-11-09 until the functionality is in: the header link, and the
+- [ ] Styling pass, put off on 2026-11-09 until the functionality is in. **The look is provisional
+      (D103):** a proper visual design pass – colours, type, spacing, images – comes once the app
+      does what it should, and may change much of DESIGN.md §1 and the mockups. Until then: the header link, and the
       card's focus indicator – D51 asks for the global focus ring around the card, today the
       card's border turns accent. The steppers are done (2026-11-11): the host is the field, so
       the page no longer scrolls sideways at 320px (D28) – the overflow had also widened the
       mobile layout viewport, which kept the delete dialog from narrowing. At 320px the header's
       "Watch Tracker" and "Add show" wrap onto two lines (noted 2026-11-11). Page titles: no rule
       sizes `h1`, so every page's title is the browser's 2em (32px), not `--font-size-big`
-      (noted 2026-11-10). Ideas: glass for the floating button and a sticky
+      (noted 2026-11-10). Ideas: glass for the bottom navigation and a sticky
       header, never for the cards (Apple: no glass in the content layer). Buttons: one attribute
       directive on `button` and `a` with a typed `variant` replaces the button classes (D82) –
       after delete, so the delete dialog's buttons start on the classes and move over with the rest.
@@ -592,8 +597,8 @@ Goal: something actually useful – a list of my shows with progress, entered by
 - [ ] Route transitions, after the functionality: the Router's View Transitions support
       (`withViewTransitions()` in `provideRouter`, developer preview in v22), styled in the global
       styles. Start with a crossfade, then animate the page content only (a `view-transition-name`
-      on it), maybe later morph the tapped card into the edit form (the same name, `show-<id>`, on
-      both). Movement is skipped under `prefers-reduced-motion` (the Router doesn't do it on its
+      on it), maybe later morph the tapped card into the show page (the same name, `show-<id>`, on
+      both), and the Search tab's icon into the search field (D98). Movement is skipped under `prefers-reduced-motion` (the Router doesn't do it on its
       own); keep it short, as the page doesn't respond while it plays. Browsers without the API
       just swap the page. angular.dev, "Route transition animations". _Progress:_
       `withViewTransitions()` is on, with the default crossfade.
@@ -786,7 +791,9 @@ with no shows. Until C2, log in locally as the dev user from the browser's conso
   Tests with `HttpTestingController`, by Claude.
 - [ ] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
       error, the logged-in user from `/api/auth/user`, a guard that sends to `/login?returnUrl=…`,
-      an interceptor that turns a `401` into the login page (`catchError`), and logging out.
+      an interceptor that turns a `401` into the login page (`catchError`), and logging out – from
+      the account page (`/account`), reached by the account icon in the header (D98; DESIGN.md,
+      "Account page" and "Login page").
 - [ ] C3. Commit the classic version on its own (D57).
 
 **D. To production**
@@ -843,7 +850,7 @@ with no shows. Until C2, log in locally as the dev user from the browser's conso
       `SwUpdate.versionUpdates`.
 - [ ] Tests alongside each task (D16, D17, D64).
 
-The rest of M1 – status tabs, the pipes, the styling pass, route transitions – can be woven in at
+The rest of M1 – status tabs (now Library, D99), the pipes, the styling pass, route transitions – can be woven in at
 any time; it doesn't block M2.
 
 **Done when:** the Pixel and the Mac show the same list at `https://watch.cseljehaug.no` behind a
@@ -855,22 +862,34 @@ app is installed on the Pixel, and it costs 0 kr a month (Fly's bill under $5).
 
 #### M3 – Search and show details (TMDB)
 
-- Search TMDB for TV series (search-as-you-type, debounced), with posters
-- Series detail page: overview, seasons, episode counts, TMDB rating
-- "Add to my list" from search/details; existing manual entries can be linked to a TMDB id
-- Progress validated against the real season/episode structure
+Designed 2026-11-16 (D98–D103): DESIGN.md §2 and every screen and state in
+`docs/design/mockups/screens.html`.
+
 - Decide how to handle the TMDB API key – most likely through the own API (open question, §7)
+- The search page (D100): `/search?q=…`, results as you type (debounced, `replaceUrl`), your own
+  shows first, the two icon buttons (Want to watch, Watching), the message after adding,
+  loading, no results and error, "Add manually" in three places, and the first-visit tip in
+  `localStorage`. Search joins the bottom navigation and the header field (D98).
+- The show page (D101): `/shows/:showId` and `/shows/tmdb/:tmdbId` (sent on to `/shows/:showId`
+  when the show is already in the list), info and Your show, `NgOptimizedImage`
+  for the poster and backdrop; the card opens it, and the not-found guard moves to it.
+- Your show saving field by field (D102), the edit page removed, the `NumberStepper`s with an upper
+  bound from TMDB, season rollover from TMDB's episode counts.
+- Existing manual entries can be linked to a TMDB id ("Find on TMDB").
+- The account page's About with TMDB's logo and credit (D98).
 
 **Angular concepts:** `HttpClient`/`httpResource`, interceptors, app configuration, loading/error
-states, `NgOptimizedImage` with a custom TMDB image loader, `@defer`.
+states, `NgOptimizedImage` with a custom TMDB image loader, `@defer`, query parameters as state,
+View Transitions between the search tab and the field, RxJS for saving (`debounceTime`,
+`concatMap`).
 
 #### M4 – Where to watch and "Up next"
 
-- Where to watch in Norway (TMDB watch providers, sourced from JustWatch) on details and search
-  results
-- Search results show my own data: "In your list – at S2E5"
-- "Up next" view: shows with aired episodes I haven't watched yet; "caught up" state for running
-  shows
+- Where to watch in Norway (TMDB watch providers, sourced from JustWatch) on the show page and
+  in search results, credited to JustWatch (D100, D101)
+- "Up next" as two sections on Watching, not a page of its own (D99): "Ready to watch" – shows
+  with aired episodes after yours – and "Caught up", for running shows waiting for the next one.
+  Sketched in the mockups; the details are decided here (§7).
 
 ### LATER
 
@@ -1001,8 +1020,8 @@ reversed, mark it as superseded instead of deleting it.
 | D47 | 2026-11-06 | Class members go in this order: dependencies (`inject`), inputs and models, outputs, queries, state (signals, `computed`, the form), constants, then methods – public API, template event handlers, private helpers. Classes with three or more of these groups get a one-line `//` heading per group; small classes go without. Event handlers are named for what they do (`decreaseAndAnnounce`), not for the event (`decreaseClicked`); `handleKeydown` is fine for one handler that sends many keys on. | Angular's style guide: "Group Angular-specific properties before methods" and "Name event handlers for what they do". One order makes every class read the same way. It is also needed in places: fields initialise top to bottom, so `rawValue` has to come after the `value` it wraps, and `form` after `model`. Headings on a two-member class are noise. |
 | D48 | 2026-11-09 | The show editor's form model is a `linkedSignal` derived from `show()`: the stored show mapped with `toShowEditorFormModel`, or `EMPTY_SHOW_FORM_MODEL` when there is no show. `form()` gets it directly. It starts over when the show changes – when the router reuses the page for another id, or the store saves a new object for the show. | The model has to follow the `showId` input and still be writable by the form. A `signal` filled in a field initializer reads the input before the router has set it, and never follows when the page is reused for another id. An `effect` copying the show into a signal also works, but angular.dev advises against effects for passing state between signals. The model checks whether a show exists, not whether the page is in add mode (`isNewShow`), so an unknown id gives an empty form instead of a crash. Accepted: edits are lost if the show changes while the form is open – today only Save does that; revisit with sync (Later). |
 | D49 | 2026-11-09 | After a successful save – add or edit – the editor goes to Home with `Router` (`inject(Router)`). The page's "Back" is a `RouterLink` to `/`, not the browser's history back. Navigation the user chooses is always a link (`<a routerLink>`), the header's "Add show" included; `Router` is only used when navigation follows an action, as after Save (DESIGN.md §2 already makes tabs and Cancel links and Delete a button). **"Back" replaced by "Cancel" in D52.** | Home is the only list until the status tabs exist. A link to `/` lands in the same place whether the page was opened from Home, a bookmark or a new tab; history back would leave the app after a link opened from outside. A link is announced as a link, follows on Enter, can be opened in a new tab and shows its URL – a button that calls `navigate()` loses all of that. Accepted: a show saved with another status than Watching is not on Home, so nothing shows that it was saved; revisit with the status tabs (go to the show's tab) or a status message. |
-| D50 | 2026-11-09 | "Add show" lives where the screen size suits it: on phones a floating add button (plus icon only, `aria-label="Add show"`) and nothing in the header; on desktop a link in the header; on tablets perhaps both, decided when it is built. Both are links (D49). As in DESIGN.md (FAB on phone, header on desktop), which leaves tablets open. | On a phone the bottom corner is within reach of the thumb, and the narrow header keeps just the brand. On desktop a floating button over a wide grid is out of the way of nothing and far from the eye; the header is where the action is looked for. |
-| D51 | 2026-11-09 | The whole show card opens the show's edit page, except the plus button. The link stays in the title's `<h2>` (DESIGN.md §2); its click area is stretched over the card by a pseudo-element on the link (absolutely positioned, covering the card), and the plus button is lifted above it. Not a link wrapped around the card, and not a click handler on the `<article>`. Keyboard focus on the link shows as a ring around the whole card – the same ring as the global `:focus-visible` – and none around the title; the plus button keeps its own ring. | The card is the show, and the whole card is a much bigger target on a phone (D3). A link around the card would contain the plus button – a button inside a link is invalid HTML and fails axe's `nested-interactive` rule – and screen readers would read the whole card as the link's name. A click handler is not a link (D49): no Enter, no new tab, not announced. With the stretched link the name stays the title and heading navigation still works. A ring around the card shows the area the link covers; around the title alone it would suggest that only the title is a link. Accepted: card text is hard to select, and a tap just next to the plus opens the editor instead of doing nothing. When the show page comes (`/shows/:showId`, M3, D38), the card probably opens that instead. |
+| D50 | 2026-11-09 | **Superseded by D98: no floating add button and no "Add show" in the header; shows are added from Search.** "Add show" lives where the screen size suits it: on phones a floating add button (plus icon only, `aria-label="Add show"`) and nothing in the header; on desktop a link in the header; on tablets perhaps both, decided when it is built. Both are links (D49). As in DESIGN.md (FAB on phone, header on desktop), which leaves tablets open. | On a phone the bottom corner is within reach of the thumb, and the narrow header keeps just the brand. On desktop a floating button over a wide grid is out of the way of nothing and far from the eye; the header is where the action is looked for. |
+| D51 | 2026-11-09 | The whole show card opens the show's edit page, except the plus button. **Amended by D101: it opens the show page; the edit page goes (D102).** The link stays in the title's `<h2>` (DESIGN.md §2); its click area is stretched over the card by a pseudo-element on the link (absolutely positioned, covering the card), and the plus button is lifted above it. Not a link wrapped around the card, and not a click handler on the `<article>`. Keyboard focus on the link shows as a ring around the whole card – the same ring as the global `:focus-visible` – and none around the title; the plus button keeps its own ring. | The card is the show, and the whole card is a much bigger target on a phone (D3). A link around the card would contain the plus button – a button inside a link is invalid HTML and fails axe's `nested-interactive` rule – and screen readers would read the whole card as the link's name. A click handler is not a link (D49): no Enter, no new tab, not announced. With the stretched link the name stays the title and heading navigation still works. A ring around the card shows the area the link covers; around the title alone it would suggest that only the title is a link. Accepted: card text is hard to select, and a tap just next to the plus opens the editor instead of doing nothing. When the show page comes (`/shows/:showId`, M3, D38), the card probably opens that instead. |
 | D52 | 2026-11-09 | The add/edit page has no "Back" link. Its one way out is "Cancel" next to "Save changes" – a `RouterLink` to `/` (D49) – on every screen size; the header has no "Back" link. The mockups and DESIGN.md §2 are updated. | Back and Cancel went to the same place, so one of them was in the way. In a form, "Cancel" also says that the changes are not saved, and it sits where the hand and the eye are when the form is done – within reach of the thumb on a phone (D3). Desktop and tablet also have the browser's back button and the brand link, but an app installed on an iPhone (M2) has no browser bar, so the page needs its own way out; one page for every size is simpler than hiding it on wide screens. "Back" may come back on pages that are read rather than filled in, such as the show page (M3). |
 | D53 | 2026-11-09 | An unknown show id is stopped by a `CanActivate` guard on `shows/:showId/edit` (`showExistsGuard`), not by the editor. The guard returns `true` when `ShowStore` has the show, otherwise a `RedirectCommand` to the not-found page with `browserUrl` set to the URL the user asked for, so the address bar keeps it. Unknown URLs reach the same page through the wildcard route. | One not-found page for unknown URLs and unknown ids. The check runs before the page opens, so there is no flash of an empty "Edit show" form, and the editor never has to handle a show that doesn't exist – D48's empty-model fallback is then only add mode. Keeping the URL shows the user what they asked for and lets them correct it. Accepted: the guard reads the store synchronously, which fits localStorage; with an HTTP API (Later) it returns a Promise or an Observable instead, which guards allow. |
 | D54 | 2026-11-09 | No leave warning for unsaved changes on the add/edit page for now; moved from M1 to Later, to be picked up only if real use on the phone (M2) shows that edits get lost by accident. | The form has five fields and an edit usually touches one or two, so an accidental exit costs seconds, and in edit mode the stored show is untouched. It would be built only because forms "usually have it" (§1, D14). It teaches little that is new: guards are learnt with the not-found page (D53). It costs a guard, `beforeunload`, history handling for Back and a dialog choice, and still can't cover closing the tab in Safari on iOS. |
@@ -1049,6 +1068,12 @@ reversed, mark it as superseded instead of deleting it.
 | D95 | 2026-11-13 | Users are made by commands in the app itself (D70). `dotnet WatchTracker.Api.dll create-user <email>` runs after `Migrate()` and stops before `app.Run()`; it reads the password twice at a hidden prompt, never as an argument, refuses input from a pipe, turns off the terminal's bracketed paste and rejects a line with an escape sequence in it. In production it runs through `fly ssh console`, from `/app`. The Development seed runs in `Program.cs` after `Migrate()` instead of in EF's `UseSeeding`: the dev user from `appsettings.Development.json` (test values) through the same `CreateUserCommand.CreateAsync`, then the shows; the tests' users are made through it too. `appsettings.Development.json` is left out of the publish output (`CopyToPublishDirectory="Never"`). | One program with the app's own setup – the connection string, Identity's rules, the hashing – rather than a second tool in the image; the running app holds port 8080, so the command must not start Kestrel. An argument would land in the shell history and the process list. With bracketed paste on, a terminal wraps pasted text in `ESC[200~ … ESC[201~`, and `ReadKey` returns the markers' characters: both prompts got the same extra characters and matched, so a pasted password was stored wrongly – found when pasting into the production prompt failed; the password was typed by hand instead, and the fix came after. `UseSeeding` only gets a `DbContext`, and a user needs `UserManager` to hash the password; the user comes first so B4 can give the shows an owner. Without the file in the image, `ASPNETCORE_ENVIRONMENT=Development` on Fly stops the app at start-up instead of creating a user whose password is public. `/app` is the content root; elsewhere `appsettings.json` isn't found. |
 | D96 | 2026-11-13 | Two review findings after B3. A `set-password <email>` command, written by Claude (D64), comes before real data goes in (D3) – B5. Security headers – `Strict-Transport-Security`, `X-Content-Type-Options` and protection against framing – are their own task (D5), not part of login. | Without a way to change the password, a lost phone or a leaked password means editing the database by hand, and D94's answer to a copied cookie doesn't exist. The session is safe without the headers – the `__Host-` cookie is never sent over HTTP, and `SameSite=Strict` keeps it out of other sites' frames – but HSTS sends the browser straight to HTTPS after a first visit, so a hostile network can't answer an `http://` request with a fake login page. `UseHsts()` sends nothing behind Fly, as it only acts when `Request.IsHttps`. |
 | D97 | 2026-11-16 | set-password as built (M2 B5, by Claude, D64, D96). `SetPasswordCommand.SetAsync` runs `UserManager.PasswordValidators` itself, then sets `PasswordHash`, `LockoutEnd = null` and `AccessFailedCount = 0` on the user and saves them with `UpdateSecurityStampAsync` – one `UPDATE`; not `ResetPasswordAsync`, nor `RemovePasswordAsync` then `AddPasswordAsync`. The command looks the user up before the prompt, says plainly when no user has the email, and never asks for the old password. The hidden prompt moved from `CreateUserCommand` to `PasswordPrompt`, shared by both commands. The commands return Unix exit codes as `int`. The 30-minute stamp check is tested with `SecurityStampValidatorOptions.ValidationInterval` at zero in that test's own host, and was checked in production with a cookie saved before the change. Accepted: `AccessFailedCount = 0` has no test of its own; a login attempt that changes the user while the password is typed makes Identity report a concurrency failure, with nothing changed. | `ResetPasswordAsync` needs a reset token, and with it `AddDefaultTokenProviders()`, which the app doesn't register; removing and then adding saves twice, so a refused password would leave the user with none – the test saw it. One `UPDATE` means everything changes or nothing does, and the validators carry the same rules as create-user. Looking up first catches a mistyped email before the password is typed twice. Telling an unknown email apart is fine in a terminal on the server: whoever can run the command can already read the database, and being there is the permission – the public login keeps its one `401` (D93). Exit codes are what the shell's `&&` and CI read: 0 is success, anything else an error. A zero interval tests what a lost phone would see rather than the stamp column, and the request before the change shows the `401` comes from the new password. The first successful login resets the failed count anyway. |
+| D98 | 2026-11-16 | Navigation (designed in seven rounds with the developer, compared with JustWatch, TMDB, Trakt, Letterboxd and TV Time). On phones, below 48rem, a bottom navigation with Watching · Library · Search: router links with icons and visible labels, `aria-current="page"`, shown on every page but the add page and login. From 48rem it is a header with the links Watching and Library, the search field on the right (wide enough to read at rest, growing to the left with focus) and the account icon. The account icon (`/account`: email, log out, About with the TMDB and JustWatch credits) sits top right at every width. "Add show" leaves the header, and the floating add button is never built: supersedes D50. Tapping Search grows the icon into the field (View Transitions). | Search should be within reach of the thumb on the phone without covering the list. A field always floating over the list was rejected: adding is rarer than updating. A search icon in the header was rejected too: it is out of reach, and no longer common on phones. A bottom navigation fits three or more real destinations (Material: 3–5), and Watching, Library and Search are three. The account is visited rarely and is mostly settings, so it stays at the top, as in Google's apps; it can become a fourth tab if it ever holds something to look at (statistics). |
+| D99 | 2026-11-16 | Watching and Library. Home (`/`) shows only the shows being watched ("Continue watching"); the status tabs move to Library (`/library/want-to-watch`, `/finished`, `/dropped`), which opens on Want to watch and has no Watching tab. In M4, "Up next" is two sections on Watching – "Ready to watch" (aired episodes after yours) and "Caught up" (waiting for the next one) – not a page of its own. | Watching is what is opened daily (D12), and it stays focused on the one-tap action. Library is where you look for the next show to start, and the name covers all three statuses ("Watchlist" doesn't). Up next sorts the same shows by whether something is out, so it belongs on Watching. |
+| D100 | 2026-11-16 | Search. One page on every size, `/search?q=…`, with results as you type (debounced, `replaceUrl`), not a dropdown or combobox under the field. Shows already in your list are matched locally and come first, marked "In your list · Watching · S04 E12". A result shows the poster, the title (wrapping, never cut), years, country, channel and seasons, and from M4 where it streams. Two icon buttons per result, icons only: the bookmark adds to Want to watch, the plus adds to Watching without progress. Their names carry the title, country and year. After adding, the result updates, and a message (`role="status"`, about 10 s, paused while hovered or focused) says "Added X to Watching" with "Set progress" to the show page. Manual adding is always visible: "Add manually" on the count line, "Can't find it? Add “q” manually" under the results, and a button before typing and on no results – all to `/shows/add?title=…`. A first-visit tip explains the icons; "Got it" hides it, remembered in `localStorage` behind a small service. The field gets focus on the page, not the `<h1>`. | A page has an address, works the same on phone and desktop, and needs no combobox (Netflix and Spotify do it this way; JustWatch and TMDB use dropdowns). The buttons decide the status, so no default status is needed and both are one tap – as JustWatch, TMDB, Trakt and Letterboxd do with "later" and "watching". A bookmark, not a star: a star means rating or favourite. Icons keep the results compact; the tip, the message and the names explain them. A show missing from TMDB must always be addable. The tip is per device in `localStorage`: one flag isn't worth an endpoint and a migration, and it moves to the server with a `UserSettings` table if My subscriptions brings one. |
+| D101 | 2026-11-16 | The show page. One component for a show in your list (`/shows/:showId`, manual shows too; keeps D38) and a TMDB show that isn't (`/shows/tmdb/:tmdbId`, by TMDB's id; replaced by the show's own URL after adding, and sent on to it when the show is already in the list – both with `replaceUrl`; the route comes before `shows/:showId`, as `shows/add` does). Renamed from `/tv/:tmdbId` the same day: in an app where everything is TV, `tv` didn't say what set it apart, and `shows/tmdb` says which id the address holds. Two parts: the show (backdrop, poster, title, facts, TMDB score, About, Seasons, and from M4 Where to watch with the JustWatch credit) and "Your show" (status, last watched episode, where I watch it, the title for manual shows, Delete). Not in your list: the two add buttons with text in Your show's place. Phone order: hero, Your show, Where to watch, About, Seasons; from 48rem: poster, info, and a sticky right column with Your show and Where to watch. No cast, trailers, reviews or similar shows. The card opens the show page (amends D51); the not-found guard moves to `/shows/:showId` (D53). A manual show offers "Find on TMDB" to link it. | The show page answers the goal questions – what is it, where am I, where do I watch it – and little else (§1). You usually come from the list to update, so Your show comes early on the phone. One component for both cases, as the only difference is whether Your show or the add buttons are shown. |
+| D102 | 2026-11-16 | Your show saves field by field, without Save or Cancel, and the edit page (`/shows/:showId/edit`) goes. Selects save when picked, the steppers about 600 ms after the last tap, a manual show's title when the field is left (not empty). Invalid states aren't saved, and their errors (D44) show as soon as a value is invalid (amends D41 for this page). One status line, "Saving…" then "Saved", in a polite live region; a failed save keeps the value and offers "Try again". Each save sends the whole show with `PUT` (D69) through one queue: built the classic way first (D57) – `toObservable` on the form's value, `debounceTime`, `filter` on validity, `concatMap`. The fields are the existing ones: the select and the `NumberStepper`s, which get an upper bound from TMDB through `max()`. `/shows/add` stays as the manual add form, with an explicit "Add show" button. | With few, independent fields, saving each change is what phones, Google's account settings, Trakt and TV Time do – it is the smoother UX, and the card's plus already saves at once. A separate page with Save made sense with nothing else to show; the show page now holds the fields. Adding keeps its button, as it creates something. The queue keeps saves in order, so the last change wins. The developer wanted the extra RxJS: it is a learning project. |
+| D103 | 2026-11-16 | The look is provisional. DESIGN.md and the mockups decide the structure, the states and the behaviour; colours, type, spacing and the treatment of images get a proper design pass later and may change a lot. The mockups (`docs/design/mockups/screens.html`) were rewritten for D98–D102 with every screen and state. | The developer expects to change much of the visual design once the app is complete; until then the rules (tokens, accessibility) hold, and the screens show what the app does, not its final look. |
 
 ## 7. Open questions
 
@@ -1060,6 +1085,7 @@ Not decided yet – don't treat these as settled. Decide them when the relevant 
 | Language of show data from TMDB                      | M3        | Probably Norwegian (`nb-NO`) titles/overviews with English fallback – or English only. Try both with real data.                                                                                                             |
 | How do other users get in and log in?                | Later     | When a concrete person wants in (D60). Getting in: an invitation link, or a list of allowed addresses. Logging in without the developer resetting passwords: password reset by email (an email service, and SPF/DKIM records in one.com's DNS), Google sign-in (`AddGoogle()`, an OAuth client in Google Cloud Console, allowed addresses), or passkeys (supported by Identity in .NET 10). Backups and JSON export are revisited at the same time (D61, D78). |
 | IMDb rating source                                   | Later     | OMDb (simple, API key, daily limit) vs. IMDb datasets imported by a backend job.                                                                                                                                            |
+| How "Up next" looks on Watching                      | M4        | Two sections, Ready to watch and Caught up (D99), sketched in the mockups. Open: whether the card shows the last or the next episode (D35), how "caught up" shows the next air date, and whether the plus stays hidden until the next episode is out. |
 
 ---
 

@@ -16,10 +16,13 @@
   --color-divider: #2c2c33;
   --color-text: #f4f4f5;
   --color-text-muted: #a1a1aa;
+  --color-text-soft: #f4f4f514;
   --color-accent: #f5b841;
   --color-accent-soft: #f5b8411f;
   --color-accent-border: #f5b84159;
-  --color-danger: #ff8a8a;
+  --color-danger: #ff453a;
+  --color-danger-soft: #d7b3b114;
+  --color-danger-fill: #b02a24;
   --font-family: Inter, system-ui, sans-serif;
   --font-size-small: 0.875rem;
   --font-size-medium: 1rem;
@@ -34,93 +37,218 @@
   --touch-target: 2.75rem;
   --content-max-width: 1280px;
 
-  /* Not tokens yet (DESIGN.md §1): values from the Claude Design mockups, added as tokens when a component needs them */
+  /* Not tokens yet (DESIGN.md §1): added as tokens when a component needs them */
   --mock-raised: #232328;
-  --mock-danger-solid: #c62828;
-  --mock-danger-soft: #ff8a8a1f;
   --mock-backdrop: #000000a0;
   --mock-heading: 1.25rem;
+  --mock-image: linear-gradient(135deg, #2e3744 0%, #1b1f26 60%, #141519 100%);
 }
 
 /* ---------- Viewer (not part of the app) ---------- */
 * { box-sizing: border-box; }
 body { margin: 0; background: #242428; color: #d4d4d8; font-family: var(--font-family); -webkit-font-smoothing: antialiased; }
-.viewer-intro { padding: 32px 32px 0; max-width: 60rem; line-height: 1.5; }
+.viewer-intro { padding: 32px 32px 0; max-width: 64rem; line-height: 1.5; }
 .viewer-intro h1 { margin: 0 0 8px; font-size: 1.5rem; color: #fafafa; }
 .viewer-intro p { margin: 0 0 12px; }
-.viewer-intro nav { display: flex; gap: 20px; flex-wrap: wrap; }
+.viewer-intro nav { display: grid; gap: 6px; margin-top: 16px; }
+.viewer-intro nav div { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.viewer-intro nav b { width: 6.5rem; color: #fafafa; font-weight: 600; }
 .viewer-intro a { color: var(--color-accent); }
-.screen { padding: 40px 32px 8px; }
+.viewer-group { margin: 56px 32px 0; padding-top: 16px; border-top: 1px solid #3f3f46; font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; color: #a1a1aa; }
+.screen { padding: 32px 32px 8px; }
 .screen > h2 { margin: 0 0 4px; font-size: 1.25rem; color: #fafafa; }
-.screen > p { margin: 0 0 16px; color: #a1a1aa; max-width: 60rem; line-height: 1.5; }
+.screen > p { margin: 0 0 16px; color: #a1a1aa; max-width: 64rem; line-height: 1.5; }
+.screen > p code, .viewer-intro code { color: #e4e4e7; }
 .sizes { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
 figure { margin: 0; }
-figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; }
+figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width: 390px; }
+.frame.wide + figcaption, figure:has(.wide) figcaption { max-width: none; }
 .frame { position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; outline: 1px solid #3f3f46; background: var(--color-background); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-medium); line-height: 1.5; }
 .frame.phone { width: 390px; height: 844px; }
 .frame.tablet { width: 768px; height: 1024px; }
 .frame.desktop { width: 1280px; height: 800px; }
+.frame.full { height: auto; }
 
 /* ---------- App ---------- */
 /* A small reset with no specificity, so every class below wins over it */
-:where(.frame) :where(h1, h2, p, fieldset, legend) { margin: 0; padding: 0; }
+:where(.frame) :where(h1, h2, h3, p, ul, fieldset, legend) { margin: 0; padding: 0; }
+:where(.frame) :where(ul) { list-style: none; }
 :where(.frame) :where(fieldset) { border: 0; min-width: 0; }
 :where(.frame) :where(a) { color: inherit; text-decoration: none; }
 :where(.frame) :where(button, input, select) { font: inherit; color: inherit; }
 :where(.frame) :where(button) { cursor: pointer; background: none; border: 0; padding: 0; }
+:where(.frame) :where(search) { display: block; }
 .frame :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.frame h1[tabindex='-1']:focus { outline: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 .container { width: 100%; max-width: var(--content-max-width); margin-inline: auto; padding-inline: var(--spacing-1); }
 
+/* Header */
 .app-header { flex: none; border-bottom: 1px solid var(--color-divider); }
-.app-header .container { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); min-height: 4rem; }
-.brand { display: flex; align-items: center; gap: var(--spacing-half); font-weight: 600; }
+.app-header .container { display: flex; align-items: center; gap: var(--spacing-1); min-height: 4rem; }
+.brand { display: flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); font-weight: 600; white-space: nowrap; }
 .brand-mark { display: grid; place-items: center; width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; background: var(--color-accent); color: var(--color-background); }
+.header-nav { display: flex; gap: 0.25rem; margin-left: var(--spacing-1); }
+.header-nav a { display: inline-flex; align-items: center; min-height: var(--touch-target); padding: 0 0.75rem; border-radius: var(--border-radius); font-weight: 600; color: var(--color-text-muted); }
+.header-nav a[aria-current="page"] { color: var(--color-text); background: var(--color-text-soft); }
+.header-spacer { flex: 1; }
+.header-search { display: flex; align-items: center; gap: var(--spacing-half); width: 17rem; height: var(--touch-target); padding: 0 0.25rem 0 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); transition: width 0.2s ease-out; }
+.tablet .header-search { width: 13rem; }
+.header-search.is-focused { width: 30rem; outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.header-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--color-text); font-size: var(--font-size-medium); outline: none; }
+.header-search input::placeholder, .search-field input::placeholder { color: var(--color-text-muted); opacity: 1; }
+.header-search kbd { margin-right: 0.5rem; padding: 0 0.375rem; border: 1px solid var(--color-divider); border-radius: 0.25rem; font: inherit; font-size: var(--font-size-small); }
+.icon-button { flex: none; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: var(--border-radius); }
+.icon-button[aria-current="page"] { color: var(--color-accent); background: var(--color-accent-soft); }
+.icon-button.outline { border: 1px solid var(--color-border); }
+.icon-button.soft { border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
 
-.button { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-half); min-height: var(--touch-target); padding: 0 var(--spacing-1); border-radius: var(--border-radius); font-weight: 600; }
+/* Bottom navigation (phone) */
+.bottom-nav { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); padding: 0.375rem 0 1rem; border-top: 1px solid var(--color-divider); background: var(--color-surface); }
+.bottom-nav a { display: grid; justify-items: center; gap: 0.125rem; min-height: var(--touch-target); font-size: var(--font-size-small); font-weight: 600; color: var(--color-text-muted); }
+.bottom-nav-icon { display: grid; place-items: center; width: 4rem; height: 2rem; border-radius: 999px; }
+.bottom-nav a[aria-current="page"] { color: var(--color-accent); }
+.bottom-nav a[aria-current="page"] .bottom-nav-icon { background: var(--color-accent-soft); }
+
+/* Phone search bar – takes the header's place on the search page */
+.search-bar { flex: none; padding: 0.625rem var(--spacing-1); border-bottom: 1px solid var(--color-divider); }
+.search-field { display: flex; align-items: center; gap: var(--spacing-half); height: var(--touch-target); padding: 0 0 0 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.search-field input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--color-text); font-size: var(--font-size-medium); outline: none; }
+
+/* Buttons */
+.button { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-half); min-height: var(--touch-target); padding: 0 var(--spacing-1); border-radius: var(--border-radius); font-weight: 600; white-space: nowrap; }
 .button-large { min-height: calc(var(--touch-target) + var(--spacing-half)); }
 .button-accent { background: var(--color-accent); color: var(--color-background); }
 .button-outline { border: 1px solid var(--color-border); }
-.button-danger { background: var(--mock-danger-solid); color: #fff; }
+.button-soft { border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
+.button-danger { background: var(--color-danger-fill); color: var(--color-text); }
+.text-link { display: inline-flex; align-items: center; gap: 0.375rem; min-height: var(--touch-target); color: var(--color-accent); font-weight: 600; font-size: var(--font-size-small); }
 
-.page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-block: var(--spacing-1); }
-.wide .page { padding-block: var(--spacing-2); }
+/* Page */
+.page { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: var(--spacing-1); padding-block: var(--spacing-1); }
+.full .page { overflow: visible; }
+.wide .page { padding-block: var(--spacing-2); gap: 1.5rem; }
 .page-title { font-size: var(--font-size-big); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
 .subtitle { margin-top: 0.25rem; font-size: var(--font-size-small); color: var(--color-text-muted); }
-
-/* Home: title and tabs */
-.title-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--spacing-1) var(--spacing-2); margin-bottom: var(--spacing-1); }
+.title-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--spacing-1) var(--spacing-2); }
 .phone .title-row { flex-direction: column; align-items: stretch; }
-.wide .title-row { margin-bottom: var(--spacing-2); }
 .tabs { display: flex; gap: var(--spacing-half); min-width: 0; }
 .phone .tabs { overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--spacing-1)); padding-inline: var(--spacing-1); }
 .wide .tabs { flex-wrap: wrap; }
 .tab { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); padding: 0 0.875rem; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-surface); font-size: var(--font-size-small); font-weight: 600; white-space: nowrap; }
 .tab[aria-current="page"] { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-background); }
 .tab .count { font-variant-numeric: tabular-nums; opacity: 0.75; }
+.list-section { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.wide .list-section { gap: var(--spacing-1); }
+.list-heading { display: flex; align-items: baseline; gap: var(--spacing-half); font-size: var(--font-size-medium); font-weight: 600; }
+.list-heading .count { font-size: var(--font-size-small); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.muted-note { color: var(--color-text-muted); }
 
-/* Home: cards */
-.cards { display: flex; flex-direction: column; gap: var(--spacing-half); padding-bottom: 7rem; }
-.wide .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); gap: var(--spacing-1); padding-bottom: 0; }
-.card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+/* Cards */
+.cards { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.wide .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); gap: var(--spacing-1); }
+.card { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+.card-title a::after, .result-title a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .poster { flex: none; display: grid; place-items: center; width: 2.875rem; height: 4rem; border-radius: 0.5rem; background: var(--mock-raised); color: var(--color-text-muted); font-size: var(--font-size-small); font-weight: 700; }
-.wide .poster { width: 3.25rem; height: 4.625rem; }
+.wide .card .poster { width: 3.25rem; height: 4.625rem; }
 .card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; line-height: 1.25; }
 .card-title { font-size: var(--font-size-medium); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .progress { font-variant-numeric: tabular-nums; }
+.progress.not-started { color: var(--color-text-muted); }
 .meta { font-size: var(--font-size-small); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.next-episode { flex: none; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: var(--border-radius); border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
-.fab { position: absolute; right: 1.25rem; bottom: 1.75rem; display: grid; place-items: center; width: 3.75rem; height: 3.75rem; border-radius: 1.125rem; background: var(--color-accent); color: var(--color-background); box-shadow: 0 8px 24px #00000073; }
+.next-episode { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: var(--border-radius); border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
 
-/* Add/edit form */
-.edit-form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.form-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1.5rem; padding-block: var(--spacing-1) var(--spacing-2); }
-.wide .form-body { max-width: 32rem; padding-block: 0; overflow: visible; }
+/* Search */
+.count-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); }
+.result-count { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.results { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.wide .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr)); gap: var(--spacing-1); }
+.result { position: relative; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+.poster.large { width: 3.5rem; height: 5.25rem; }
+.result-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; line-height: 1.3; }
+.result-title { font-size: var(--font-size-medium); font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.result-actions { position: relative; z-index: 1; flex: none; display: flex; gap: var(--spacing-half); }
+.in-list { display: inline-flex; align-items: center; gap: 0.375rem; margin-top: 0.25rem; font-size: var(--font-size-small); font-weight: 600; color: var(--color-accent); }
+.after-results { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.after-results a { color: var(--color-accent); font-weight: 600; }
+.tip { display: flex; flex-direction: column; gap: 0.75rem; padding: var(--spacing-1); border-radius: var(--border-radius); border: 1px solid var(--color-accent-border); background: var(--color-accent-soft); }
+.wide .tip { max-width: 32rem; }
+.tip-title { font-size: var(--font-size-medium); font-weight: 600; }
+.tip-list { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.tip-list li { display: flex; align-items: center; gap: 0.75rem; }
+.tip-icon { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); }
+.tip-icon.soft { border-color: var(--color-accent-border); background: var(--color-accent-soft); color: var(--color-accent); }
+.tip .button { align-self: flex-start; }
+.skeleton .poster, .skeleton-bar { background: var(--mock-raised); }
+.skeleton-bar { display: block; height: 0.75rem; border-radius: 999px; }
+.toast { position: absolute; left: var(--spacing-1); right: var(--spacing-1); bottom: 5.5rem; display: flex; align-items: center; gap: 0.75rem; padding: var(--spacing-half) var(--spacing-half) var(--spacing-half) var(--spacing-1); border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--mock-raised); box-shadow: 0 10px 30px #00000080; }
+.wide .toast { left: 50%; right: auto; bottom: var(--spacing-2); translate: -50% 0; width: 28rem; }
+.toast > svg { flex: none; color: var(--color-accent); }
+.toast-text { flex: 1; min-width: 0; }
+.toast a { display: inline-flex; align-items: center; min-height: var(--touch-target); padding: 0 0.75rem; border-radius: var(--border-radius); color: var(--color-accent); font-weight: 600; white-space: nowrap; }
+
+/* Empty state */
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; max-width: 24rem; margin-inline: auto; padding-bottom: 4rem; text-align: center; }
+.empty-state.top { flex: none; justify-content: flex-start; padding-block: var(--spacing-2) 0; }
+.empty-tile { display: grid; place-items: center; padding: var(--spacing-1); border-radius: var(--border-radius); background: var(--color-accent-soft); color: var(--color-accent); }
+.empty-title { font-size: var(--mock-heading); font-weight: 700; }
+.empty-text { margin-top: var(--spacing-half); color: var(--color-text-muted); }
+
+/* Show page */
+.show-page { padding-top: 0; }
+.wide .show-page { padding-top: 0; }
+.backdrop-image { position: relative; flex: none; height: 13rem; margin-inline: calc(-1 * var(--spacing-1)); background: var(--mock-image); }
+.backdrop-image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 35%, var(--color-background)); }
+.wide .backdrop-image { height: 20rem; }
+.show-hero { position: relative; display: flex; align-items: flex-end; gap: var(--spacing-1); margin-top: -5rem; }
+.show-hero.plain { margin-top: 0; }
+.poster.cover { width: 6rem; height: 9rem; font-size: var(--mock-heading); box-shadow: 0 8px 24px #00000080; }
+.show-facts { min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
+.show-facts .page-title { margin-bottom: 0.25rem; }
+.facts { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.facts strong { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.facts-row { display: flex; flex-wrap: wrap; gap: 0.25rem var(--spacing-1); }
+.show-grid { position: relative; display: grid; grid-template-columns: 14rem minmax(0, 1fr) 22rem; gap: var(--spacing-2); align-items: start; margin-top: -9rem; }
+.show-grid.plain { margin-top: 0; }
+.show-grid .poster.cover { width: 100%; height: auto; aspect-ratio: 2 / 3; font-size: var(--font-size-big); }
+.show-main { display: flex; flex-direction: column; gap: var(--spacing-2); padding-top: 4.5rem; }
+.show-aside { position: sticky; top: var(--spacing-1); display: flex; flex-direction: column; gap: var(--spacing-1); margin-top: 4.5rem; }
+.plain .show-main, .plain .show-aside { padding-top: 0; margin-top: 0; }
+.show-section { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.wide .show-main .show-section { max-width: 40rem; }
+.section-title { font-size: var(--font-size-medium); font-weight: 600; }
+.body-text { line-height: 1.55; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--spacing-half); }
+.chip { display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0 0.875rem; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-surface); font-size: var(--font-size-small); font-weight: 600; }
+.fine { font-size: var(--font-size-small); color: var(--color-text-muted); }
+.seasons li { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); min-height: var(--touch-target); border-bottom: 1px solid var(--color-divider); }
+.seasons li:last-child { border-bottom: 0; }
+.seasons .season { font-weight: 600; }
+.seasons .detail { font-size: var(--font-size-small); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.seasons .you { font-size: var(--font-size-small); font-weight: 600; color: var(--color-accent); }
+.your-show { display: flex; flex-direction: column; gap: 1.25rem; padding: var(--spacing-1); border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+.your-show .control, .your-show .stepper { background: var(--color-background); }
+.your-show-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); padding-top: 0.25rem; border-top: 1px solid var(--color-divider); }
+.save-status { display: inline-flex; align-items: center; gap: 0.375rem; min-height: var(--touch-target); font-size: var(--font-size-small); color: var(--color-text-muted); }
+.save-status > svg { color: var(--color-accent); }
+.your-show-footer { flex-wrap: wrap; }
+.your-show-footer .delete-link { margin-left: auto; }
+.save-status.failed { flex-basis: 100%; color: var(--color-danger); }
+.save-status.failed > svg { color: var(--color-danger); }
+.save-status button { color: var(--color-accent); font-weight: 600; min-height: var(--touch-target); padding: 0 0.25rem; }
+.add-actions { display: flex; gap: var(--spacing-half); }
+.add-actions .button { flex: 1; }
+.show-aside .add-actions { flex-direction: column; }
+
+/* Form fields */
+.form-body { display: flex; flex-direction: column; gap: 1.5rem; }
+.wide .form-body { width: 100%; max-width: 32rem; margin-inline: auto; }
 .field { display: flex; flex-direction: column; gap: var(--spacing-half); }
 .label { font-size: var(--font-size-small); font-weight: 600; }
 .optional { font-weight: 400; color: var(--color-text-muted); }
 .control { width: 100%; height: 3.125rem; padding: 0 0.875rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); font-size: var(--font-size-medium); }
+.control[aria-invalid="true"], .stepper.invalid { border-color: var(--color-danger); }
 .select { position: relative; }
 .select select { appearance: none; padding-right: 2.75rem; }
 .select svg { position: absolute; right: 0.875rem; top: 50%; translate: 0 -50%; pointer-events: none; color: var(--color-text-muted); }
@@ -129,90 +257,211 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; }
 .stepper-label { font-size: var(--font-size-small); color: var(--color-text-muted); }
 .stepper { display: inline-flex; align-items: center; height: 3.125rem; border-radius: var(--border-radius); border: 1px solid var(--color-border); background: var(--color-surface); }
 .stepper button { display: grid; place-items: center; width: var(--touch-target); height: 100%; }
-.stepper input { width: 4ch; height: 100%; border: 0; background: transparent; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; appearance: textfield; }
-.stepper input::-webkit-inner-spin-button { appearance: none; margin: 0; }
-.delete-link { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); color: var(--color-danger); font-weight: 600; }
+.stepper input { width: 4ch; height: 100%; border: 0; background: transparent; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; outline: none; }
+.error { display: flex; align-items: flex-start; gap: var(--spacing-half); color: var(--color-danger); }
+.error svg { flex: none; margin-top: 0.125rem; }
+.delete-link { display: inline-flex; align-items: center; gap: var(--spacing-half); min-height: var(--touch-target); margin-inline: calc(-1 * var(--spacing-half)); padding-inline: var(--spacing-half); border-radius: var(--border-radius); color: var(--color-danger); font-weight: 600; }
 .actions { display: flex; gap: 0.625rem; }
 .actions .cancel { flex: 1; }
 .actions .save { flex: 2; }
-.phone .actions { flex: none; padding: 0.75rem var(--spacing-1) 1.5rem; border-top: 1px solid var(--color-divider); background: var(--color-background); }
+.edit-form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.edit-form .form-body { flex: 1; min-height: 0; overflow: hidden; padding-block: var(--spacing-1) var(--spacing-2); }
+.phone .actions.bar { flex: none; padding: 0.75rem var(--spacing-1) 1.5rem; border-top: 1px solid var(--color-divider); background: var(--color-background); }
+
+/* Account and login */
+.account { display: flex; flex-direction: column; gap: var(--spacing-2); width: 100%; max-width: 32rem; }
+.wide .account { margin-inline: auto; }
+.account-section { display: flex; flex-direction: column; gap: var(--spacing-half); }
+.account-section .button { align-self: flex-start; margin-top: var(--spacing-half); }
+.credit { display: flex; align-items: center; gap: var(--spacing-1); margin-top: var(--spacing-half); }
+.logo-slot { flex: none; display: grid; place-items: center; width: 7rem; height: 2.5rem; border-radius: var(--border-radius); border: 1px dashed var(--color-border); color: var(--color-text-muted); font-size: var(--font-size-small); }
+.login { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 24rem; margin-inline: auto; padding-top: var(--spacing-1); }
+.wide .login { padding-top: 4rem; }
+.form-error { display: flex; align-items: flex-start; gap: var(--spacing-half); padding: 0.75rem var(--spacing-1); border-radius: var(--border-radius); border: 1px solid var(--color-danger); background: var(--color-danger-soft); color: var(--color-danger); }
 
 /* Delete dialog */
 .underlay { display: contents; }
 .backdrop { position: absolute; inset: 0; background: var(--mock-backdrop); }
-.dialog { position: absolute; inset: auto; margin: 0; display: flex; flex-direction: column; gap: var(--spacing-1); padding: 1.5rem 1.25rem 1.25rem; border-radius: 1.25rem; border: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-text); box-shadow: 0 -8px 40px #00000080; }
+.dialog { position: absolute; inset: auto; margin: 0; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; border-radius: 1.25rem; border: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-text); box-shadow: 0 -8px 40px #00000080; }
 .phone .dialog { left: 0.75rem; right: 0.75rem; bottom: 1rem; width: auto; }
 .wide .dialog { top: 50%; left: 50%; translate: -50% -50%; width: min(26rem, calc(100% - 2 * var(--spacing-1))); }
-.dialog-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 0.875rem; background: var(--mock-danger-soft); color: var(--color-danger); }
 .dialog-title { font-size: var(--mock-heading); font-weight: 700; line-height: 1.25; }
 .dialog-text { margin-top: var(--spacing-half); color: var(--color-text-muted); }
-.dialog-text strong { color: var(--color-text); font-variant-numeric: tabular-nums; }
-.dialog-buttons { display: flex; flex-direction: column; gap: 0.625rem; margin-top: 0.25rem; }
-
-/* Empty state */
-.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; max-width: 24rem; margin-inline: auto; padding-bottom: 6rem; text-align: center; }
-.empty-tile { display: grid; place-items: center; padding: var(--spacing-1); border-radius: var(--border-radius); background: var(--color-accent-soft); color: var(--color-accent); }
-.empty-title { font-size: var(--mock-heading); font-weight: 700; }
-.empty-text { margin-top: var(--spacing-half); color: var(--color-text-muted); }
+.dialog-buttons { display: flex; justify-content: center; gap: 0.625rem; }
 </style>
 </head>
 <body>
 
 <header class="viewer-intro">
-  <h1>Watch Tracker – screens at phone, tablet and desktop</h1>
+  <h1>Watch Tracker – screens and states</h1>
   <p>
     Examples and inspiration, not an answer key (DESIGN.md, D26). The rules are the tokens (§1), the
     accessibility requirements and the behaviour notes; the measurements here are one way to follow them.
-    Each frame is a fixed-size picture of one width – phone 390 × 844, tablet 768 × 1024, desktop
-    1280 × 800 – not one responsive page. Values named <code>--mock-*</code> are not tokens yet.
+    Each frame is a fixed-size picture of one width and one state – phone 390 × 844, tablet 768 × 1024,
+    desktop 1280 × 800 – not one responsive page. Frames marked "the whole page" show everything a scroll
+    would reveal. Values named <code>--mock-*</code> are not tokens yet.
+  </p>
+  <p>
+    <strong>The look is provisional (D103).</strong> What these screens decide is the structure, the states
+    and the behaviour: navigation (D98), Watching and Library (D99), search (D100) and the show page
+    (D101–D102). Colours, type, spacing and the treatment of images get a proper design pass later, and
+    much of it may change. Show titles, years and streaming services are sample data, and the grey
+    rectangles stand in for TMDB's posters and backdrops.
   </p>
   <nav aria-label="Screens">
-    <a href="#home">Home</a>
-    <a href="#edit">Add/edit</a>
-    <a href="#delete">Delete dialog</a>
-    <a href="#empty">Empty state</a>
-    <a href="#not-found">Not found</a>
+    <div><b>Lists</b><a href="#watching">Watching</a><a href="#watching-empty">Watching, empty</a><a href="#up-next">Watching in M4</a><a href="#library">Library</a></div>
+    <div><b>Search</b><a href="#search-first">First visit</a><a href="#search-idle">Before typing</a><a href="#search-loading">Loading</a><a href="#search-results">Results</a><a href="#search-added">After adding</a><a href="#search-none">No results</a><a href="#search-error">Error</a><a href="#search-field">The field opening</a></div>
+    <div><b>Show page</b><a href="#show">In your list</a><a href="#show-saving">Saving and errors</a><a href="#show-new">Not in your list</a><a href="#show-manual">Added manually</a><a href="#delete">Delete dialog</a></div>
+    <div><b>Other</b><a href="#add">Add manually</a><a href="#account">Account</a><a href="#login">Log in</a><a href="#not-found">Not found</a></div>
   </nav>
 </header>
 
 <main>
-  <section class="screen" id="home">
-    <h2>Home – Continue watching</h2>
-    <p>Phone: one column, scrolling tab row, floating add button. Tablet and desktop: the card grid from DESIGN.md §3 (2 columns at 768px, 4 at 1280px), title and tabs on one row when they fit, and "Add show" in the header instead of the floating button.</p>
-    <div class="sizes" data-screen="home"></div>
+  <p class="viewer-group">Lists</p>
+
+  <section class="screen" id="watching">
+    <h2>Watching (Home, <code>/</code>)</h2>
+    <p>Only the shows being watched, most recently updated first, in the order they had when the page opened (D36); the plus marks the next episode (D35). The status tabs are on Library now (D99). Phone: the header holds the brand and the account icon, and the bottom navigation – Watching · Library · Search, router links with <code>aria-current="page"</code> – sits at the bottom (D98). From 48rem (tablet and desktop) there is no bottom navigation: the header has the links, the search field on the right and the account icon. The whole card opens the show page (D101), except the plus.</p>
+    <div class="sizes" data-screen="watching"></div>
   </section>
 
-  <section class="screen" id="edit">
-    <h2>Add/edit show</h2>
-    <p>Phone: the action bar stays at the bottom of the screen. Tablet and desktop: one narrower column, centred (D39), and the buttons follow the last field instead of sitting at the bottom of the window. No "Back" link on any size: the header shows only the brand, and Cancel next to Save is the way out (D52). The steppers are as wide as their content, so − and + stay next to the number.</p>
-    <div class="sizes" data-screen="edit"></div>
+  <section class="screen" id="watching-empty">
+    <h2>Watching – nothing on the go</h2>
+    <p>The empty state's button goes to Search, where shows are added (D100). The navigation stays, so Library and Search are still one tap away.</p>
+    <div class="sizes" data-screen="watching-empty"></div>
+  </section>
+
+  <section class="screen" id="up-next">
+    <h2>Watching in M4 – ready to watch and caught up</h2>
+    <p>A sketch, decided in M4 (D99). With TMDB's episode data the list splits in two: shows with aired episodes after yours, and shows where you have seen everything that is out. No separate "Up next" page. Caught-up shows have no plus, as the next episode isn't out. Whether the card shows the last or the next episode is part of M4 (D35).</p>
+    <div class="sizes" data-screen="up-next"></div>
+  </section>
+
+  <section class="screen" id="library">
+    <h2>Library (<code>/library/want-to-watch</code>, <code>/finished</code>, <code>/dropped</code>)</h2>
+    <p>The rest of your shows, one status at a time: the status tabs from DESIGN.md §2 as router links, one route per status, opening on Want to watch (D99). Watching isn't a tab here – it has its own place. The plus on a Want to watch card starts the show at S01 E01 (D34); Finished and Dropped cards have no button. A tab with no shows says "Nothing here yet."</p>
+    <div class="sizes" data-screen="library"></div>
+  </section>
+
+  <p class="viewer-group">Search</p>
+
+  <section class="screen" id="search-first">
+    <h2>Search – first visit</h2>
+    <p>The first time the page opens, a tip explains the two icon buttons and the manual way. "Got it" hides it for good – remembered in <code>localStorage</code> behind a small service, per device (D100) – and moves focus to the search field. Phone: the search field takes the header's place, has focus when the page opens and the keyboard is up (not the <code>&lt;h1&gt;</code>, which is visually hidden here). Desktop: the header's field has focus and is wide.</p>
+    <div class="sizes" data-screen="search-first"></div>
+  </section>
+
+  <section class="screen" id="search-idle">
+    <h2>Search – before typing</h2>
+    <p>After the tip is gone. The manual way is here from the start, as a button.</p>
+    <div class="sizes" data-screen="search-idle"></div>
+  </section>
+
+  <section class="screen" id="search-loading">
+    <h2>Search – loading</h2>
+    <p>Results come as you type, after a short pause (debounced), with <code>replaceUrl</code> so Back leaves the search in one step. Shows already in your list are matched locally and can show at once; TMDB's results replace the placeholder rows. "Searching…" is in the same polite live region as the count.</p>
+    <div class="sizes" data-screen="search-loading"></div>
+  </section>
+
+  <section class="screen" id="search-results">
+    <h2>Search – results (<code>/search?q=the+office</code>)</h2>
+    <p>Each result: poster, title (wrapping to two lines, never cut), years, country and channel – four shows are called The Office – and seasons; the availability line arrives in M4. A show in your list says so ("In your list · Watching · S04 E12") and has no buttons. Others have two icon buttons (D100): the bookmark adds to Want to watch, the plus to Watching without progress. Their accessible names carry the title, country and year: "Add The Office (UK, 2001) to Watching". The whole result opens the show page; the buttons sit above that link (as on the card, D51). "Add manually" is on the count line and again under the results, with the query as the title.</p>
+    <div class="sizes" data-screen="search-results"></div>
+  </section>
+
+  <section class="screen" id="search-added">
+    <h2>Search – after adding</h2>
+    <p>The plus on the British version, once the server has answered. The result now says "In your list · Watching · Not started", and a message (<code>role="status"</code>) says what happened, with "Set progress" to the show page. It stays about 10 seconds, and as long as it is hovered or has focus. It isn't the only way on – the result links to the show page too (WCAG 2.2.1). From the bookmark the message says "Added The Office to Want to watch".</p>
+    <div class="sizes" data-screen="search-added"></div>
+  </section>
+
+  <section class="screen" id="search-none">
+    <h2>Search – no results</h2>
+    <p>The manual way becomes the main button, with the query as the title (<code>/shows/add?title=…</code>).</p>
+    <div class="sizes" data-screen="search-none"></div>
+  </section>
+
+  <section class="screen" id="search-error">
+    <h2>Search – TMDB or the connection fails</h2>
+    <p>Says what went wrong and what to do; "Try again" repeats the search. Shows in your list still match, as they are searched locally.</p>
+    <div class="sizes" data-screen="search-error"></div>
+  </section>
+
+  <section class="screen" id="search-field">
+    <h2>Search – the field opening</h2>
+    <p>Desktop: at rest the field is wide enough to read "Search shows", with <kbd>/</kbd> as a shortcut; with focus it grows to the left into the empty space, and typing shows the results page below. Phone: tapping Search in the bottom navigation opens the search page, and the icon grows into the field at the top – the icon and the field share a <code>view-transition-name</code>, and the router's View Transitions (<code>withViewTransitions()</code>) animate between them. No movement under <code>prefers-reduced-motion</code>, for either.</p>
+    <div class="sizes" data-screen="search-field"></div>
+  </section>
+
+  <p class="viewer-group">Show page</p>
+
+  <section class="screen" id="show">
+    <h2>Show page – in your list (<code>/shows/:showId</code>)</h2>
+    <p>Two parts (D101): what the show is, and "Your show" – everything you can change, saved field by field as you change it (D102). Phone order: image and title, Your show, Where to watch (M4), About, Seasons – Your show comes early, as you usually come from the list to update. Desktop: the backdrop across the top, the poster on the left, the info in the middle, and Your show with Where to watch in a column on the right that stays in view (<code>position: sticky</code>). The title sits below the image on phones, so it never lands on a light picture. Both images are decorative (<code>alt=""</code>): the title is next to them. No cast, trailers, reviews or "similar shows" (§1).</p>
+    <div class="sizes" data-screen="show"></div>
+  </section>
+
+  <section class="screen" id="show-saving">
+    <h2>Show page – saving, an invalid episode and a failed save</h2>
+    <p>Scrolled down to Your show. Selects save as soon as you pick; the steppers about 600 ms after the last tap; the title of a manual show when you leave the field. One status line for the whole part, in a polite live region: "Saving…", then "Saved". With only one of season and episode filled, nothing is saved and the error from D44 shows right away – there is no save attempt to wait for here. A failed save keeps what you chose and offers "Try again".</p>
+    <div class="sizes" data-screen="show-saving"></div>
+  </section>
+
+  <section class="screen" id="show-new">
+    <h2>Show page – not in your list (<code>/shows/tmdb/:tmdbId</code>)</h2>
+    <p>Opened from a search result. The address uses TMDB's id, as the show has no id of our own until it is added. The two buttons stand where Your show would be, with text, as there is room. After adding, the address becomes the show's own (<code>/shows/:showId</code>, <code>replaceUrl</code>) and Your show appears in their place. A TMDB address for a show already in your list sends on to its own address the same way.</p>
+    <div class="sizes" data-screen="show-new"></div>
+  </section>
+
+  <section class="screen" id="show-manual">
+    <h2>Show page – added manually</h2>
+    <p>No TMDB data: no images, About, Seasons or Where to watch. Your show gets the title field, and "Find on TMDB" links the show to a TMDB id (M3) – after that it looks like any other show.</p>
+    <div class="sizes" data-screen="show-manual"></div>
   </section>
 
   <section class="screen" id="delete">
     <h2>Delete dialog</h2>
-    <p>Phone: a bottom sheet. Tablet and desktop: centred over the form. The buttons stay stacked in the same order on every size, so the focus order never differs from what you see. Focus goes to Cancel when it opens (DESIGN.md §2).</p>
+    <p>Opened from "Delete show" in Your show (D59). No icon tile (D84). Phone: a bottom sheet that slides up (D84, built last). Wider: centred. Cancel first, then Delete show – the same order in the DOM; in a row, centred, and stacked with Cancel on top when the dialog is narrower than 22rem. After deleting, the app goes to the list the show was in.</p>
     <div class="sizes" data-screen="delete"></div>
   </section>
 
-  <section class="screen" id="empty">
-    <h2>Empty state</h2>
-    <p>No floating add button on phone and no "Add show" in the header on wider screens: the empty state's own button is the one way forward.</p>
-    <div class="sizes" data-screen="empty"></div>
+  <p class="viewer-group">Other</p>
+
+  <section class="screen" id="add">
+    <h2>Add a show manually (<code>/shows/add</code>)</h2>
+    <p>Reached from Search only (D100); the title comes from the query. The form keeps an explicit button, as it creates something. Errors show after the first try to add (D41). Cancel goes back to the search. No bottom navigation on phones: the form's action bar has the bottom. Tablet and desktop: one narrower column, centred (D39).</p>
+    <div class="sizes" data-screen="add"></div>
+  </section>
+
+  <section class="screen" id="account">
+    <h2>Account (<code>/account</code>)</h2>
+    <p>Reached from the account icon in the header (D98); the icon gets <code>aria-current="page"</code> here, and nothing in the bottom navigation is current. Log out is a button – it is an action. "About" credits TMDB with its logo and the sentence TMDB asks for, and JustWatch for the where-to-watch data. Later: My subscriptions and export.</p>
+    <div class="sizes" data-screen="account"></div>
+  </section>
+
+  <section class="screen" id="login">
+    <h2>Log in (<code>/login</code>)</h2>
+    <p>M2 C2. Only the brand in the header, no navigation. One narrow, centred column on every size. A wrong email or password shows one message above the fields (<code>role="alert"</code>), never which of the two was wrong.</p>
+    <div class="sizes" data-screen="login"></div>
   </section>
 
   <section class="screen" id="not-found">
     <h2>Not found</h2>
-    <p>One page for a URL no route matches and for an edit URL whose show isn't in the list; the address bar keeps the URL, so the text covers both (D53). The empty state's look in the page's own markup: the heading is the page's <code>&lt;h1&gt;</code>, at the page title size (D55). The page-not-found icon (the TV with a cross), not the alert icon – there is nothing to correct. The header is the same as on Home; no floating add button on phone, as the page's own button is the way forward.</p>
+    <p>One page for a URL no route matches and for a show id that isn't in your list – the guard moves to <code>/shows/:showId</code> (D53, D101). The navigation stays, with nothing current.</p>
     <div class="sizes" data-screen="not-found"></div>
   </section>
 </main>
 
 <script>
-const SIZES = [
-  { id: 'phone', label: 'Phone · 390 × 844' },
-  { id: 'tablet', label: 'Tablet · 768 × 1024' },
-  { id: 'desktop', label: 'Desktop · 1280 × 800' },
-];
+const SIZES = {
+  phone: { className: 'phone', label: 'Phone · 390 × 844' },
+  phoneFull: { className: 'phone full', label: 'Phone · 390 wide, the whole page' },
+  tablet: { className: 'tablet wide', label: 'Tablet · 768 × 1024' },
+  desktop: { className: 'desktop wide', label: 'Desktop · 1280 × 800' },
+  desktopFull: { className: 'desktop wide full', label: 'Desktop · 1280 wide, the whole page' },
+  desktopHeader: { className: 'desktop wide full', label: 'Desktop · the header' },
+};
+const isPhone = (size) => size.startsWith('phone');
 
 // The paths of docs/design/icons/*.svg
 const ICON_PATHS = {
@@ -220,8 +469,15 @@ const ICON_PATHS = {
   pageNotFound: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/><path d="M9.75 8.75l4.5 4.5M14.25 8.75l-4.5 4.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
   chevronDown: '<path d="M6 9l6 6 6-6"/>',
-  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+  alertCircle: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
+  delete: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+  search: '<circle cx="11" cy="11" r="6"/><path d="M19.5 19.5l-4.25-4.25"/>',
+  bookmark: '<path d="M6.5 5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15l-5.5-3.5L6.5 20z"/>',
+  account: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.6 18.3c1.3-1.7 3.2-2.6 5.4-2.6s4.1.9 5.4 2.6"/>',
+  library: '<path d="M5 4v16M9.5 4v16M14 7v13M17 6.5l3 13"/>',
 };
 const ICON_SIZES = { small: 'var(--icon-size-small)', medium: 'var(--icon-size-medium)', big: 'var(--icon-size-big)' };
 
@@ -230,7 +486,8 @@ function icon(name, size = 'medium') {
   return `<svg style="width: ${s}; height: ${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name]}</svg>`;
 }
 
-const SHOWS = [
+// ---------- Sample data ----------
+const WATCHING = [
   { title: 'Slow Horses', service: 'Apple TV+', season: 4, episode: 3, ago: '2 hours ago' },
   { title: 'Severance', service: 'Apple TV+', season: 2, episode: 7, ago: 'Yesterday' },
   { title: 'The Bear', service: 'Disney+', season: 3, episode: 5, ago: '3 days ago' },
@@ -238,73 +495,345 @@ const SHOWS = [
   { title: 'Shōgun', service: 'Disney+', season: 1, episode: 8, ago: '2 weeks ago' },
   { title: 'Andor', service: 'Disney+', season: 2, episode: 4, ago: '3 weeks ago' },
 ];
+const LIBRARY = {
+  want: [
+    { title: 'Pluribus', service: 'Apple TV+', meta: 'Added yesterday' },
+    { title: 'The Studio', service: 'Apple TV+', meta: 'Added last week' },
+    { title: 'Dept. Q', service: 'Netflix', meta: 'Added 2 weeks ago' },
+    { title: 'Bad Sisters', service: 'Apple TV+', meta: 'Added last month' },
+    { title: 'The White Lotus', service: 'HBO Max', meta: 'Added in August' },
+    { title: 'Adolescence', service: 'Netflix', meta: 'Added in May' },
+  ],
+  finished: [
+    { title: 'Fleabag', service: 'Prime Video', season: 2, episode: 6, meta: 'Finished in March' },
+    { title: 'Chernobyl', service: 'HBO Max', season: 1, episode: 5, meta: 'Finished last year' },
+    { title: 'Beef', service: 'Netflix', season: 1, episode: 10, meta: 'Finished last year' },
+  ],
+};
+const RESULTS = [
+  { country: 'US', first: 2005, years: '2005–2013', channel: 'NBC', seasons: '9 seasons', where: 'Stream: Netflix', mine: 'Watching · S04 E12' },
+  { country: 'UK', first: 2001, years: '2001–2003', channel: 'BBC Two', seasons: '2 seasons', where: 'Not streaming in Norway' },
+  { country: 'Australia', first: 2024, years: '2024', channel: 'Prime Video', seasons: '1 season', where: 'Stream: Prime Video' },
+  { country: 'India', first: 2019, years: '2019–2020', channel: 'Hotstar', seasons: '2 seasons', where: 'Not streaming in Norway' },
+];
+const SHOW_PAGES = {
+  severance: {
+    title: 'Severance', years: '2022–', state: 'Returning series', size: '2 seasons · 19 episodes', genres: 'Drama · Mystery · Sci-Fi', score: '8.4', service: 'Apple TV+',
+    about: 'Office workers at Lumon have had their memories split between work and home. One team starts to wonder what the company is hiding.',
+    seasons: [['Season 1', '9 episodes · 2022'], ['Season 2', '10 episodes · 2025', 'You’re at E07']],
+  },
+  pluribus: {
+    title: 'Pluribus', years: '2025–', state: 'Returning series', size: '1 season · 9 episodes', genres: 'Drama · Sci-Fi', score: '8.1', service: 'Apple TV+',
+    about: 'A writer in Albuquerque turns out to be one of very few people left unchanged when the rest of humanity starts to think as one.',
+    seasons: [['Season 1', '9 episodes · 2025']],
+  },
+  manual: { title: 'Sommer i Lofoten', manual: true },
+};
 
 const pad = (n) => String(n).padStart(2, '0');
 const initials = (title) => title.replace(/^The /, '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
-function header({ addButton = false } = {}) {
+// ---------- Shell: header, bottom navigation, search field ----------
+function headerSearch(uid, query = '', focused = false) {
+  return `
+    <search class="header-search${focused ? ' is-focused' : ''}">
+      <label class="visually-hidden" for="${uid}-header-q">Search shows</label>
+      ${icon('search')}
+      <input id="${uid}-header-q" type="search" placeholder="Search shows" value="${query}" autocomplete="off">
+      ${focused ? (query ? `<button type="button" class="icon-button" aria-label="Clear search">${icon('close')}</button>` : '') : '<kbd aria-hidden="true">/</kbd>'}
+    </search>`;
+}
+
+function appHeader(size, uid, { nav, account = false, query = '', focused = false, login = false } = {}) {
+  const wide = !isPhone(size);
   return `
     <header class="app-header">
       <div class="container">
-        <a class="brand" href="#home">
-          <span class="brand-mark">${icon('tv')}</span>
-          <span>Watch Tracker</span>
-        </a>
-        ${addButton ? `<a class="button button-accent" href="#edit">${icon('plus')}<span>Add show</span></a>` : ''}
+        <a class="brand" href="#watching"><span class="brand-mark">${icon('tv')}</span><span>Watch Tracker</span></a>
+        ${wide && !login ? `
+          <nav class="header-nav" aria-label="Main">
+            <a href="#watching"${nav === 'watching' ? ' aria-current="page"' : ''}>Watching</a>
+            <a href="#library"${nav === 'library' ? ' aria-current="page"' : ''}>Library</a>
+          </nav>` : ''}
+        <span class="header-spacer"></span>
+        ${wide && !login ? headerSearch(uid, query, focused) : ''}
+        ${login ? '' : `<a class="icon-button" href="#account" aria-label="Account"${account ? ' aria-current="page"' : ''}>${icon('account')}</a>`}
       </div>
     </header>`;
 }
 
-function titleRow(counts, subtitle) {
-  const tabs = [
-    ['Watching', counts[0]],
-    ['Want to watch', counts[1]],
-    ['Finished', counts[2]],
-    ['Dropped', counts[3]],
-  ];
+function bottomNav(active) {
+  const items = [['watching', 'Watching', 'tv'], ['library', 'Library', 'library'], ['search', 'Search', 'search']];
   return `
-    <div class="title-row">
-      <div>
-        <h1 class="page-title">Continue watching</h1>
-        <p class="subtitle">${subtitle}</p>
-      </div>
-      <nav class="tabs" aria-label="Show status">
-        ${tabs.map(([label, count], i) => `
-          <a class="tab" href="#home"${i === 0 ? ' aria-current="page"' : ''}>
-            <span>${label}</span><span class="count">${count}</span>
-          </a>`).join('')}
-      </nav>
-    </div>`;
+    <nav class="bottom-nav" aria-label="Main">
+      ${items.map(([id, label, iconName]) => `
+        <a href="#${id === 'search' ? 'search-results' : id}"${active === id ? ' aria-current="page"' : ''}>
+          <span class="bottom-nav-icon">${icon(iconName)}</span><span>${label}</span>
+        </a>`).join('')}
+    </nav>`;
 }
 
-function card(show) {
-  const next = show.episode + 1;
+function searchBar(uid, query = '') {
+  return `
+    <search class="search-bar">
+      <label class="visually-hidden" for="${uid}-q">Search shows</label>
+      <div class="search-field">
+        ${icon('search')}
+        <input id="${uid}-q" type="search" placeholder="Search shows" value="${query}" autocomplete="off">
+        ${query ? `<button type="button" class="icon-button" aria-label="Clear search">${icon('close')}</button>` : ''}
+      </div>
+    </search>`;
+}
+
+// nav: 'watching' | 'library' | 'search' | null (none current) | false (no bottom navigation)
+function screen(size, uid, { nav = null, account = false, query = '', focused = false, login = false, searchPage = false, main, mainClass = '', after = '' }) {
+  const phone = isPhone(size);
+  const top = phone && searchPage ? searchBar(uid, query) : appHeader(size, uid, { nav, account, query, focused, login });
+  const bottom = phone && nav !== false ? bottomNav(nav) : '';
+  return `${top}<main class="page container ${mainClass}">${main}</main>${bottom}${after}`;
+}
+
+// ---------- Cards ----------
+function card(show, { status = 'watching', level = 2 } = {}) {
+  const h = `h${level}`;
+  let progress;
+  let button = '';
+  if (status === 'want') {
+    progress = '<p class="progress not-started">Not started</p>';
+    button = `<button type="button" class="next-episode" aria-label="Start ${show.title}: mark season 1, episode 1 as watched">${icon('plus')}</button>`;
+  } else {
+    const spoken = { watching: 'Last watched', finished: 'Ended at', dropped: 'Stopped at' }[status];
+    progress = `
+      <p class="progress">
+        <span class="visually-hidden">${spoken}: season ${show.season}, episode ${show.episode}</span>
+        <span aria-hidden="true">S${pad(show.season)} E${pad(show.episode)}</span>
+      </p>`;
+    if (status === 'watching' && !show.caughtUp) {
+      button = `<button type="button" class="next-episode" aria-label="Mark season ${show.season}, episode ${show.episode + 1} of ${show.title} as watched">${icon('plus')}</button>`;
+    }
+  }
+  const meta = show.meta ? `${show.service} · ${show.meta}` : `${show.service} · ${show.ago}`;
   return `
     <article class="card">
       <div class="poster" aria-hidden="true">${initials(show.title)}</div>
       <div class="card-text">
-        <h2 class="card-title"><a href="#edit">${show.title}</a></h2>
-        <p class="progress">
-          <span class="visually-hidden">Last watched: season ${show.season}, episode ${show.episode}</span>
-          <span aria-hidden="true">S${pad(show.season)} E${pad(show.episode)}</span>
-        </p>
-        <p class="meta">${show.service} · ${show.ago}</p>
+        <${h} class="card-title"><a href="#show">${show.title}</a></${h}>
+        ${progress}
+        <p class="meta">${meta}</p>
       </div>
-      <button type="button" class="next-episode" aria-label="Mark season ${show.season}, episode ${next} of ${show.title} as watched">${icon('plus')}</button>
+      ${button}
     </article>`;
 }
 
-function home(size) {
-  const wide = size !== 'phone';
+// ---------- Watching ----------
+function watchingTitle(subtitle) {
   return `
-    ${header({ addButton: wide })}
-    <main class="page container">
-      ${titleRow([6, 4, 3, 1], '6 shows in progress')}
-      <div class="cards">${SHOWS.map(card).join('')}</div>
-    </main>
-    ${wide ? '' : `<a class="fab" href="#edit" aria-label="Add show">${icon('plus', 'big')}</a>`}`;
+    <div class="title-row">
+      <div>
+        <h1 class="page-title" tabindex="-1">Continue watching</h1>
+        <p class="subtitle">${subtitle}</p>
+      </div>
+    </div>`;
 }
 
+function watching(size, uid) {
+  return screen(size, uid, {
+    nav: 'watching',
+    main: `${watchingTitle('6 shows in progress')}<div class="cards">${WATCHING.map((s) => card(s)).join('')}</div>`,
+  });
+}
+
+function watchingEmpty(size, uid) {
+  return screen(size, uid, {
+    nav: 'watching',
+    main: `
+      ${watchingTitle('0 shows in progress')}
+      <div class="empty-state">
+        <span class="empty-tile">${icon('tv', 'big')}</span>
+        <div>
+          <h2 class="empty-title">Nothing on the go yet</h2>
+          <p class="empty-text">Add the shows you’re watching, and you’ll always know where you stopped – and where to pick up.</p>
+        </div>
+        <a class="button button-large button-accent" href="#search-first">${icon('plus')}<span>Add your first show</span></a>
+      </div>`,
+  });
+}
+
+function upNext(size, uid) {
+  const ready = [
+    { ...WATCHING[0], meta: 'E04 is out' },
+    { ...WATCHING[1], meta: 'E08 is out' },
+    { ...WATCHING[2], meta: 'E06 to E10 are out' },
+  ];
+  const caughtUp = [
+    { ...WATCHING[3], meta: 'E03 on Sunday', caughtUp: true },
+    { ...WATCHING[4], meta: 'Waiting for season 2', caughtUp: true },
+  ];
+  return screen(size, uid, {
+    nav: 'watching',
+    main: `
+      ${watchingTitle('3 ready to watch · 2 caught up')}
+      <section class="list-section" aria-labelledby="${uid}-ready">
+        <h2 class="list-heading" id="${uid}-ready">Ready to watch <span class="count">3</span></h2>
+        <div class="cards">${ready.map((s) => card(s, { level: 3 })).join('')}</div>
+      </section>
+      <section class="list-section" aria-labelledby="${uid}-caught">
+        <h2 class="list-heading" id="${uid}-caught">Caught up <span class="count">2</span></h2>
+        <div class="cards">${caughtUp.map((s) => card(s, { level: 3 })).join('')}</div>
+      </section>`,
+  });
+}
+
+// ---------- Library ----------
+function library(size, uid, tab = 'want') {
+  const tabs = [['want', 'Want to watch', 6], ['finished', 'Finished', 3], ['dropped', 'Dropped', 0]];
+  const subtitle = { want: '6 shows to watch', finished: '3 shows finished', dropped: '0 shows dropped' }[tab];
+  const shows = tab === 'want' ? LIBRARY.want : tab === 'finished' ? LIBRARY.finished : [];
+  const list = shows.length
+    ? `<div class="cards">${shows.map((s) => card(s, { status: tab })).join('')}</div>`
+    : '<p class="muted-note">Nothing here yet.</p>';
+  return screen(size, uid, {
+    nav: 'library',
+    main: `
+      <div class="title-row">
+        <div>
+          <h1 class="page-title" tabindex="-1">Library</h1>
+          <p class="subtitle">${subtitle}</p>
+        </div>
+        <nav class="tabs" aria-label="Show status">
+          ${tabs.map(([id, label, count]) => `
+            <a class="tab" href="#library"${id === tab ? ' aria-current="page"' : ''}><span>${label}</span><span class="count">${count}</span></a>`).join('')}
+        </nav>
+      </div>
+      ${list}`,
+  });
+}
+
+// ---------- Search ----------
+function searchHeading(size, text, subtitle = '') {
+  if (isPhone(size)) return `<h1 class="visually-hidden" tabindex="-1">${text}</h1>`;
+  return `<div><h1 class="page-title" tabindex="-1">${text}</h1>${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}</div>`;
+}
+
+function tip() {
+  return `
+    <section class="tip" aria-label="How adding works">
+      <h2 class="tip-title">Add shows from TMDB</h2>
+      <p>Search for a show, then:</p>
+      <ul class="tip-list">
+        <li><span class="tip-icon soft">${icon('plus', 'small')}</span><span>adds it to Watching</span></li>
+        <li><span class="tip-icon">${icon('bookmark', 'small')}</span><span>saves it to Want to watch</span></li>
+      </ul>
+      <p>Can’t find a show? You can always add it manually.</p>
+      <button type="button" class="button button-outline">Got it</button>
+    </section>`;
+}
+
+function searchIdleState({ withTip = false } = {}) {
+  return `
+    <div class="empty-state top">
+      ${withTip ? '' : `<span class="empty-tile">${icon('search', 'big')}</span>`}
+      <div>
+        ${withTip ? '' : '<h2 class="empty-title">Find a show</h2>'}
+        <p class="empty-text">Search to add a show to your list, or to check if it’s already there.</p>
+      </div>
+      <a class="button button-outline" href="#add">${icon('plus')}<span>Add a show manually</span></a>
+    </div>`;
+}
+
+function result(r, mine = r.mine) {
+  const name = `The Office (${r.country}, ${r.first})`;
+  return `
+    <li class="result">
+      <div class="poster large" aria-hidden="true">TO</div>
+      <div class="result-text">
+        <h2 class="result-title"><a href="#${mine ? 'show' : 'show-new'}">The Office</a></h2>
+        <p class="meta">${r.years} · ${r.country}</p>
+        <p class="meta">${r.channel} · ${r.seasons}</p>
+        <p class="meta">${r.where}</p>
+        ${mine ? `<p class="in-list">${icon('check', 'small')}<span>In your list · ${mine}</span></p>` : ''}
+      </div>
+      ${mine ? '' : `
+        <div class="result-actions">
+          <button type="button" class="icon-button outline" aria-label="Add ${name} to Want to watch">${icon('bookmark')}</button>
+          <button type="button" class="icon-button soft" aria-label="Add ${name} to Watching">${icon('plus')}</button>
+        </div>`}
+    </li>`;
+}
+
+function resultsBlock(size, { added = false } = {}) {
+  const rows = RESULTS.map((r, i) => result(r, added && i === 1 ? 'Watching · Not started' : r.mine)).join('');
+  return `
+    <div class="count-row">
+      ${isPhone(size) ? '<p class="result-count" role="status">4 shows</p>' : searchHeading(size, 'Search', '<span role="status">4 shows match “the office”</span>')}
+      <a class="text-link" href="#add">${icon('plus', 'small')}<span>Add manually</span></a>
+    </div>
+    <ul class="results">${rows}</ul>
+    <p class="after-results">Can’t find it? <a href="#add">Add “the office” manually</a></p>`;
+}
+
+function search(size, uid, state) {
+  const query = { results: 'the office', added: 'the office', loading: 'the office', none: 'Sommer i Lofoten', error: 'the office' }[state] ?? '';
+  let main;
+  if (state === 'first') {
+    main = `${searchHeading(size, 'Search')}${tip()}${searchIdleState({ withTip: true })}`;
+  } else if (state === 'idle') {
+    main = `${searchHeading(size, 'Search')}${searchIdleState()}`;
+  } else if (state === 'loading') {
+    const row = `
+      <li class="result skeleton" aria-hidden="true">
+        <div class="poster large"></div>
+        <div class="result-text" style="gap: 0.5rem">
+          <span class="skeleton-bar" style="width: 55%"></span>
+          <span class="skeleton-bar" style="width: 80%"></span>
+          <span class="skeleton-bar" style="width: 40%"></span>
+        </div>
+      </li>`;
+    main = `
+      ${searchHeading(size, 'Search')}
+      <p class="result-count" role="status">Searching…</p>
+      <ul class="results">${row}${row}${row}</ul>`;
+  } else if (state === 'results' || state === 'added') {
+    main = isPhone(size)
+      ? `${searchHeading(size, 'Search results')}${resultsBlock(size, { added: state === 'added' })}`
+      : resultsBlock(size, { added: state === 'added' });
+  } else if (state === 'none') {
+    main = `
+      ${searchHeading(size, 'Search')}
+      <div class="empty-state top">
+        <span class="empty-tile">${icon('search', 'big')}</span>
+        <div>
+          <h2 class="empty-title" role="status">No shows match “Sommer i Lofoten”</h2>
+          <p class="empty-text">Check the spelling, or add the show yourself.</p>
+        </div>
+        <a class="button button-large button-accent" href="#add">${icon('plus')}<span>Add “Sommer i Lofoten” manually</span></a>
+      </div>`;
+  } else {
+    main = `
+      ${searchHeading(size, 'Search')}
+      <div class="empty-state top">
+        <span class="empty-tile">${icon('alertCircle', 'big')}</span>
+        <div>
+          <h2 class="empty-title" role="status">Search isn’t working right now</h2>
+          <p class="empty-text">Check your connection and try again.</p>
+        </div>
+        <button type="button" class="button button-large button-outline">Try again</button>
+      </div>`;
+  }
+  const toast = state === 'added' ? `
+    <div class="toast" role="status">
+      ${icon('check')}
+      <span class="toast-text">Added <strong>The Office</strong> to Watching</span>
+      <a href="#show">Set progress</a>
+    </div>` : '';
+  return screen(size, uid, { nav: 'search', searchPage: true, query, focused: true, main, after: toast });
+}
+
+function headerOnly(size, uid, focused) {
+  return appHeader(size, uid, { nav: 'watching', query: focused ? 'sev' : '', focused });
+}
+
+// ---------- Show page ----------
 function select(id, label, options, selected) {
   return `
     <div class="field">
@@ -318,129 +847,368 @@ function select(id, label, options, selected) {
     </div>`;
 }
 
-function stepper(id, label, value) {
+function stepper(id, label, value, { invalid = false, errorId = '' } = {}) {
   const name = label.toLowerCase();
   return `
     <div class="stepper-field">
       <label class="stepper-label" for="${id}">${label}</label>
-      <div class="stepper">
-        <button type="button" aria-label="Decrease ${name}">${icon('minus')}</button>
-        <input id="${id}" type="number" inputmode="numeric" min="1" value="${value}">
-        <button type="button" aria-label="Increase ${name}">${icon('plus')}</button>
+      <div class="stepper${invalid ? ' invalid' : ''}">
+        <button type="button" tabindex="-1" aria-label="Decrease ${name}">${icon('minus')}</button>
+        <input id="${id}" type="text" inputmode="numeric" role="spinbutton" value="${value}"${invalid ? ` aria-invalid="true" aria-describedby="${errorId}"` : ''}>
+        <button type="button" tabindex="-1" aria-label="Increase ${name}">${icon('plus')}</button>
       </div>
     </div>`;
 }
 
-function editFields(uid) {
+const STATUSES = ['Want to watch', 'Watching', 'Finished', 'Dropped'];
+const SERVICES = ['Not set', 'Netflix', 'Prime Video', 'HBO Max', 'Viaplay', 'Disney+', 'Apple TV+', 'NRK TV', 'TV 2 Play', 'Other'];
+
+function yourShow(uid, show, state = 'saved') {
+  const invalid = state === 'invalid';
+  const status = {
+    saved: `<p class="save-status" role="status">${icon('check', 'small')}<span>Saved</span></p>`,
+    saving: '<p class="save-status" role="status">Saving…</p>',
+    invalid: '<p class="save-status" role="status"></p>',
+    failed: `<p class="save-status failed" role="status">${icon('alertCircle', 'small')}<span>Couldn’t save your changes.</span><button type="button">Try again</button></p>`,
+  }[state];
+  const season = show.manual ? 1 : 2;
+  const episode = show.manual ? 3 : 7;
   return `
-    <div class="field">
-      <label class="label" for="${uid}-title">Title</label>
-      <input class="control" id="${uid}-title" type="text" value="Severance">
-    </div>
-    ${select(`${uid}-status`, 'Status', ['Want to watch', 'Watching', 'Finished', 'Dropped'], 'Watching')}
-    ${select(`${uid}-service`, 'Where I watch it <span class="optional">(optional)</span>',
-      ['Not set', 'Netflix', 'Prime Video', 'HBO Max', 'Viaplay', 'Disney+', 'Apple TV+', 'NRK TV', 'TV 2 Play', 'Other'], 'Apple TV+')}
-    <fieldset class="field">
-      <legend class="label">Last watched episode <span class="optional">(optional)</span></legend>
-      <div class="steppers">
-        ${stepper(`${uid}-season`, 'Season', 2)}
-        ${stepper(`${uid}-episode`, 'Episode', 7)}
+    <section class="your-show" aria-labelledby="${uid}-your-show">
+      <h2 class="section-title" id="${uid}-your-show">Your show</h2>
+      ${show.manual ? `
+        <div class="field">
+          <label class="label" for="${uid}-title">Title</label>
+          <input class="control" id="${uid}-title" type="text" value="${show.title}">
+        </div>` : ''}
+      ${select(`${uid}-status`, 'Status', STATUSES, 'Watching')}
+      <fieldset class="field">
+        <legend class="label">Last watched episode <span class="optional">(optional)</span></legend>
+        <div class="steppers">
+          ${stepper(`${uid}-season`, 'Season', season)}
+          ${stepper(`${uid}-episode`, 'Episode', invalid ? '' : (state === 'saving' ? episode + 1 : episode), { invalid, errorId: `${uid}-episode-error` })}
+        </div>
+        ${invalid ? `<p class="error" id="${uid}-episode-error">${icon('alertCircle')}<span>Enter the episode too, or leave both empty.</span></p>` : ''}
+      </fieldset>
+      ${select(`${uid}-service`, 'Where I watch it <span class="optional">(optional)</span>', SERVICES, show.manual ? 'NRK TV' : 'Apple TV+')}
+      <div class="your-show-footer">
+        ${status}
+        <button type="button" class="delete-link">${icon('delete')}<span>Delete show</span></button>
       </div>
-    </fieldset>
-    <button type="button" class="delete-link">${icon('trash')}<span>Delete show</span></button>`;
+    </section>`;
 }
 
-const actions = `
-  <div class="actions">
-    <a class="button button-large button-outline cancel" href="#home">Cancel</a>
-    <button type="submit" class="button button-large button-accent save">Save changes</button>
-  </div>`;
+function addActions(show) {
+  return `
+    <div class="add-actions">
+      <button type="button" class="button button-large button-soft" aria-label="Add ${show.title} to Watching">${icon('plus')}<span>Watching</span></button>
+      <button type="button" class="button button-large button-outline" aria-label="Add ${show.title} to Want to watch">${icon('bookmark')}<span>Want to watch</span></button>
+    </div>`;
+}
 
-function edit(size, uid) {
-  if (size === 'phone') {
+function whereToWatch(show) {
+  return `
+    <section class="show-section">
+      <h2 class="section-title">Where to watch</h2>
+      <div class="chips"><span class="chip">${show.service}</span></div>
+      <p class="fine">Included with a subscription · Data from JustWatch</p>
+    </section>`;
+}
+
+function about(show) {
+  return `
+    <section class="show-section">
+      <h2 class="section-title">About</h2>
+      <p class="body-text">${show.about}</p>
+      <p class="fine">${show.genres}</p>
+    </section>`;
+}
+
+function seasons(show) {
+  return `
+    <section class="show-section">
+      <h2 class="section-title">Seasons</h2>
+      <ul class="seasons">
+        ${show.seasons.map(([name, detail, you]) => `
+          <li><span class="season">${name}</span><span class="${you ? 'you' : 'detail'}">${you ? `${you} of ${detail.split(' ')[0]}` : detail}</span></li>`).join('')}
+      </ul>
+    </section>`;
+}
+
+function facts(show) {
+  if (show.manual) {
     return `
-      ${header()}
-      <form class="edit-form">
-        <div class="form-body container">
-          <h1 class="page-title">Edit show</h1>
-          ${editFields(uid)}
-        </div>
-        ${actions}
-      </form>`;
+      <p class="facts">Added manually · not linked to TMDB</p>
+      <a class="text-link" href="#search-results">${icon('search', 'small')}<span>Find on TMDB</span></a>`;
   }
   return `
-    ${header()}
-    <main class="page container">
-      <form class="form-body" style="margin-inline: auto; width: 100%">
-        <h1 class="page-title">Edit show</h1>
-        ${editFields(uid)}
-        ${actions}
-      </form>
-    </main>`;
+    <p class="facts">${show.years} · ${show.state}</p>
+    <p class="facts">${show.size}</p>
+    <p class="facts">TMDB <strong>${show.score}</strong></p>`;
+}
+
+function showPage(size, uid, key, state = 'saved') {
+  const show = SHOW_PAGES[key];
+  const isNew = key === 'pluribus';
+  const mine = isNew ? addActions(show) : yourShow(uid, show, state);
+  const nav = isNew ? 'search' : 'watching';
+  // With a backdrop the page starts at the image; a manual show starts with the usual padding
+  const mainClass = show.manual ? '' : 'show-page';
+  if (isPhone(size)) {
+    return screen(size, uid, {
+      nav,
+      mainClass,
+      main: `
+        ${show.manual ? '' : '<div class="backdrop-image" aria-hidden="true"></div>'}
+        <div class="show-hero${show.manual ? ' plain' : ''}">
+          <div class="poster cover" aria-hidden="true">${initials(show.title)}</div>
+          <div class="show-facts">
+            <h1 class="page-title" tabindex="-1">${show.title}</h1>
+            ${facts(show)}
+          </div>
+        </div>
+        ${mine}
+        ${show.manual ? '' : whereToWatch(show) + about(show) + seasons(show)}`,
+    });
+  }
+  return screen(size, uid, {
+    nav,
+    mainClass,
+    main: `
+      ${show.manual ? '' : '<div class="backdrop-image" aria-hidden="true"></div>'}
+      <div class="show-grid${show.manual ? ' plain' : ''}">
+        <div class="poster cover" aria-hidden="true">${initials(show.title)}</div>
+        <div class="show-main">
+          <div class="show-facts">
+            <h1 class="page-title" tabindex="-1">${show.title}</h1>
+            ${show.manual ? facts(show) : `
+              <p class="facts facts-row"><span>${show.years}</span><span>${show.state}</span><span>${show.size}</span><span>${show.genres}</span><span>TMDB <strong>${show.score}</strong></span></p>`}
+          </div>
+          ${show.manual ? '' : about(show) + seasons(show)}
+        </div>
+        <aside class="show-aside" aria-label="${isNew ? 'Add to your list' : 'Your show and where to watch'}">
+          ${mine}
+          ${show.manual ? '' : whereToWatch(show)}
+        </aside>
+      </div>`,
+  });
+}
+
+// Scrolled down to Your show: the hero is above the top of the screen
+function showScrolled(size, uid, state) {
+  return screen(size, uid, {
+    nav: 'watching',
+    main: `${yourShow(uid, SHOW_PAGES.severance, state)}${whereToWatch(SHOW_PAGES.severance)}`,
+  });
 }
 
 function deleteDialog(size, uid) {
   return `
-    <div class="underlay" inert>${edit(size, uid)}</div>
+    <div class="underlay" inert>${showPage(size, uid, 'severance')}</div>
     <div class="backdrop"></div>
     <dialog open class="dialog" aria-labelledby="${uid}-dialog-title" aria-describedby="${uid}-dialog-text">
-      <span class="dialog-icon">${icon('trash', 'big')}</span>
       <div>
         <h2 class="dialog-title" id="${uid}-dialog-title">Delete Severance?</h2>
-        <p class="dialog-text" id="${uid}-dialog-text">The show and your progress (<strong>S02 E07</strong>) will be removed. This can’t be undone.</p>
+        <p class="dialog-text" id="${uid}-dialog-text">This can’t be undone.</p>
       </div>
       <div class="dialog-buttons">
-        <button type="button" class="button button-large button-danger">Delete show</button>
         <button type="button" class="button button-large button-outline">Cancel</button>
+        <button type="button" class="button button-large button-danger">Delete show</button>
       </div>
     </dialog>`;
 }
 
-function empty() {
-  return `
-    ${header()}
-    <main class="page container">
-      ${titleRow([0, 0, 0, 0], '0 shows in progress')}
-      <div class="empty-state">
-        <span class="empty-tile">${icon('tv', 'big')}</span>
-        <div>
-          <h2 class="empty-title">Nothing on the go yet</h2>
-          <p class="empty-text">Add the shows you’re watching, and you’ll always know where you stopped – and where to pick up.</p>
-        </div>
-        <a class="button button-large button-accent" href="#edit">${icon('plus')}<span>Add your first show</span></a>
+// ---------- Add manually, account, login, not found ----------
+function addPage(size, uid, { error = false } = {}) {
+  const fields = `
+    <h1 class="page-title" tabindex="-1">Add show</h1>
+    <div class="field">
+      <label class="label" for="${uid}-title">Title</label>
+      <input class="control" id="${uid}-title" type="text" value="${error ? '' : 'Sommer i Lofoten'}"${error ? ` aria-invalid="true" aria-describedby="${uid}-title-error"` : ''}>
+      ${error ? `<p class="error" id="${uid}-title-error">${icon('alertCircle')}<span>Title is required.</span></p>` : ''}
+    </div>
+    ${select(`${uid}-status`, 'Status', STATUSES, 'Watching')}
+    ${select(`${uid}-service`, 'Where I watch it <span class="optional">(optional)</span>', SERVICES, 'NRK TV')}
+    <fieldset class="field">
+      <legend class="label">Last watched episode <span class="optional">(optional)</span></legend>
+      <div class="steppers">
+        ${stepper(`${uid}-season`, 'Season', '')}
+        ${stepper(`${uid}-episode`, 'Episode', '')}
       </div>
-    </main>`;
+    </fieldset>`;
+  const buttons = (bar) => `
+    <div class="actions${bar ? ' bar' : ''}">
+      <a class="button button-large button-outline cancel" href="#search-none">Cancel</a>
+      <button type="submit" class="button button-large button-accent save">Add show</button>
+    </div>`;
+  if (isPhone(size)) {
+    return `
+      ${appHeader(size, uid)}
+      <form class="edit-form">
+        <div class="form-body container">${fields}</div>
+        ${buttons(true)}
+      </form>`;
+  }
+  return screen(size, uid, { main: `<form class="form-body">${fields}${buttons(false)}</form>` });
 }
 
-function notFound(size) {
-  return `
-    ${header({ addButton: size !== 'phone' })}
-    <main class="page container">
+function account(size, uid) {
+  return screen(size, uid, {
+    account: true,
+    main: `
+      <div class="account">
+        <h1 class="page-title" tabindex="-1">Account</h1>
+        <section class="account-section" aria-labelledby="${uid}-you">
+          <h2 class="section-title" id="${uid}-you">Logged in as</h2>
+          <p>you@example.com</p>
+          <button type="button" class="button button-outline">Log out</button>
+        </section>
+        <section class="account-section" aria-labelledby="${uid}-about">
+          <h2 class="section-title" id="${uid}-about">About</h2>
+          <p class="muted-note">Watch Tracker keeps track of the shows you watch: where you stopped, and where to watch them.</p>
+          <div class="credit">
+            <span class="logo-slot">TMDB logo</span>
+            <p class="fine">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+          </div>
+          <p class="fine">Where-to-watch data comes from JustWatch.</p>
+        </section>
+      </div>`,
+  });
+}
+
+function login(size, uid, { error = false } = {}) {
+  return screen(size, uid, {
+    nav: false,
+    login: true,
+    main: `
+      <form class="login">
+        <h1 class="page-title" tabindex="-1">Log in</h1>
+        ${error ? `<p class="form-error" role="alert">${icon('alertCircle')}<span>Wrong email or password.</span></p>` : ''}
+        <div class="field">
+          <label class="label" for="${uid}-email">Email</label>
+          <input class="control" id="${uid}-email" type="email" autocomplete="username" value="you@example.com">
+        </div>
+        <div class="field">
+          <label class="label" for="${uid}-password">Password</label>
+          <input class="control" id="${uid}-password" type="password" autocomplete="current-password" value="${error ? 'correct horse' : ''}">
+        </div>
+        <button type="submit" class="button button-large button-accent">Log in</button>
+      </form>`,
+  });
+}
+
+function notFound(size, uid) {
+  return screen(size, uid, {
+    main: `
       <div class="empty-state">
         <span class="empty-tile">${icon('pageNotFound', 'big')}</span>
         <div>
-          <h1 class="page-title">Page not found</h1>
+          <h1 class="page-title" tabindex="-1">Page not found</h1>
           <p class="empty-text">This show never made it past the pilot – or the link is broken.</p>
         </div>
-        <a class="button button-large button-accent" href="#home">Go to the home page</a>
-      </div>
-    </main>`;
+        <a class="button button-large button-accent" href="#watching">Go to the home page</a>
+      </div>`,
+  });
 }
 
+// ---------- Which frames each section shows: [size, caption, render] ----------
 const SCREENS = {
-  home: (size) => home(size),
-  edit: (size, uid) => edit(size, uid),
-  delete: (size, uid) => deleteDialog(size, uid),
-  empty: () => empty(),
-  'not-found': (size) => notFound(size),
+  watching: [
+    ['phone', '', (s, u) => watching(s, u)],
+    ['tablet', 'header navigation from 48rem', (s, u) => watching(s, u)],
+    ['desktop', '', (s, u) => watching(s, u)],
+  ],
+  'watching-empty': [
+    ['phone', '', (s, u) => watchingEmpty(s, u)],
+    ['desktop', '', (s, u) => watchingEmpty(s, u)],
+  ],
+  'up-next': [
+    ['phone', 'M4 sketch', (s, u) => upNext(s, u)],
+    ['desktop', 'M4 sketch', (s, u) => upNext(s, u)],
+  ],
+  library: [
+    ['phone', 'Want to watch', (s, u) => library(s, u, 'want')],
+    ['phone', 'Finished', (s, u) => library(s, u, 'finished')],
+    ['phone', 'Dropped, with nothing in it', (s, u) => library(s, u, 'dropped')],
+    ['desktop', 'Want to watch', (s, u) => library(s, u, 'want')],
+  ],
+  'search-first': [
+    ['phone', 'the tip, once', (s, u) => search(s, u, 'first')],
+    ['desktop', 'the tip, once', (s, u) => search(s, u, 'first')],
+  ],
+  'search-idle': [
+    ['phone', '', (s, u) => search(s, u, 'idle')],
+    ['desktop', '', (s, u) => search(s, u, 'idle')],
+  ],
+  'search-loading': [
+    ['phone', '', (s, u) => search(s, u, 'loading')],
+  ],
+  'search-results': [
+    ['phone', '', (s, u) => search(s, u, 'results')],
+    ['desktop', '', (s, u) => search(s, u, 'results')],
+  ],
+  'search-added': [
+    ['phone', 'after the plus on the UK version', (s, u) => search(s, u, 'added')],
+    ['desktop', 'after the plus on the UK version', (s, u) => search(s, u, 'added')],
+  ],
+  'search-none': [
+    ['phone', '', (s, u) => search(s, u, 'none')],
+    ['desktop', '', (s, u) => search(s, u, 'none')],
+  ],
+  'search-error': [
+    ['phone', '', (s, u) => search(s, u, 'error')],
+  ],
+  'search-field': [
+    ['desktopHeader', 'at rest', (s, u) => headerOnly(s, u, false)],
+    ['desktopHeader', 'with focus, while typing', (s, u) => headerOnly(s, u, true)],
+  ],
+  show: [
+    ['phoneFull', 'in the app the bottom navigation stays at the bottom of the screen', (s, u) => showPage(s, u, 'severance')],
+    ['desktopFull', '', (s, u) => showPage(s, u, 'severance')],
+  ],
+  'show-saving': [
+    ['phone', 'saving, after a tap on the episode’s plus', (s, u) => showScrolled(s, u, 'saving')],
+    ['phone', 'only the season filled – not saved', (s, u) => showScrolled(s, u, 'invalid')],
+    ['phone', 'the save failed', (s, u) => showScrolled(s, u, 'failed')],
+  ],
+  'show-new': [
+    ['phoneFull', '', (s, u) => showPage(s, u, 'pluribus')],
+    ['desktopFull', '', (s, u) => showPage(s, u, 'pluribus')],
+  ],
+  'show-manual': [
+    ['phoneFull', '', (s, u) => showPage(s, u, 'manual')],
+    ['desktopFull', '', (s, u) => showPage(s, u, 'manual')],
+  ],
+  delete: [
+    ['phone', 'bottom sheet', (s, u) => deleteDialog(s, u)],
+    ['desktop', '', (s, u) => deleteDialog(s, u)],
+  ],
+  add: [
+    ['phone', 'title from the search', (s, u) => addPage(s, u)],
+    ['phone', 'after trying to add without a title', (s, u) => addPage(s, u, { error: true })],
+    ['desktop', '', (s, u) => addPage(s, u)],
+  ],
+  account: [
+    ['phone', '', (s, u) => account(s, u)],
+    ['desktop', '', (s, u) => account(s, u)],
+  ],
+  login: [
+    ['phone', '', (s, u) => login(s, u)],
+    ['phone', 'wrong email or password', (s, u) => login(s, u, { error: true })],
+    ['desktop', '', (s, u) => login(s, u)],
+  ],
+  'not-found': [
+    ['phone', '', (s, u) => notFound(s, u)],
+    ['desktop', '', (s, u) => notFound(s, u)],
+  ],
 };
 
 for (const section of document.querySelectorAll('[data-screen]')) {
-  const screen = section.dataset.screen;
-  section.innerHTML = SIZES.map(({ id, label }) => `
+  const name = section.dataset.screen;
+  section.innerHTML = SCREENS[name].map(([size, caption, render], i) => `
     <figure>
-      <figcaption>${label}</figcaption>
-      <div class="frame ${id}${id === 'phone' ? '' : ' wide'}">${SCREENS[screen](id, `${screen}-${id}`)}</div>
+      <figcaption>${SIZES[size].label}${caption ? ` – ${caption}` : ''}</figcaption>
+      <div class="frame ${SIZES[size].className}">${render(size, `${name}-${i}`)}</div>
     </figure>`).join('');
 }
 
