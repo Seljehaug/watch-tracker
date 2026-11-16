@@ -12,8 +12,10 @@ production runs the ASP.NET Core image against Neon (D2, D92). Login (B3) is don
 the API requires a login everywhere but `/healthz` and Angular's pages, and my user exists in
 production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. The
 set-password command (B5) is done 2026-11-16: my password was changed with it in production
-(D97). B1, B2's skeleton part and D1 were done 2026-11-12. Next is B4, the developer's
-endpoints and migrations (D64). The goal is
+(D97). The show endpoints (B4) are done 2026-11-16: every show has an owner, and the API reads,
+adds, saves, deletes and steps on a user's own shows only (D104–D106) – not deployed yet, and
+Angular still on localStorage. B1, B2's skeleton part and D1 were done 2026-11-12. Next is C1,
+Angular against the API. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -71,6 +73,8 @@ goal (D63): it should take as little time from Angular as possible.
 - **Backend (D64):** the developer writes the endpoints, the EF Core model, the migrations and the
   Dockerfile. When asked, Claude writes the authentication plumbing (Identity, cookie setup, Data
   Protection keys, the create-user and set-password commands), which the developer reviews.
+  From B4 (D106) Claude hands over the backend code itself, one small step at a time with short
+  explanations, checked in a copy of the code first; the developer types it in and asks.
 - **When the developer is stuck:** explain the concept and show a small example of a _similar, not
   identical_ case, which the developer adapts. Don't hand over the finished solution unless asked.
 - **UI and design (D26):** Claude points to the rules that apply – tokens, accessibility, existing
@@ -323,19 +327,36 @@ goal (D63): it should take as little time from Angular as possible.
   lift EF Core to the Design package's patch – without it the test project, which doesn't get
   Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
   `Title`, `Status` and `Service` holding Angular's ids (D31), `LastWatchedSeason` and
-  `LastWatchedEpisode` (both null: not started), `AddedAt` and `UpdatedAt` as `timestamptz`; no
-  owner until B4. `Data/WatchTrackerDbContext.cs` is an `IdentityUserContext<User>` – Identity's
+  `LastWatchedEpisode` (both null: not started), `AddedAt` and `UpdatedAt` as `timestamptz`, and
+  the owner (B4, D104): a required `UserId` with a `User` navigation that is never loaded – by
+  EF's convention a foreign key to `AspNetUsers` with `ON DELETE CASCADE` and an index.
+  `Data/WatchTrackerDbContext.cs` is an `IdentityUserContext<User>` – Identity's
   user tables without roles – with `Shows` and `DataProtectionKeys`, and `Migrations/` holds
-  `InitialCreate` and `AddLogin`. `Program.cs` reads `ConnectionStrings:Default` – Compose's `db` in
+  `InitialCreate`, `AddLogin` and `AddShowUser`. `Program.cs` reads `ConnectionStrings:Default` – Compose's `db` in
   `appsettings.Development.json`, a Fly secret in production – and stops at startup without it,
   then runs `Database.Migrate()` before taking requests (D68). In Development it then runs
   `Data/DevelopmentSeed.cs` (D95): the dev user from `appsettings.Development.json`'s
-  `DevelopmentUser` (test values) if it is missing, then 10 shows with every status, not started,
-  no service and a long title if the table is empty. On a brand-new database the first `Migrate()` logs one failed
+  `DevelopmentUser` (test values) if it is missing, then, if the table is empty, 10 shows of the
+  dev user's with every status, not started, no service and a long title. On a brand-new database the first `Migrate()` logs one failed
   `SELECT` from `__EFMigrationsHistory` before it creates the table – EF's normal behaviour.
-  `GET /api/shows` (`Shows/ShowEndpoints.cs`, a `MapGroup("/api/shows")` the other endpoints
-  join) returns every show, ordered by id, as `ShowModel` (`Shows/ShowModel.cs`, built with
-  `MapFrom`, or `MapListFrom` for a list): Angular's `TrackedShow` with a number id. `Program.cs` sets
+  The show endpoints (B4, D104) are a `MapGroup("/api/shows")` in `Shows/ShowEndpoints.cs`, each
+  with `TypedResults` return types, and each filtering on the logged-in user's id, read from
+  the cookie's `NameIdentifier` claim (`GetUserId`, no database query); one show is found with
+  `FindUsersShowAsync` (id and user in one `WHERE`), so another user's show is a `404`.
+  `GET /api/shows` returns the user's shows, newest first (by id), as `ShowModel`
+  (`Shows/ShowModel.cs`, built with `MapFrom`, or `MapListFrom` for a list): Angular's
+  `TrackedShow` with a number id. `POST /api/shows` adds one and answers `201` with it and
+  `Location: /api/shows/{id}`; `PUT /api/shows/{id:int}` overwrites every field and answers
+  `200` with the show; `DELETE /api/shows/{id:int}` is one `ExecuteDeleteAsync` and answers
+  `204`; `POST /api/shows/{id:int}/next-episode` applies D34 – not started to S01E01, else
+  episode + 1 in the same season, Want to watch to Watching – and answers `200` with the show,
+  unchanged for Finished and Dropped. The server sets the id and both timestamps, cut to the
+  microsecond (`Now()`), and trims the title. `POST` and `PUT` take `ShowPostModel`
+  (`Shows/ShowPostModel.cs`), checked before the endpoint runs by .NET 10's validation
+  (`AddValidation()` in `Program.cs`): `[Required]` on the title, `[AllowedValues]` on the
+  status (the constants in `Shows/ShowStatuses.cs`) and on the service (the ids listed, and
+  `null`), and `[Range(1, int.MaxValue)]` on `EpisodeRef`'s season and episode – a `400` whose
+  `errors` name the field (`Title`, `LastWatched.Season`). `Program.cs` sets
   `WhenWritingNull` for all of the API's JSON, so an empty `service` or `lastWatched` is left
   out rather than sent as `null` (D89).
   Login (M2 B3, D93–D95): ASP.NET Core Identity with `AddIdentityCore<User>` (`Users/User.cs`) –
@@ -410,11 +431,23 @@ goal (D63): it should take as little time from Angular as possible.
   container's connection string with `UseSetting`: `Program.cs` reads it before
   `builder.Build()`, and `ConfigureAppConfiguration` is only applied at `Build()`, too late
   (tried). It makes users with `CreateUserCommand.CreateAsync`, and logged-in clients through
-  the login endpoint, on `https://localhost`, as the cookie is `Secure`.
-  `Shows/ShowEndpointsTests` logs in, then checks that `GET /api/shows` sends Angular's
+  the login endpoint, on `https://localhost`, as the cookie is `Secure` – for a new user, or for
+  a given one when the test needs to know who is logged in.
+  `Shows/ShowEndpointsTests` gives every test its own users, so the tests share the database
+  without emptying the table, and puts other users' shows straight into it. It checks that
+  every show endpoint is `401` without a login; that `GET /api/shows` sends Angular's
   `TrackedShow` – a number id, camelCase, `lastWatched` as `{ season, episode }`, and no
-  `service` or `lastWatched` at all when they are null – by comparing the response with the
-  expected JSON. `HealthCheckTests` stops its container and checks that `/healthz` still
+  `service` or `lastWatched` at all when they are null, newest first – by comparing the
+  response with the expected JSON, and only the user's own shows; that `POST` saves for the
+  user exactly what it returns (the timestamps to the microsecond), with its `Location`, a
+  trimmed title, and the client's `id` and `addedAt` ignored; ten bodies that each break one
+  rule and get a `400` naming that field, with nothing saved; that `PUT` overwrites every
+  field, clears a service and `lastWatched` left out and keeps `addedAt`; that `DELETE`
+  removes that show only; next-episode's four cases and Finished and Dropped unchanged; and
+  that `PUT`, `DELETE` and next-episode on another user's show are `404` and change nothing.
+  `Shows/AngularListsTests` reads Angular's `show-status.ts` and `streaming-service.ts` –
+  copied next to the tests by the `.csproj` – and the `[AllowedValues]` on `ShowPostModel`, and
+  fails when the ids differ (D105). `HealthCheckTests` stops its container and checks that `/healthz` still
   answers `200 Healthy` (D75). `Auth/AuthEndpointsTests` covers login and `/api/auth/user` (only
   the email in the answer), the cookie's attributes, the same `401` for a wrong password and an
   unknown email, the lockout after five, logout, and a cookie that still works in a new instance
@@ -424,10 +457,11 @@ goal (D63): it should take as little time from Angular as possible.
   password under 15 characters and an email already in use, in any case, are refused;
   `Users/SetPasswordCommandTests` that a new password ends a login made before it (the stamp
   checked at every request in that test's host), that a too-short password is refused and
-  leaves the old one working, and that a locked account gets in with the new one – 20 tests.
-  Each test was seen to fail with the rule it guards broken (`WhenWritingNull` removed, a
-  database check added, `lockoutOnFailure` off, `RequiredLength` lowered, `RemovePasswordAsync`
-  before `AddPasswordAsync`, and so on). `dotnet test` needs Docker running –
+  leaves the old one working, and that a locked account gets in with the new one – 52 tests
+  with each theory's cases. Each test was seen to fail with the rule it guards broken
+  (`WhenWritingNull` removed, a database check added, `lockoutOnFailure` off, `RequiredLength`
+  lowered, `RemovePasswordAsync` before `AddPasswordAsync`, the user filter left out, and so
+  on). `dotnet test` needs Docker running –
   Docker Desktop on the Mac, built in on CI's ubuntu-latest – and takes a few seconds.
   `server/.gitignore` is `dotnet new gitignore`; `.editorconfig` gives `*.cs` an indent of 4.
   `.gitattributes` (`* text=auto eol=lf`) keeps every text file at LF in the repo and on disk,
@@ -634,8 +668,8 @@ runs the ASP.NET image – Angular still on localStorage – with one endpoint a
 B3 (login, Claude), B4 (the other endpoints and migrations, the developer), C1, C2 and D3. The
 original order paused the deploy button from C1 to D2, since from C1 Angular calls `/api` and
 the nginx image has none; with production on the new image first, that pause is gone. **The
-skeleton is done 2026-11-13** (D2), and B3, login, the same day; B5, set-password, 2026-11-16;
-next is B4.
+skeleton is done 2026-11-13** (D2), and B3, login, the same day; B5, set-password, and B4, the
+show endpoints, 2026-11-16; next is C1.
 
 **A. In use on the phone – frontend only, localStorage**
 
@@ -705,7 +739,7 @@ next is B4.
       the `api` job in CI by Claude (D88); Postgres 18.6 starts healthy locally. Done 2026-11-12:
       the `api` job is green on GitHub (ci #11). It shows inside the `ci` run, next to the
       Angular job – the Actions sidebar lists workflows (`ci`, `deploy`), not their jobs.
-- [ ] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
+- [x] B2. EF Core with Npgsql (D63, D67, D68): a `Show` entity – an integer identity id, the owner,
       the editable fields, and `addedAt`/`updatedAt` set by the server; the first migration;
       `Database.Migrate()` at startup; a Development seed with a dev user and ~10 shows covering
       every status and the edge cases (not started, a long title, no service), its login in
@@ -718,7 +752,8 @@ next is B4.
       down, with `WebApplicationFactory` and Testcontainers, replacing the placeholder (D86).
       _2026-11-13, with login (B3, D95):_ the dev user, made with the create-user command's code,
       and the seed moved from `UseSeeding` to after `Migrate()` – the user first, so B4 can give
-      the shows an owner. Left: the owner (B4).
+      the shows an owner. _Done 2026-11-16 with B4:_ the owner, `UserId`, and the seed's shows
+      given to the dev user.
 - [x] B3. Login – Claude writes it when asked (D64, D70): Identity with a cookie that is `HttpOnly`,
       `Secure`, `SameSite=Strict` and lasts 60 days, sliding; a `401` instead of the redirect to
       a login page; Data Protection keys in the database (`PersistKeysToDbContext`), or every
@@ -742,12 +777,24 @@ next is B4.
       password never showed: login `200`, `/api/auth/user` `200`, logout `204`, then `401`;
       without a login `/api/shows` is `401`, and a cross-site `POST` `403`. Nothing changes in
       the app yet – Angular still uses localStorage, and the login page comes in C2.
-- [ ] B4. The show endpoints – the developer writes them (D69): `GET /api/shows`, `POST /api/shows`
+- [x] B4. The show endpoints – the developer writes them (D69): `GET /api/shows`, `POST /api/shows`
       (`201` with `Location`), `PUT /api/shows/{id}` with all of `EditableShowFields`,
       `DELETE /api/shows/{id}` (`204`) and `POST /api/shows/{id}/next-episode` (the D34 rule, now
       on the server). Every query is filtered on the logged-in user, so another user's show is a
       `404`; status, service and episode are validated. Tests by Claude (`WebApplicationFactory`
       and Testcontainers): ownership, `401` without login, next episode, validation.
+      _Done 2026-11-16_ (D104–D106), typed in by the developer from Claude's code, one reviewed
+      step at a time (D106), in four commits: `b7d2532` the owner, the `AddShowUser` migration
+      and `GET` filtered on the user; `ac986d5` `POST` with validation, and `AngularListsTests`;
+      `45ceb99` `PUT` and `DELETE`; then next-episode. The local database was reset with
+      `docker compose down -v`, since its ten ownerless shows would fail the new foreign key.
+      Every endpoint's tests were seen to fail with its rule broken in a copy of the code, never
+      in the repo – the user filter left out, `Trim()` removed, `AddValidation()` or the
+      attributes removed, the old service kept on a `null`, `DELETE` without the id, Dropped
+      counted as Watching, a clock with 100 ns ticks, and so on. Not deployed: production's
+      `Shows` table is empty (`[]` since D2, and nothing could add shows), so `AddShowUser`'s
+      `NOT NULL DEFAULT ''` column and foreign key go through there – read the SQL before the
+      deploy all the same (D68).
 - [x] B5. A `set-password <email>` command beside create-user – Claude writes it (D64, D96),
       before real data goes in (D3): the same hidden prompt; Identity checks the new password
       before anything changes; the new password renews the security stamp, so every other
@@ -874,7 +921,11 @@ Designed 2026-11-16 (D98–D103): DESIGN.md §2 and every screen and state in
   when the show is already in the list), info and Your show, `NgOptimizedImage`
   for the poster and backdrop; the card opens it, and the not-found guard moves to it.
 - Your show saving field by field (D102), the edit page removed, the `NumberStepper`s with an upper
-  bound from TMDB, season rollover from TMDB's episode counts.
+  bound from TMDB, season rollover from TMDB's episode counts: after a season's last episode,
+  "next episode" goes to the next season's E01. The rule lives in two places since D69 –
+  `getNextEpisodeRef` in Angular and the next-episode endpoint in C# – and both change; the
+  endpoint needs the episode counts from TMDB too. A manual show without a TMDB id keeps
+  episode + 1 in the same season.
 - Existing manual entries can be linked to a TMDB id ("Find on TMDB").
 - The account page's About with TMDB's logo and credit (D98).
 
@@ -913,7 +964,7 @@ Roughly in priority order; most of these require a backend.
   drifting from the API (D63). Never a generator that writes the Angular services.
 - **Lists generated from C#** – the status and streaming-service ids written once, in C#, and
   generated into a TypeScript file Angular imports, instead of written on both sides (D31, D63).
-  Today `AngularListsTests` (M2 B4) only checks that the two sides match. Sketched 2026-11-16:
+  Today `AngularListsTests` (M2 B4, D105) only checks that the two sides match. Sketched 2026-11-16:
   the `[AllowedValues]` on `ShowPostModel` are the source; the test writes
   `src/app/shows/api-ids.generated.ts` (`SHOW_STATUS_IDS`, `STREAMING_SERVICE_IDS`, `as const`)
   and fails when the file was out of date, so CI catches a file not committed; Angular keeps
@@ -1085,6 +1136,9 @@ reversed, mark it as superseded instead of deleting it.
 | D101 | 2026-11-16 | The show page. One component for a show in your list (`/shows/:showId`, manual shows too; keeps D38) and a TMDB show that isn't (`/shows/tmdb/:tmdbId`, by TMDB's id; replaced by the show's own URL after adding, and sent on to it when the show is already in the list – both with `replaceUrl`; the route comes before `shows/:showId`, as `shows/add` does). Renamed from `/tv/:tmdbId` the same day: in an app where everything is TV, `tv` didn't say what set it apart, and `shows/tmdb` says which id the address holds. Two parts: the show (backdrop, poster, title, facts, TMDB score, About, Seasons, and from M4 Where to watch with the JustWatch credit) and "Your show" (status, last watched episode, where I watch it, the title for manual shows, Delete). Not in your list: the two add buttons with text in Your show's place. Phone order: hero, Your show, Where to watch, About, Seasons; from 48rem: poster, info, and a sticky right column with Your show and Where to watch. No cast, trailers, reviews or similar shows. The card opens the show page (amends D51); the not-found guard moves to `/shows/:showId` (D53). A manual show offers "Find on TMDB" to link it. | The show page answers the goal questions – what is it, where am I, where do I watch it – and little else (§1). You usually come from the list to update, so Your show comes early on the phone. One component for both cases, as the only difference is whether Your show or the add buttons are shown. |
 | D102 | 2026-11-16 | Your show saves field by field, without Save or Cancel, and the edit page (`/shows/:showId/edit`) goes. Selects save when picked, the steppers about 600 ms after the last tap, a manual show's title when the field is left (not empty). Invalid states aren't saved, and their errors (D44) show as soon as a value is invalid (amends D41 for this page). One status line, "Saving…" then "Saved", in a polite live region; a failed save keeps the value and offers "Try again". Each save sends the whole show with `PUT` (D69) through one queue: built the classic way first (D57) – `toObservable` on the form's value, `debounceTime`, `filter` on validity, `concatMap`. The fields are the existing ones: the select and the `NumberStepper`s, which get an upper bound from TMDB through `max()`. `/shows/add` stays as the manual add form, with an explicit "Add show" button. | With few, independent fields, saving each change is what phones, Google's account settings, Trakt and TV Time do – it is the smoother UX, and the card's plus already saves at once. A separate page with Save made sense with nothing else to show; the show page now holds the fields. Adding keeps its button, as it creates something. The queue keeps saves in order, so the last change wins. The developer wanted the extra RxJS: it is a learning project. |
 | D103 | 2026-11-16 | The look is provisional. DESIGN.md and the mockups decide the structure, the states and the behaviour; colours, type, spacing and the treatment of images get a proper design pass later and may change a lot. The mockups (`docs/design/mockups/screens.html`) were rewritten for D98–D102 with every screen and state. | The developer expects to change much of the visual design once the app is complete; until then the rules (tokens, accessibility) hold, and the screens show what the app does, not its final look. |
+| D104 | 2026-11-16 | The show endpoints as built (M2 B4, D69). The owner is `UserId`, the developer's choice of name after Identity's own, with a `User` navigation that is only there to show EF the foreign key: required, `ON DELETE CASCADE`, indexed. The user's id comes from the cookie's `NameIdentifier` claim, not a database query; a missing one throws, as every endpoint requires a login. Access is checked in the query itself – id and user in one `WHERE` (`FindUsersShowAsync`, and `DELETE`'s `ExecuteDeleteAsync`) – not by a check at the top of each endpoint or a global query filter, and another user's show is a `404`, not a `403` or an exception. `GET` lists newest first, by id. `POST`'s `Location` is `/api/shows/{id}`, the address `PUT` and `DELETE` use; there is no `GET` for one show. `PUT` answers `200` with the show; next-episode answers `200` with the show, unchanged for Finished and Dropped. Validation is .NET 10's (`AddValidation()`) with data annotations on `ShowPostModel` and `EpisodeRef` and readable messages; the `400`'s keys are C#'s names (`LastWatched.Season`). Timestamps are cut to the microsecond (`Now()`), the title is trimmed on the server too, and the routes take `{id:int}`. | Postgres keeps microseconds and .NET on Linux (CI, Fly) counts 100 ns ticks, so without the cut `POST` returned a time the list never showed; a test caught it with a simulated Linux clock, as macOS's clock already stops at microseconds. A `404` says nothing about which ids exist in the one counter for all users (D67), like login's one `401` (D93), and an exception would be a `500` for something expected. With one rule – the show is yours or it doesn't exist – a `WHERE` is the whole check, and the fallback policy already makes the login impossible to forget (D93); a global query filter is worth it with more tables and users. Angular sorts its lists itself, so the order was the developer's taste. Angular never needs one show by itself; `Location` still names its address. The unchanged show lets a device with an old list catch up (D69). Attributes keep the rules in one place and run before the endpoint, so it never sees bad input; `AllowedValues` needs constants, hence `ShowStatuses`. `{id:int}` makes `/api/shows/abc` a `404` from the `/api` fallback rather than a `400`. |
+| D105 | 2026-11-16 | Angular and C# each list the status and service ids (D31, D63), and `AngularListsTests` fails when they differ: it reads Angular's `show-status.ts` and `streaming-service.ts`, copied next to the tests by the test project, and the `[AllowedValues]` on `ShowPostModel` by reflection. Generating the ids from C# into a TypeScript file is in LATER. | The developer wanted one list; generating it needs a rewrite of both Angular files and a test that writes source code, for two short lists that rarely change – and M4 may change what the service list is (D100). Reading what the validation allows, rather than a copy of it, means the test can't pass while the API refuses an id Angular sends. CI checks out the whole repo, and the Docker image builds only the API, so the copied files cost nothing there. |
+| D106 | 2026-11-16 | From B4, Claude hands over the backend's code – the endpoints, the model, the migration commands – one small step at a time with short explanations, built and tested in a copy of the code first; the developer types it in, asks, and commits (amends D64). Claude still writes the tests, and edits the application code only when asked – as for the comments, `Now()` and `DELETE` in B4. Comments stay short: only what the code doesn't show. | Hosting and the backend had already taken more time than the developer wanted (D63); typing the code in keeps it in the fingers without the searching. Angular stays guide-first (D1). The developer found the first comments unclear and too long. |
 
 ## 7. Open questions
 
@@ -1096,7 +1150,7 @@ Not decided yet – don't treat these as settled. Decide them when the relevant 
 | Language of show data from TMDB                      | M3        | Probably Norwegian (`nb-NO`) titles/overviews with English fallback – or English only. Try both with real data.                                                                                                             |
 | How do other users get in and log in?                | Later     | When a concrete person wants in (D60). Getting in: an invitation link, or a list of allowed addresses. Logging in without the developer resetting passwords: password reset by email (an email service, and SPF/DKIM records in one.com's DNS), Google sign-in (`AddGoogle()`, an OAuth client in Google Cloud Console, allowed addresses), or passkeys (supported by Identity in .NET 10). Backups and JSON export are revisited at the same time (D61, D78). |
 | IMDb rating source                                   | Later     | OMDb (simple, API key, daily limit) vs. IMDb datasets imported by a backend job.                                                                                                                                            |
-| How "Up next" looks on Watching                      | M4        | Two sections, Ready to watch and Caught up (D99), sketched in the mockups. Open: whether the card shows the last or the next episode (D35), how "caught up" shows the next air date, and whether the plus stays hidden until the next episode is out. |
+| How "Up next" looks on Watching                      | M4        | Two sections, Ready to watch and Caught up (D99), sketched in the mockups. Open: whether the card shows the last or the next episode (D35), how "caught up" shows the next air date, and whether the plus stays hidden until the next episode is out. And what the next-episode endpoint does for a caught-up show – the latest aired episode watched, more to come: probably nothing, as for Finished (D34), so a device with an old list can't step past what is out. |
 
 ---
 
