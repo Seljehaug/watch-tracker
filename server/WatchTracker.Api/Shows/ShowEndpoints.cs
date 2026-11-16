@@ -82,6 +82,40 @@ public static class ShowEndpoints
 
             return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
         });
+
+        // One more episode: not started becomes S01E01, otherwise the next episode in the
+        // same season, and the show becomes Watching.
+        shows.MapPost("/{id:int}/next-episode", async Task<Results<Ok<ShowModel>, NotFound>> (
+            int id, ClaimsPrincipal principal, WatchTrackerDbContext db, CancellationToken cancellationToken) =>
+        {
+            var show = await FindUsersShowAsync(db, id, GetUserId(principal), cancellationToken);
+            if (show is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            // Finished and Dropped don't change. The show is sent back as it is, so a device with
+            // an old list sees what it is now.
+            if (show.Status is not (ShowStatuses.Watching or ShowStatuses.WantToWatch))
+            {
+                return TypedResults.Ok(ShowModel.MapFrom(show));
+            }
+
+            if (show.LastWatchedSeason is null || show.LastWatchedEpisode is null)
+            {
+                show.LastWatchedSeason = 1;
+                show.LastWatchedEpisode = 1;
+            }
+            else
+            {
+                show.LastWatchedEpisode++;
+            }
+            show.Status = ShowStatuses.Watching;
+            show.UpdatedAt = Now();
+            await db.SaveChangesAsync(cancellationToken);
+
+            return TypedResults.Ok(ShowModel.MapFrom(show));
+        });
     }
 
     // Null also when the show is someone else's, so the endpoint answers 404.

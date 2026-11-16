@@ -18,16 +18,17 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
     // The fallback policy in Program.cs requires a login; no show endpoint may opt out of it.
     [Theory]
-    [InlineData("GET", "/api/shows")]
-    [InlineData("POST", "/api/shows")]
-    [InlineData("PUT", "/api/shows/1")]
-    [InlineData("DELETE", "/api/shows/1")]
-    public async Task ShowEndpoints_WithoutALogin_Are401(string method, string path)
+    [InlineData("GET", "/api/shows", null)]
+    [InlineData("POST", "/api/shows", ValidShowJson)]
+    [InlineData("PUT", "/api/shows/1", ValidShowJson)]
+    [InlineData("DELETE", "/api/shows/1", null)]
+    [InlineData("POST", "/api/shows/1/next-episode", null)]
+    public async Task ShowEndpoints_WithoutALogin_Are401(string method, string path, string? body)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
-        if (method is "POST" or "PUT")
+        if (body is not null)
         {
-            request.Content = JsonContent(ValidShowJson);
+            request.Content = JsonContent(body);
         }
 
         var response = await factory.CreateClient().SendAsync(request, TestContext.Current.CancellationToken);
@@ -296,6 +297,85 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         await FindShowAsync(otherUsersShow.Id);
     }
 
+    // D34: not started becomes S01E01, otherwise the next episode in the same season; Want to
+    // watch becomes Watching.
+    [Theory]
+    [InlineData("want-to-watch", null, null, 1, 1)]
+    [InlineData("watching", null, null, 1, 1)]
+    [InlineData("watching", 2, 5, 2, 6)]
+    [InlineData("want-to-watch", 3, 9, 3, 10)]
+    public async Task NextEpisode_MarksTheNextEpisode_AndTheShowAsWatching(
+        string status, int? season, int? episode, int nextSeason, int nextEpisode)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance", status: status, season: season, episode: episode);
+        await AddShowsAsync(show);
+        var before = DateTimeOffset.UtcNow;
+
+        var response = await client.PostAsync($"/api/shows/{show.Id}/next-episode", null, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var updatedAt = JsonNode.Parse(json)!["updatedAt"]!;
+        Assert.InRange(updatedAt.GetValue<DateTimeOffset>(), ToMicroseconds(before), DateTimeOffset.UtcNow);
+        AssertJsonEquals($$"""
+            {
+              "id": {{show.Id}},
+              "title": "Severance",
+              "status": "watching",
+              "lastWatched": { "season": {{nextSeason}}, "episode": {{nextEpisode}} },
+              "addedAt": "2026-10-01T18:00:00+00:00",
+              "updatedAt": {{updatedAt.ToJsonString()}}
+            }
+            """, json);
+        AssertJsonEquals($"[{json}]", await client.GetStringAsync("/api/shows", cancellationToken));
+    }
+
+    // The user's own choice, which a stray tap mustn't undo (D34): no new episode, status or
+    // updatedAt. The show comes back as it is, so a device with an old list catches up.
+    [Theory]
+    [InlineData("finished")]
+    [InlineData("dropped")]
+    public async Task NextEpisode_OnAFinishedOrDroppedShow_ChangesNothing(string status)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance", status: status, season: 2, episode: 6);
+        await AddShowsAsync(show);
+
+        var response = await client.PostAsync($"/api/shows/{show.Id}/next-episode", null, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertJsonEquals($$"""
+            {
+              "id": {{show.Id}},
+              "title": "Severance",
+              "status": "{{status}}",
+              "lastWatched": { "season": 2, "episode": 6 },
+              "addedAt": "2026-10-01T18:00:00+00:00",
+              "updatedAt": "2026-10-01T18:00:00+00:00"
+            }
+            """, await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ShowModel.MapFrom(show), ShowModel.MapFrom(await FindShowAsync(show.Id)));
+    }
+
+    [Fact]
+    public async Task NextEpisode_OnAnotherUsersShow_Is404_AndChangesNothing()
+    {
+        var otherUsersShow = NewShow(await factory.CreateUserAsync(), "The Bear", season: 3, episode: 2);
+        await AddShowsAsync(otherUsersShow);
+        var client = await factory.CreateLoggedInClientAsync();
+
+        var response = await client.PostAsync(
+            $"/api/shows/{otherUsersShow.Id}/next-episode", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ShowModel.MapFrom(otherUsersShow), ShowModel.MapFrom(await FindShowAsync(otherUsersShow.Id)));
+    }
+
     private static Task<HttpResponseMessage> PostShowAsync(HttpClient client, string json) =>
         client.PostAsync("/api/shows", JsonContent(json), TestContext.Current.CancellationToken);
 
@@ -335,13 +415,14 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         return await db.Shows.AsNoTracking().SingleAsync(show => show.Id == id, TestContext.Current.CancellationToken);
     }
 
-    // A show where only its user and its title matter to the test – and its service and episode,
-    // when they are given. Both timestamps a fixed time in the past.
-    private static Show NewShow(User user, string title, string? service = null, int? season = null, int? episode = null) => new()
+    // A show where only its user and its title matter to the test – and its status, service and
+    // episode, when they are given. Both timestamps a fixed time in the past.
+    private static Show NewShow(
+        User user, string title, string status = "watching", string? service = null, int? season = null, int? episode = null) => new()
     {
         UserId = user.Id,
         Title = title,
-        Status = "watching",
+        Status = status,
         Service = service,
         LastWatchedSeason = season,
         LastWatchedEpisode = episode,
