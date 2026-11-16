@@ -134,11 +134,18 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// `dotnet WatchTracker.Api.dll create-user <email>` creates a user and stops, without starting the
-// web server – the app that is already running has the port.
+// The user commands do their job and stop, without starting the web server – the app that is
+// already running has the port.
+//   dotnet WatchTracker.Api.dll create-user <email>     creates a user
+//   dotnet WatchTracker.Api.dll set-password <email>    gives a user a new password
 if (args is ["create-user", ..])
 {
     Environment.ExitCode = await CreateUserCommand.RunAsync(app.Services, args);
+    return;
+}
+if (args is ["set-password", ..])
+{
+    Environment.ExitCode = await SetPasswordCommand.RunAsync(app.Services, args);
     return;
 }
 

@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Identity;
 
 namespace WatchTracker.Api.Users;
@@ -18,24 +17,10 @@ public static class CreateUserCommand
             return 1;
         }
 
-        // The hidden prompt needs a terminal: it can't read from a pipe or a file.
-        if (Console.IsInputRedirected)
+        var password = PasswordPrompt.ReadNewPassword();
+        if (password is null)
         {
-            Console.Error.WriteLine("Run this in a terminal, so the password can be typed at a hidden prompt.");
-            return 1;
-        }
-
-        var password = ReadHiddenLine("Password: ");
-        var again = ReadHiddenLine("Password again: ");
-        if (password is null || again is null)
-        {
-            Console.Error.WriteLine("The input had an escape sequence in it, such as the Esc key. No user was created.");
-            return 1;
-        }
-
-        if (again != password)
-        {
-            Console.Error.WriteLine("The passwords don't match. No user was created.");
+            Console.Error.WriteLine("No user was created.");
             return 1;
         }
 
@@ -60,45 +45,4 @@ public static class CreateUserCommand
     // Identity checks the password rules and that the email isn't in use (see Program.cs).
     public static Task<IdentityResult> CreateAsync(UserManager<User> userManager, string email, string password) =>
         userManager.CreateAsync(new User { UserName = email, Email = email }, password);
-
-    // Reads a line without showing it, not even as asterisks. Backspace works; pasting works too.
-    // Null if the line had an escape sequence in it.
-    private static string? ReadHiddenLine(string prompt)
-    {
-        // Turn off the terminal's "bracketed paste". When it is on, pasted text comes wrapped in
-        // ESC[200~ … ESC[201~, and ReadKey returns the markers' characters as part of the line.
-        Console.Write("\u001b[?2004l");
-        Console.Write(prompt);
-        var text = new StringBuilder();
-        var hadEscape = false;
-        while (true)
-        {
-            var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.Enter)
-            {
-                break;
-            }
-
-            // An Esc starts a terminal sequence, whose characters would end up in the password.
-            // The whole line is rejected rather than guessing where the sequence ends.
-            if (key.Key == ConsoleKey.Escape)
-            {
-                hadEscape = true;
-            }
-            else if (key.Key == ConsoleKey.Backspace)
-            {
-                if (text.Length > 0)
-                {
-                    text.Length--;
-                }
-            }
-            else if (!char.IsControl(key.KeyChar))
-            {
-                text.Append(key.KeyChar);
-            }
-        }
-
-        Console.WriteLine();
-        return hadEscape ? null : text.ToString();
-    }
 }
