@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WatchTracker.Api.Data;
 using WatchTracker.Api.Shows;
@@ -19,10 +20,12 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [Theory]
     [InlineData("GET", "/api/shows")]
     [InlineData("POST", "/api/shows")]
+    [InlineData("PUT", "/api/shows/1")]
+    [InlineData("DELETE", "/api/shows/1")]
     public async Task ShowEndpoints_WithoutALogin_Are401(string method, string path)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
-        if (method != "GET")
+        if (method is "POST" or "PUT")
         {
             request.Content = JsonContent(ValidShowJson);
         }
@@ -177,10 +180,129 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal("[]", await client.GetStringAsync("/api/shows", cancellationToken));
     }
 
+    [Fact]
+    public async Task PutShow_ReplacesTheFieldsTheUserDecides_AndKeepsAddedAt()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severence", "apple-tv-plus", season: 2, episode: 5);
+        await AddShowsAsync(show);
+        var before = DateTimeOffset.UtcNow;
+
+        var response = await PutShowAsync(client, show.Id, """
+            {
+              "title": "  Severance  ",
+              "status": "finished",
+              "service": "netflix",
+              "lastWatched": { "season": 3, "episode": 1 }
+            }
+            """);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var updatedAt = JsonNode.Parse(json)!["updatedAt"]!;
+        Assert.InRange(updatedAt.GetValue<DateTimeOffset>(), ToMicroseconds(before), DateTimeOffset.UtcNow);
+        AssertJsonEquals($$"""
+            {
+              "id": {{show.Id}},
+              "title": "Severance",
+              "status": "finished",
+              "service": "netflix",
+              "lastWatched": { "season": 3, "episode": 1 },
+              "addedAt": "2026-10-01T18:00:00+00:00",
+              "updatedAt": {{updatedAt.ToJsonString()}}
+            }
+            """, json);
+        AssertJsonEquals($"[{json}]", await client.GetStringAsync("/api/shows", cancellationToken));
+    }
+
+    // PUT takes every field, so a service or lastWatched left out clears it (D69).
+    [Fact]
+    public async Task PutShow_WithoutServiceAndLastWatched_ClearsThem()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance", "apple-tv-plus", season: 2, episode: 5);
+        await AddShowsAsync(show);
+
+        var response = await PutShowAsync(client, show.Id, """{ "title": "Severance", "status": "want-to-watch" }""");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = await FindShowAsync(show.Id);
+        Assert.Null(saved.Service);
+        Assert.Null(saved.LastWatchedSeason);
+        Assert.Null(saved.LastWatchedEpisode);
+    }
+
+    // Another user's show is a 404, as if it didn't exist (D67), and stays as it was.
+    [Fact]
+    public async Task PutShow_OnAnotherUsersShow_Is404_AndChangesNothing()
+    {
+        var otherUsersShow = NewShow(await factory.CreateUserAsync(), "The Bear");
+        await AddShowsAsync(otherUsersShow);
+        var client = await factory.CreateLoggedInClientAsync();
+
+        var response = await PutShowAsync(client, otherUsersShow.Id, ValidShowJson);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ShowModel.MapFrom(otherUsersShow), ShowModel.MapFrom(await FindShowAsync(otherUsersShow.Id)));
+    }
+
+    // PUT takes the same ShowPostModel as POST, so one broken field shows the validation runs.
+    [Fact]
+    public async Task PutShow_WithAFieldBroken_Is400_AndChangesNothing()
+    {
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance");
+        await AddShowsAsync(show);
+
+        var response = await PutShowAsync(client, show.Id, """{ "title": "Severance", "status": "paused" }""");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(ShowModel.MapFrom(show), ShowModel.MapFrom(await FindShowAsync(show.Id)));
+    }
+
+    [Fact]
+    public async Task DeleteShow_Is204_AndDeletesThatShowOnly()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var toDelete = NewShow(user, "Lost");
+        var toKeep = NewShow(user, "Severance");
+        await AddShowsAsync(toDelete, toKeep);
+
+        var response = await client.DeleteAsync($"/api/shows/{toDelete.Id}", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var list = JsonNode.Parse(await client.GetStringAsync("/api/shows", cancellationToken))!;
+        Assert.Equal(toKeep.Id, Assert.Single(list.AsArray())!["id"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task DeleteShow_OnAnotherUsersShow_Is404_AndDeletesNothing()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var otherUsersShow = NewShow(await factory.CreateUserAsync(), "The Bear");
+        await AddShowsAsync(otherUsersShow);
+        var client = await factory.CreateLoggedInClientAsync();
+
+        var response = await client.DeleteAsync($"/api/shows/{otherUsersShow.Id}", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await FindShowAsync(otherUsersShow.Id);
+    }
+
     private static Task<HttpResponseMessage> PostShowAsync(HttpClient client, string json) =>
         client.PostAsync("/api/shows", JsonContent(json), TestContext.Current.CancellationToken);
 
     // JSON as written, so a test can send fields that are missing, unknown or of the wrong kind.
+    private static Task<HttpResponseMessage> PutShowAsync(HttpClient client, int id, string json) =>
+        client.PutAsync($"/api/shows/{id}", JsonContent(json), TestContext.Current.CancellationToken);
+
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 
     // DeepEquals ignores the order of the properties, but not of the items in a list.
@@ -205,13 +327,25 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
-    // A show where only its user and its title matter to the test.
-    private static Show NewShow(User user, string title) => new()
+    // The show as it is in the database, read straight from it. Fails if it is gone.
+    private async Task<Show> FindShowAsync(int id)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WatchTrackerDbContext>();
+        return await db.Shows.AsNoTracking().SingleAsync(show => show.Id == id, TestContext.Current.CancellationToken);
+    }
+
+    // A show where only its user and its title matter to the test – and its service and episode,
+    // when they are given. Both timestamps a fixed time in the past.
+    private static Show NewShow(User user, string title, string? service = null, int? season = null, int? episode = null) => new()
     {
         UserId = user.Id,
         Title = title,
         Status = "watching",
-        AddedAt = DateTimeOffset.UtcNow,
-        UpdatedAt = DateTimeOffset.UtcNow,
+        Service = service,
+        LastWatchedSeason = season,
+        LastWatchedEpisode = episode,
+        AddedAt = new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero),
+        UpdatedAt = new DateTimeOffset(2026, 10, 1, 18, 0, 0, TimeSpan.Zero),
     };
 }
