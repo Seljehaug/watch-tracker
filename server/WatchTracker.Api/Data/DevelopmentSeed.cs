@@ -5,36 +5,41 @@ using WatchTracker.Api.Users;
 
 namespace WatchTracker.Api.Data;
 
-// Test data for the development database (D76): a user to log in as, and shows with every status,
-// plus the odd cases (not started, no service, a long title). Development only. `docker compose
-// down -v` empties the database, and the next start seeds it again.
+// Test data for the development database (D76): a user to log in as, and their shows, with every
+// status plus the odd cases (not started, no service, a long title). Development only. `docker
+// compose down -v` empties the database, and the next start seeds it again.
 public static class DevelopmentSeed
 {
-    // The user first: the shows will get an owner (B4).
+    // The user first: the shows belong to them.
     public static async Task SeedAsync(IServiceProvider services)
     {
-        await SeedUserAsync(services.GetRequiredService<UserManager<User>>(), services.GetRequiredService<IConfiguration>());
-        await SeedShowsAsync(services.GetRequiredService<WatchTrackerDbContext>());
+        var user = await SeedUserAsync(services.GetRequiredService<UserManager<User>>(), services.GetRequiredService<IConfiguration>());
+        await SeedShowsAsync(services.GetRequiredService<WatchTrackerDbContext>(), user);
     }
 
     // The login in appsettings.Development.json, made the same way as with the create-user command.
-    private static async Task SeedUserAsync(UserManager<User> userManager, IConfiguration configuration)
+    private static async Task<User> SeedUserAsync(UserManager<User> userManager, IConfiguration configuration)
     {
         var email = configuration["DevelopmentUser:Email"]
             ?? throw new InvalidOperationException("DevelopmentUser:Email is not set.");
         var password = configuration["DevelopmentUser:Password"]
             ?? throw new InvalidOperationException("DevelopmentUser:Password is not set.");
-        if (await userManager.FindByEmailAsync(email) is not null) return;
+
+        var existing = await userManager.FindByEmailAsync(email);
+        if (existing is not null) return existing;
 
         var result = await CreateUserCommand.CreateAsync(userManager, email, password);
+
         if (!result.Succeeded)
         {
             throw new InvalidOperationException(
                 "The development user could not be created: " + string.Join(" ", result.Errors.Select(error => error.Description)));
         }
+
+        return (await userManager.FindByEmailAsync(email))!;
     }
 
-    private static async Task SeedShowsAsync(WatchTrackerDbContext db)
+    private static async Task SeedShowsAsync(WatchTrackerDbContext db, User user)
     {
         if (await db.Shows.AnyAsync()) return;
 
@@ -42,6 +47,7 @@ public static class DevelopmentSeed
 
         Show NewShow(string title, string status, string? service, int? season, int? episode, int daysAgo) => new()
         {
+            UserId = user.Id,
             Title = title,
             Status = status,
             Service = service,

@@ -62,9 +62,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     // A client logged in as a new user through the login endpoint. It sends the cookie with every
     // request after that, like a browser.
-    public async Task<HttpClient> CreateLoggedInClientAsync()
+    public async Task<HttpClient> CreateLoggedInClientAsync() => await CreateLoggedInClientAsync(await CreateUserAsync());
+
+    // The same for a given user, when the test needs to know who is logged in – to give them shows.
+    public async Task<HttpClient> CreateLoggedInClientAsync(User user)
     {
-        var user = await CreateUserAsync();
         var client = CreateClient();
         var response = await client.PostAsJsonAsync(
             "/api/auth/login", new { email = user.Email, password = Password }, TestContext.Current.CancellationToken);
