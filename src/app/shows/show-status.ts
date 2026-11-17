@@ -9,7 +9,3 @@ export const SHOW_STATUSES = [
 ] as const;
 
 export type ShowStatus = (typeof SHOW_STATUSES)[number]['id'];
-
-export function isShowStatus(value: unknown): value is ShowStatus {
-  return SHOW_STATUSES.some((item) => item.id === value);
-}

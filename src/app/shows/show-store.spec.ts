@@ -1,293 +1,225 @@
 import { TestBed } from '@angular/core/testing';
-import { ShowStorage } from './show-storage';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
 import { ShowStore } from './show-store';
-import type { EditableShowFields, TrackedShow } from './tracked-show';
+import type { ShowPostModel, TrackedShow } from './tracked-show';
 
-// Stands in for localStorage: the tests never touch the real browser storage,
-// and each test starts from an empty, isolated store.
-class InMemoryShowStorage extends ShowStorage {
-  saved: TrackedShow[] = [];
-
-  load(): TrackedShow[] {
-    return this.saved;
-  }
-
-  save(shows: TrackedShow[]): void {
-    this.saved = shows;
-  }
-}
-
-const aShow = (overrides: Partial<EditableShowFields> = {}): EditableShowFields => ({
-  title: 'Test Show',
+const aShow = (id: number, overrides: Partial<TrackedShow> = {}): TrackedShow => ({
+  id,
+  title: `Show ${id}`,
   status: 'watching',
+  addedAt: '2026-11-01T12:00:00+00:00',
+  updatedAt: '2026-11-01T12:00:00+00:00',
   ...overrides,
 });
 
 describe('ShowStore', () => {
   let store: ShowStore;
-  let storage: InMemoryShowStorage;
+  let httpTesting: HttpTestingController;
 
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-11-01T12:00:00.000Z'));
-    TestBed.configureTestingModule({
-      providers: [{ provide: ShowStorage, useClass: InMemoryShowStorage }],
-    });
+    TestBed.configureTestingModule({ providers: [provideHttpClientTesting()] });
+    httpTesting = TestBed.inject(HttpTestingController);
     store = TestBed.inject(ShowStore);
-    storage = TestBed.inject(ShowStorage) as InMemoryShowStorage;
   });
 
+  // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
+    try {
+      httpTesting.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
+  // Answers the load the store starts when it is created.
+  function loadShows(shows: TrackedShow[]): void {
+    httpTesting.expectOne({ method: 'GET', url: '/api/shows' }).flush(shows);
+  }
+
+  const ids = (shows: readonly TrackedShow[]) => shows.map((show) => show.id);
+
+  describe('load', () => {
+    it('loads the list when it is created', () => {
+      expect(store.status()).toBe('loading');
+
+      loadShows([aShow(2), aShow(1)]);
+
+      expect(ids(store.shows())).toEqual([2, 1]);
+      expect(store.status()).toBe('loaded');
+    });
+
+    it('is in error, with no shows, when the list cannot be loaded', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      httpTesting
+        .expectOne('/api/shows')
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
+
+      expect(store.status()).toBe('error');
+      expect(store.shows()).toEqual([]);
+    });
+
+    // Loaded again when the app comes to the foreground (D69) and after a login.
+    it('is loading again while it reloads, then replaces the list', () => {
+      loadShows([aShow(1)]);
+
+      store.load();
+      expect(store.status()).toBe('loading');
+      loadShows([aShow(2), aShow(1, { title: 'Renamed on the Mac' })]);
+
+      expect(store.shows()).toEqual([aShow(2), aShow(1, { title: 'Renamed on the Mac' })]);
+      expect(store.status()).toBe('loaded');
+    });
   });
 
   describe('add', () => {
-    it('generates an id and sets both timestamps to now', () => {
-      const added = store.add(aShow());
+    const fields: ShowPostModel = { title: 'Andor', status: 'want-to-watch' };
 
-      expect(added.id).toBeTruthy();
-      expect(added.addedAt).toBe('2026-11-01T12:00:00.000Z');
-      expect(added.updatedAt).toBe(added.addedAt);
+    // If the store subscribed too, the caller's subscription would send a second POST.
+    it('sends nothing until the caller subscribes', () => {
+      loadShows([]);
+
+      store.add(fields);
+
+      httpTesting.expectNone({ method: 'POST', url: '/api/shows' });
     });
 
-    it('gives each show its own id', () => {
-      const first = store.add(aShow());
-      const second = store.add(aShow());
+    it('puts the show the server returns in the list, and hands it to the caller', async () => {
+      loadShows([aShow(1)]);
+      const fromServer = aShow(2, { title: 'Andor', status: 'want-to-watch' });
+      const added = firstValueFrom(store.add(fields));
 
-      expect(first.id).not.toBe(second.id);
+      const request = httpTesting.expectOne({ method: 'POST', url: '/api/shows' });
+      expect(request.request.body).toEqual(fields);
+      request.flush(fromServer, { status: 201, statusText: 'Created' });
+
+      expect(await added).toEqual(fromServer);
+      expect(store.shows()).toHaveLength(2);
+      expect(store.shows()).toContainEqual(fromServer);
     });
 
-    it('keeps the fields the caller provided', () => {
-      const added = store.add(
-        aShow({
-          title: 'Severance',
-          status: 'want-to-watch',
-          service: 'apple-tv-plus',
-          lastWatched: { season: 2, episode: 5 },
-        }),
-      );
+    it('leaves the list as it was when the server refuses, and passes the error on', async () => {
+      loadShows([aShow(1)]);
+      const added = firstValueFrom(store.add(fields));
 
-      expect(added.title).toBe('Severance');
-      expect(added.status).toBe('want-to-watch');
-      expect(added.service).toBe('apple-tv-plus');
-      expect(added.lastWatched).toEqual({ season: 2, episode: 5 });
-    });
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/shows' })
+        .flush(null, { status: 400, statusText: 'Bad Request' });
 
-    it('puts the show in the list', () => {
-      const added = store.add(aShow());
-
-      expect(store.shows()).toContainEqual(added);
-    });
-  });
-
-  describe('remove', () => {
-    it('removes only the show with that id', () => {
-      const kept = store.add(aShow({ title: 'Kept' }));
-      const removed = store.add(aShow({ title: 'Removed' }));
-
-      store.remove(removed.id);
-
-      expect(store.shows()).toContainEqual(kept);
-      expect(store.shows().some((show) => show.id === removed.id)).toBe(false);
-    });
-
-    it('leaves the list alone when the id is unknown', () => {
-      store.add(aShow());
-      const before = store.shows();
-
-      store.remove('no-such-id');
-
-      expect(store.shows()).toEqual(before);
+      await expect(added).rejects.toMatchObject({ status: 400 });
+      expect(store.shows()).toEqual([aShow(1)]);
     });
   });
 
   describe('update', () => {
-    it('applies the changes to that show', () => {
-      const added = store.add(aShow({ title: 'Old title' }));
+    it('puts the version the server returns in place of the show, and leaves the others', async () => {
+      loadShows([aShow(2), aShow(1)]);
+      const fields: ShowPostModel = { title: 'Severance', status: 'finished' };
+      const fromServer = aShow(1, {
+        title: 'Severance',
+        status: 'finished',
+        updatedAt: '2026-11-16T08:02:44.5+00:00',
+      });
+      const saved = firstValueFrom(store.update(1, fields));
 
-      store.update(added.id, { title: 'New title', status: 'finished' });
+      const request = httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' });
+      expect(request.request.body).toEqual(fields);
+      request.flush(fromServer);
 
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated?.title).toBe('New title');
-      expect(updated?.status).toBe('finished');
+      expect(await saved).toEqual(fromServer);
+      expect(store.shows()).toEqual([aShow(2), fromServer]);
+    });
+  });
+
+  describe('delete', () => {
+    it('removes only that show once the server has deleted it', async () => {
+      loadShows([aShow(2), aShow(1)]);
+      const deleted = firstValueFrom(store.delete(1));
+
+      httpTesting
+        .expectOne({ method: 'DELETE', url: '/api/shows/1' })
+        .flush(null, { status: 204, statusText: 'No Content' });
+      await deleted;
+
+      expect(store.shows()).toEqual([aShow(2)]);
     });
 
-    it('bumps updatedAt but keeps addedAt and id', () => {
-      const added = store.add(aShow());
-      vi.setSystemTime(new Date('2026-11-02T08:30:00.000Z'));
+    it('keeps the show when the delete fails, and passes the error on', async () => {
+      loadShows([aShow(2), aShow(1)]);
+      const deleted = firstValueFrom(store.delete(1));
 
-      store.update(added.id, { title: 'Renamed' });
+      httpTesting
+        .expectOne({ method: 'DELETE', url: '/api/shows/1' })
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
 
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated?.updatedAt).toBe('2026-11-02T08:30:00.000Z');
-      expect(updated?.addedAt).toBe(added.addedAt);
-      expect(updated?.id).toBe(added.id);
-    });
-
-    it('leaves fields that were not in the changes', () => {
-      const added = store.add(aShow({ title: 'Keep me', service: 'netflix' }));
-
-      store.update(added.id, { status: 'dropped' });
-
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated?.title).toBe('Keep me');
-      expect(updated?.service).toBe('netflix');
-    });
-
-    it('does not touch the other shows', () => {
-      const untouched = store.add(aShow({ title: 'Untouched' }));
-      const target = store.add(aShow({ title: 'Target' }));
-
-      store.update(target.id, { title: 'Changed' });
-
-      expect(store.shows()).toContainEqual(untouched);
-    });
-
-    it('changes nothing when the id is unknown', () => {
-      store.add(aShow());
-      const before = store.shows();
-
-      store.update('no-such-id', { title: 'Nope' });
-
-      expect(store.shows()).toEqual(before);
+      await expect(deleted).rejects.toMatchObject({ status: 500 });
+      expect(store.shows()).toEqual([aShow(2), aShow(1)]);
     });
   });
 
   describe('markNextEpisodeAsWatched', () => {
-    it('saves the next episode as last watched', () => {
-      const added = store.add(aShow({ lastWatched: { season: 2, episode: 5 } }));
+    // No caller subscribes: the card only needs the list to change.
+    it('sends the command itself and puts the show the server returns in the list', () => {
+      loadShows([aShow(2), aShow(1, { lastWatched: { season: 2, episode: 5 } })]);
+      const fromServer = aShow(1, {
+        lastWatched: { season: 2, episode: 6 },
+        updatedAt: '2026-11-16T08:02:44.5+00:00',
+      });
 
-      store.markNextEpisodeAsWatched(added.id);
+      store.markNextEpisodeAsWatched(1);
 
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated?.lastWatched).toEqual({ season: 2, episode: 6 });
+      httpTesting.expectOne({ method: 'POST', url: '/api/shows/1/next-episode' }).flush(fromServer);
+      expect(store.shows()).toEqual([aShow(2), fromServer]);
     });
 
-    it('starts a want-to-watch show at S01 E01 and sets it to watching', () => {
-      const added = store.add(aShow({ status: 'want-to-watch' }));
+    // Without an error callback, RxJS throws the error later, outside the store.
+    it('logs a failed command and leaves the show as it was', () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      loadShows([aShow(1)]);
 
-      store.markNextEpisodeAsWatched(added.id);
+      store.markNextEpisodeAsWatched(1);
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
 
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated?.lastWatched).toEqual({ season: 1, episode: 1 });
-      expect(updated?.status).toBe('watching');
-    });
-
-    it.each(['finished', 'dropped'] as const)('leaves a %s show unchanged', (status) => {
-      const added = store.add(aShow({ status, lastWatched: { season: 1, episode: 3 } }));
-      vi.setSystemTime(new Date('2026-11-02T08:30:00.000Z'));
-
-      store.markNextEpisodeAsWatched(added.id);
-
-      const updated = store.shows().find((show) => show.id === added.id);
-      expect(updated).toEqual(added);
-    });
-
-    it('moves the show to the front of watching', () => {
-      const first = store.add(aShow({ title: 'First' }));
-      vi.setSystemTime(new Date('2026-11-01T13:00:00.000Z'));
-      store.add(aShow({ title: 'Second' }));
-      vi.setSystemTime(new Date('2026-11-01T14:00:00.000Z'));
-
-      store.markNextEpisodeAsWatched(first.id);
-
-      expect(store.watching()[0].id).toBe(first.id);
-    });
-
-    it('changes nothing when the id is unknown', () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      store.add(aShow());
-      const before = store.shows();
-
-      store.markNextEpisodeAsWatched('no-such-id');
-
-      expect(store.shows()).toEqual(before);
+      expect(store.shows()).toEqual([aShow(1)]);
+      expect(consoleError).toHaveBeenCalled();
     });
   });
 
   describe('watching', () => {
-    it('only includes shows with status watching', () => {
-      store.add(aShow({ title: 'Watching it', status: 'watching' }));
-      store.add(aShow({ title: 'Want to', status: 'want-to-watch' }));
-      store.add(aShow({ title: 'Done', status: 'finished' }));
+    it('only has the shows being watched', () => {
+      loadShows([
+        aShow(1),
+        aShow(2, { status: 'want-to-watch' }),
+        aShow(3, { status: 'finished' }),
+        aShow(4, { status: 'dropped' }),
+      ]);
 
-      expect(store.watching().every((show) => show.status === 'watching')).toBe(true);
-      expect(store.watching().some((show) => show.title === 'Want to')).toBe(false);
+      expect(ids(store.watching())).toEqual([1]);
     });
 
-    it('sorts by updatedAt, most recent first', () => {
-      const oldest = store.add(aShow({ title: 'Oldest' }));
-      vi.setSystemTime(new Date('2026-11-01T13:00:00.000Z'));
-      const middle = store.add(aShow({ title: 'Middle' }));
-      vi.setSystemTime(new Date('2026-11-01T14:00:00.000Z'));
-      const newest = store.add(aShow({ title: 'Newest' }));
+    it('lists the most recently updated show first', () => {
+      loadShows([
+        aShow(1, { updatedAt: '2026-11-01T12:00:00+00:00' }),
+        aShow(2, { updatedAt: '2026-11-03T12:00:00+00:00' }),
+        aShow(3, { updatedAt: '2026-11-02T12:00:00+00:00' }),
+      ]);
 
-      expect(store.watching().map((show) => show.id)).toEqual([newest.id, middle.id, oldest.id]);
+      expect(ids(store.watching())).toEqual([2, 3, 1]);
     });
 
-    it('moves a show to the front when it is updated', () => {
-      const first = store.add(aShow({ title: 'First' }));
-      vi.setSystemTime(new Date('2026-11-01T13:00:00.000Z'));
-      const second = store.add(aShow({ title: 'Second' }));
+    // The server leaves out trailing zeros, so a show updated on a whole second has no decimals.
+    // Compared as text, it sorts wrongly against one updated later in the same second.
+    it('compares the times, not the text', () => {
+      loadShows([
+        aShow(1, { updatedAt: '2026-11-16T08:00:00+00:00' }),
+        aShow(2, { updatedAt: '2026-11-16T08:00:00.5+00:00' }),
+      ]);
 
-      expect(store.watching()[0].id).toBe(second.id);
-
-      vi.setSystemTime(new Date('2026-11-01T14:00:00.000Z'));
-      store.update(first.id, { status: 'watching' });
-
-      expect(store.watching()[0].id).toBe(first.id);
-    });
-  });
-
-  describe('persistence', () => {
-    it('starts from whatever storage returns', () => {
-      const stored: TrackedShow = {
-        id: 'from-storage',
-        title: 'Loaded from storage',
-        status: 'finished',
-        addedAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-02T00:00:00.000Z',
-      };
-      const seeded = new InMemoryShowStorage();
-      seeded.saved = [stored];
-
-      TestBed.resetTestingModule();
-      TestBed.configureTestingModule({
-        providers: [{ provide: ShowStorage, useValue: seeded }],
-      });
-
-      expect(TestBed.inject(ShowStore).shows()).toEqual([stored]);
-    });
-
-    it('saves the new list after add', () => {
-      const added = store.add(aShow());
-
-      expect(storage.saved).toContainEqual(added);
-    });
-
-    it('saves the new list after remove', () => {
-      const added = store.add(aShow());
-
-      store.remove(added.id);
-
-      expect(storage.saved).toEqual([]);
-    });
-
-    it('saves the new list after update', () => {
-      const added = store.add(aShow({ title: 'Before' }));
-
-      store.update(added.id, { title: 'After' });
-
-      expect(storage.saved[0].title).toBe('After');
-    });
-
-    it('saves the new progress after markNextEpisodeAsWatched', () => {
-      const added = store.add(aShow());
-
-      store.markNextEpisodeAsWatched(added.id);
-
-      expect(storage.saved[0].lastWatched).toEqual({ season: 1, episode: 1 });
+      expect(ids(store.watching())).toEqual([2, 1]);
     });
   });
 });

@@ -2,9 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WatchTracker.Api.Shows;
 
-// What POST and PUT take: the fields the user decides, Angular's EditableShowFields (D89). The
-// attributes are checked before the endpoint runs (AddValidation in Program.cs): a request that
-// breaks one gets a 400 that names the field, and the endpoint never sees it.
+// What POST and PUT take: the fields the user decides. A request that breaks one of the
+// attributes gets a 400 naming the field before the endpoint runs (AddValidation in Program.cs).
 public record ShowPostModel(
     // Required also refuses an empty title and one of only spaces.
     [Required(ErrorMessage = "Title is required.")]

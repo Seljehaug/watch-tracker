@@ -4,7 +4,7 @@ import { ShowCard } from './show-card';
 import type { TrackedShow } from '../tracked-show';
 
 const aShow = (overrides: Partial<TrackedShow> = {}): TrackedShow => ({
-  id: 'show-1',
+  id: 1,
   title: 'Severance',
   status: 'watching',
   lastWatched: { season: 2, episode: 5 },
@@ -28,20 +28,20 @@ describe('ShowCard', () => {
 
   // The URL has to match the editor's route, `shows/:showId/edit` (D38).
   it('links to the edit page of the show', () => {
-    const fixture = render(aShow({ id: 'abc' }));
+    const fixture = render(aShow({ id: 12 }));
 
     const link = (fixture.nativeElement as HTMLElement).querySelector('a');
-    expect(link?.getAttribute('href')).toBe('/shows/abc/edit');
+    expect(link?.getAttribute('href')).toBe('/shows/12/edit');
   });
 
   it('emits the show id when the next episode button is clicked', () => {
-    const fixture = render(aShow({ id: 'abc' }));
-    const emitted: string[] = [];
+    const fixture = render(aShow({ id: 12 }));
+    const emitted: number[] = [];
     fixture.componentInstance.nextEpisodeWatched.subscribe((id) => emitted.push(id));
 
     nextEpisodeButton(fixture)?.click();
 
-    expect(emitted).toEqual(['abc']);
+    expect(emitted).toEqual([12]);
   });
 
   it('names the next episode and the show in the button label', () => {

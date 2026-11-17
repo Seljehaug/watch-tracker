@@ -1,5 +1,5 @@
-import { isShowStatus, type ShowStatus } from './show-status';
-import { isStreamingService, StreamingService } from './streaming-service';
+import { type ShowStatus } from './show-status';
+import { StreamingService } from './streaming-service';
 
 // Absent on a show means not started.
 export interface EpisodeRef {
@@ -7,9 +7,9 @@ export interface EpisodeRef {
   readonly episode: number;
 }
 
-// Timestamps are ISO strings – they survive the JSON round trip to storage.
+// A show as the API sends it. Timestamps are ISO strings.
 export interface TrackedShow {
-  readonly id: string;
+  readonly id: number;
   readonly title: string;
   readonly status: ShowStatus;
   readonly service?: StreamingService;
@@ -18,17 +18,9 @@ export interface TrackedShow {
   readonly updatedAt: string;
 }
 
-export type EditableShowFields = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>;
+export type ShowId = TrackedShow['id'];
 
-export function isEpisodeRef(value: unknown): value is EpisodeRef {
-  if (value === null || typeof value !== 'object') return false;
-  const fields = value as Record<string, unknown>;
-
-  if (typeof fields['season'] !== 'number') return false;
-  if (typeof fields['episode'] !== 'number') return false;
-
-  return true;
-}
+export type ShowPostModel = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>;
 
 export function getNextEpisodeRef(lastWatched?: EpisodeRef): EpisodeRef {
   if (!lastWatched) return { season: 1, episode: 1 };
@@ -38,19 +30,4 @@ export function getNextEpisodeRef(lastWatched?: EpisodeRef): EpisodeRef {
 export function canMarkNextEpisodeAsWatched(show: TrackedShow): boolean {
   const status = show.status;
   return status === 'watching' || status === 'want-to-watch';
-}
-
-export function isTrackedShow(value: unknown): value is TrackedShow {
-  if (value === null || typeof value !== 'object') return false;
-  const fields = value as Record<string, unknown>;
-
-  if (typeof fields['id'] !== 'string') return false;
-  if (typeof fields['title'] !== 'string') return false;
-  if (!isShowStatus(fields['status'])) return false;
-  if (fields['service'] !== undefined && !isStreamingService(fields['service'])) return false;
-  if (fields['lastWatched'] !== undefined && !isEpisodeRef(fields['lastWatched'])) return false;
-  if (typeof fields['addedAt'] !== 'string') return false;
-  if (typeof fields['updatedAt'] !== 'string') return false;
-
-  return true;
 }

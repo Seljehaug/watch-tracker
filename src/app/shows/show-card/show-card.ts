@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import { canMarkNextEpisodeAsWatched, getNextEpisodeRef, TrackedShow } from '../tracked-show';
+import { canMarkNextEpisodeAsWatched, getNextEpisodeRef, ShowId, TrackedShow } from '../tracked-show';
 import { streamingServiceDisplayName } from '../streaming-service';
 import { SvgIcon } from '../../shared/svg-icon/svg-icon';
 import { DatePipe } from '@angular/common';
@@ -169,7 +169,7 @@ export class ShowCard {
   readonly show = input.required<TrackedShow>();
 
   // Outputs
-  readonly nextEpisodeWatched = output<string>();
+  readonly nextEpisodeWatched = output<ShowId>();
 
   // State
   protected readonly lastWatchedDisplay = computed(() => {

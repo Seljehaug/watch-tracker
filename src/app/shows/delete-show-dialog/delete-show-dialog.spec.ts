@@ -1,41 +1,29 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { ShowStorage } from '../show-storage';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ShowStore } from '../show-store';
 import type { TrackedShow } from '../tracked-show';
 import { DeleteShowDialog } from './delete-show-dialog';
 
-class InMemoryShowStorage extends ShowStorage {
-  constructor(private shows: TrackedShow[]) {
-    super();
-  }
-
-  load(): TrackedShow[] {
-    return this.shows;
-  }
-
-  save(shows: TrackedShow[]): void {
-    this.shows = shows;
-  }
-}
-
 const severance: TrackedShow = {
-  id: 'severance',
+  id: 12,
   title: 'Severance',
   status: 'watching',
   lastWatched: { season: 2, episode: 7 },
-  addedAt: '2026-10-01T00:00:00.000Z',
-  updatedAt: '2026-10-01T00:00:00.000Z',
+  addedAt: '2026-10-01T00:00:00+00:00',
+  updatedAt: '2026-10-01T00:00:00+00:00',
 };
 
 const slowHorses: TrackedShow = {
-  id: 'slow-horses',
+  id: 1,
   title: 'Slow Horses',
   status: 'finished',
-  addedAt: '2026-10-01T00:00:00.000Z',
-  updatedAt: '2026-10-01T00:00:00.000Z',
+  addedAt: '2026-10-01T00:00:00+00:00',
+  updatedAt: '2026-10-01T00:00:00+00:00',
 };
 
 describe('DeleteShowDialog', () => {
+  let httpTesting: HttpTestingController;
+
   // jsdom has no showModal() or close(). These stand-ins keep the `open` attribute, which is all
   // the tests look at.
   beforeAll(() => {
@@ -53,13 +41,22 @@ describe('DeleteShowDialog', () => {
     delete prototype.close;
   });
 
+  // Reset also when verify() throws, or every later test fails with "already instantiated".
+  afterEach(() => {
+    try {
+      httpTesting.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
   // Renders the dialog for Severance and opens it, as the editor does.
   function open(): ComponentFixture<DeleteShowDialog> {
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: ShowStorage, useValue: new InMemoryShowStorage([severance, slowHorses]) },
-      ],
-    });
+    TestBed.configureTestingModule({ providers: [provideHttpClientTesting()] });
+    httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.inject(ShowStore);
+    httpTesting.expectOne('/api/shows').flush([severance, slowHorses]);
+
     const fixture = TestBed.createComponent(DeleteShowDialog);
     fixture.componentRef.setInput('show', severance);
     fixture.detectChanges();
@@ -86,16 +83,26 @@ describe('DeleteShowDialog', () => {
     return () => count;
   }
 
-  const storedIds = () => TestBed.inject(ShowStore).shows().map((show) => show.id);
+  const storedIds = () =>
+    TestBed.inject(ShowStore)
+      .shows()
+      .map((show) => show.id);
 
   // D59: the dialog deletes, and the parent only decides where to go afterwards.
-  it('deletes the show, closes and emits deleted when Delete show is pressed', () => {
+  it('deletes the show, then closes and emits deleted once the server has deleted it', async () => {
     const fixture = open();
     const deletedEvents = countDeletedEvents(fixture);
 
     button(fixture, 'Delete show').click();
+    expect(dialog(fixture).hasAttribute('open')).toBe(true);
+    expect(deletedEvents()).toBe(0);
 
-    expect(storedIds()).toEqual(['slow-horses']);
+    httpTesting
+      .expectOne({ method: 'DELETE', url: '/api/shows/12' })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+
+    expect(storedIds()).toEqual([1]);
     expect(dialog(fixture).hasAttribute('open')).toBe(false);
     expect(deletedEvents()).toBe(1);
   });
@@ -106,7 +113,7 @@ describe('DeleteShowDialog', () => {
 
     button(fixture, name).click();
 
-    expect(storedIds()).toEqual(['severance', 'slow-horses']);
+    expect(storedIds()).toEqual([12, 1]);
     expect(dialog(fixture).hasAttribute('open')).toBe(false);
     expect(deletedEvents()).toBe(0);
   });
@@ -116,7 +123,8 @@ describe('DeleteShowDialog', () => {
   it('is named by its title and described by its text', () => {
     const fixture = open();
     const element = dialog(fixture);
-    const textOf = (id: string | null) => (id ? document.getElementById(id)?.textContent?.trim() : undefined);
+    const textOf = (id: string | null) =>
+      id ? document.getElementById(id)?.textContent?.trim() : undefined;
 
     expect(textOf(element.getAttribute('aria-labelledby'))).toBe('Delete Severance?');
     expect(textOf(element.getAttribute('aria-describedby'))).toBe("This can't be undone.");

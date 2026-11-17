@@ -5,6 +5,7 @@ import {ShowListEmpty} from '../shows/show-list-empty/show-list-empty';
 import {RouterLink} from '@angular/router';
 import {SvgIcon} from '../shared/svg-icon/svg-icon';
 import {PageHeader} from '../shared/page-header/page-header';
+import {ShowId} from '../shows/tracked-show';
 
 @Component({
   selector: 'app-home',
@@ -53,7 +54,7 @@ export class Home {
 
   protected readonly watchingText = computed(() => `${this.watching().length} ${this.watching().length === 1 ? 'show' : 'shows'} in progress`);
 
-  protected markNextEpisodeAsWatched(id: string): void {
+  protected markNextEpisodeAsWatched(id: ShowId): void {
     this.store.markNextEpisodeAsWatched(id);
   }
 }

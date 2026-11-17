@@ -1,6 +1,6 @@
 import {ShowStatus} from './show-status';
 import {StreamingService} from './streaming-service';
-import {EditableShowFields, TrackedShow} from './tracked-show';
+import {ShowPostModel, TrackedShow} from './tracked-show';
 import {min, required, schema, SchemaPath, validate} from '@angular/forms/signals';
 
 export interface ShowEditorFormModel {
@@ -35,7 +35,7 @@ export function toShowEditorFormModel(show: TrackedShow): ShowEditorFormModel {
   }
 }
 
-export function toEditableShowFields(model: ShowEditorFormModel): EditableShowFields {
+export function toShowPostModel(model: ShowEditorFormModel): ShowPostModel {
   return {
     title: model.title.trim(),
     status: model.status,

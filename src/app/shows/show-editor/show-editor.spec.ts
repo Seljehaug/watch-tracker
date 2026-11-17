@@ -1,42 +1,28 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
-import { ShowStorage } from '../show-storage';
 import { ShowStore } from '../show-store';
 import type { TrackedShow } from '../tracked-show';
 import { ShowEditor } from './show-editor';
 
-class InMemoryShowStorage extends ShowStorage {
-  constructor(private shows: TrackedShow[]) {
-    super();
-  }
-
-  load(): TrackedShow[] {
-    return this.shows;
-  }
-
-  save(shows: TrackedShow[]): void {
-    this.shows = shows;
-  }
-}
-
 const slowHorses: TrackedShow = {
-  id: 'slow-horses',
+  id: 1,
   title: 'Slow Horses',
   status: 'finished',
   service: 'apple-tv-plus',
   lastWatched: { season: 3, episode: 6 },
-  addedAt: '2026-10-01T00:00:00.000Z',
-  updatedAt: '2026-10-01T00:00:00.000Z',
+  addedAt: '2026-10-01T00:00:00+00:00',
+  updatedAt: '2026-10-01T00:00:00+00:00',
 };
 
 const severance: TrackedShow = {
-  id: 'severance',
+  id: 2,
   title: 'Severance',
   status: 'watching',
-  addedAt: '2026-10-01T00:00:00.000Z',
-  updatedAt: '2026-10-01T00:00:00.000Z',
+  addedAt: '2026-10-01T00:00:00+00:00',
+  updatedAt: '2026-10-01T00:00:00+00:00',
 };
 
 const EMPTY_FORM = { title: '', status: 'watching', service: '', season: '', episode: '' };
@@ -45,6 +31,7 @@ const EMPTY_FORM = { title: '', status: 'watching', service: '', season: '', epi
 // the `showId` input (D38).
 describe('ShowEditor', () => {
   let harness: RouterTestingHarness;
+  let httpTesting: HttpTestingController;
 
   // jsdom has no showModal() or close(). These stand-ins keep the `open` attribute, enough for the
   // delete dialog to be opened and closed.
@@ -61,6 +48,15 @@ describe('ShowEditor', () => {
     const prototype = HTMLDialogElement.prototype as Partial<HTMLDialogElement>;
     delete prototype.showModal;
     delete prototype.close;
+  });
+
+  // Reset also when verify() throws, or every later test fails with "already instantiated".
+  afterEach(() => {
+    try {
+      httpTesting.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
   });
 
   const root = () => harness.routeNativeElement as HTMLElement;
@@ -86,11 +82,14 @@ describe('ShowEditor', () => {
     shows: TrackedShow[] = [slowHorses, severance],
   ): Promise<ShowEditor> {
     TestBed.configureTestingModule({
-      providers: [
-        provideRouter(routes, withComponentInputBinding()),
-        { provide: ShowStorage, useValue: new InMemoryShowStorage(shows) },
-      ],
+      providers: [provideRouter(routes, withComponentInputBinding()), provideHttpClientTesting()],
     });
+    httpTesting = TestBed.inject(HttpTestingController);
+
+    // The edit route's guard reads the list as it is, so it is loaded before the first navigation.
+    TestBed.inject(ShowStore);
+    httpTesting.expectOne('/api/shows').flush(shows);
+
     harness = await RouterTestingHarness.create();
     return navigate(url);
   }
@@ -119,8 +118,9 @@ describe('ShowEditor', () => {
       (button) => button.textContent?.trim() === 'Delete show' && !button.closest('dialog'),
     );
 
+  // The id comes from the URL as text and is found in the store as a number.
   it('fills the form with the show in the URL', async () => {
-    await open('/shows/slow-horses/edit');
+    await open('/shows/1/edit');
 
     expect(fieldValues()).toEqual({
       title: 'Slow Horses',
@@ -139,30 +139,35 @@ describe('ShowEditor', () => {
   });
 
   it('follows the URL to another show, leaving unsaved edits behind', async () => {
-    const editor = await open('/shows/slow-horses/edit');
+    const editor = await open('/shows/1/edit');
     type('Title', 'Slow Horses (edited)');
 
-    const editorAfterNavigation = await navigate('/shows/severance/edit');
+    const editorAfterNavigation = await navigate('/shows/2/edit');
 
     // The router reuses the page for the new id, so only the input changes.
     expect(editorAfterNavigation).toBe(editor);
     expect(fieldValues()).toEqual({ ...EMPTY_FORM, title: 'Severance' });
   });
 
-  it('saves changes to the show it opened and keeps the fields that were not edited', async () => {
-    await open('/shows/slow-horses/edit');
+  // PUT overwrites every field (D69), so the fields that were not edited are sent too.
+  it('saves every field of the show it opened, and puts the saved show in the store', async () => {
+    await open('/shows/1/edit');
     type('Title', 'Slow Horses: Season 4');
 
     save();
 
-    const shows = TestBed.inject(ShowStore).shows();
-    expect(shows).toHaveLength(2);
-    expect(shows.find((show) => show.id === 'slow-horses')).toMatchObject({
+    const request = httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' });
+    expect(request.request.body).toEqual({
       title: 'Slow Horses: Season 4',
       status: 'finished',
       service: 'apple-tv-plus',
       lastWatched: { season: 3, episode: 6 },
     });
+    const saved = { ...slowHorses, title: 'Slow Horses: Season 4' };
+    request.flush(saved);
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(ShowStore).shows()).toEqual([saved, severance]);
   });
 
   it('adds a new show when saving in add mode', async () => {
@@ -171,29 +176,37 @@ describe('ShowEditor', () => {
 
     save();
 
-    expect(TestBed.inject(ShowStore).shows()).toEqual([
-      expect.objectContaining({ title: 'Andor', status: 'watching' }),
-    ]);
+    const request = httpTesting.expectOne({ method: 'POST', url: '/api/shows' });
+    expect(request.request.body).toEqual({ title: 'Andor', status: 'watching' });
+    const added: TrackedShow = { ...severance, id: 3, title: 'Andor' };
+    request.flush(added, { status: 201, statusText: 'Created' });
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(ShowStore).shows()).toEqual([added]);
   });
 
-  // D49: Home after a successful save, and only then.
-  it('goes to Home after saving', async () => {
-    await open('/shows/slow-horses/edit');
+  // D49: Home once the server has saved the show, and only then.
+  it('goes to Home after the server has saved', async () => {
+    await open('/shows/1/edit');
 
     save();
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/shows/1/edit');
+
+    httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' }).flush(slowHorses);
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/');
   });
 
-  it('stays on the form when the save is invalid', async () => {
+  it('stays on the form, and sends nothing, when the save is invalid', async () => {
     await open('/shows/add', []);
 
     save();
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/shows/add');
-    expect(TestBed.inject(ShowStore).shows()).toEqual([]);
+    httpTesting.expectNone({ method: 'POST', url: '/api/shows' });
   });
 
   // D44 puts the error on the missing field; D83 shows it once, under both steppers.
@@ -219,13 +232,13 @@ describe('ShowEditor', () => {
     await open('/shows/add');
     expect(pageDeleteButton()).toBeUndefined();
 
-    await navigate('/shows/severance/edit');
+    await navigate('/shows/2/edit');
     expect(pageDeleteButton()).toBeDefined();
   });
 
   // D59: the dialog deletes and emits `deleted`; the editor then goes to Home (D49).
   it('goes to Home after the show is deleted in the dialog', async () => {
-    await open('/shows/severance/edit');
+    await open('/shows/2/edit');
 
     pageDeleteButton()?.click();
     harness.detectChanges();
@@ -236,9 +249,16 @@ describe('ShowEditor', () => {
       (button) => button.textContent?.trim() === 'Delete show',
     );
     confirmButton?.click();
+    httpTesting
+      .expectOne({ method: 'DELETE', url: '/api/shows/2' })
+      .flush(null, { status: 204, statusText: 'No Content' });
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(ShowStore).shows().map((show) => show.id)).toEqual(['slow-horses']);
+    expect(
+      TestBed.inject(ShowStore)
+        .shows()
+        .map((show) => show.id),
+    ).toEqual([1]);
     expect(TestBed.inject(Router).url).toBe('/');
   });
 });

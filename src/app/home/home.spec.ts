@@ -1,35 +1,25 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Home } from './home';
-import { ShowStorage } from '../shows/show-storage';
 import { ShowStore } from '../shows/show-store';
 import type { TrackedShow } from '../shows/tracked-show';
 
-class InMemoryShowStorage extends ShowStorage {
-  constructor(private shows: TrackedShow[]) {
-    super();
-  }
-
-  load(): TrackedShow[] {
-    return this.shows;
-  }
-
-  save(shows: TrackedShow[]): void {
-    this.shows = shows;
-  }
-}
-
-const aShow = (title: string, updatedAt: string): TrackedShow => ({
-  id: title.toLowerCase(),
+const aShow = (id: number, title: string, updatedAt: string): TrackedShow => ({
+  id,
   title,
   status: 'watching',
   lastWatched: { season: 1, episode: 1 },
-  addedAt: '2026-10-01T00:00:00.000Z',
+  addedAt: '2026-10-01T00:00:00+00:00',
   updatedAt,
 });
 
+const older = aShow(1, 'Older', '2026-11-01T20:00:00+00:00');
+const newer = aShow(2, 'Newer', '2026-11-02T20:00:00+00:00');
+
 describe('Home', () => {
   let fixture: ComponentFixture<Home>;
+  let httpTesting: HttpTestingController;
 
   const titles = () =>
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('h2'), (heading) =>
@@ -39,41 +29,43 @@ describe('Home', () => {
   const nextEpisodeButtons = () =>
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
 
+  // The list is loaded before the page opens, as when coming back to Home from the editor.
   function render(shows: TrackedShow[]): void {
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        { provide: ShowStorage, useValue: new InMemoryShowStorage(shows) },
-      ],
-    });
+    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClientTesting()] });
+    httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.inject(ShowStore);
+    httpTesting.expectOne('/api/shows').flush(shows);
+
     fixture = TestBed.createComponent(Home);
     fixture.detectChanges();
   }
 
-  const olderAndNewer = () => [
-    aShow('Older', '2026-11-01T20:00:00.000Z'),
-    aShow('Newer', '2026-11-02T20:00:00.000Z'),
-  ];
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-11-03T12:00:00.000Z'));
-  });
-
+  // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
-    vi.useRealTimers();
+    try {
+      httpTesting.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
   });
 
   it('lists the most recently updated show first when the page opens', () => {
-    render(olderAndNewer());
+    render([older, newer]);
 
     expect(titles()).toEqual(['Newer', 'Older']);
   });
 
   it('keeps a card in place when its next episode is marked', () => {
-    render(olderAndNewer());
+    render([older, newer]);
 
     nextEpisodeButtons()[1].click();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+      .flush({
+        ...older,
+        lastWatched: { season: 1, episode: 2 },
+        updatedAt: '2026-11-03T12:00:00+00:00',
+      });
     fixture.detectChanges();
 
     expect(titles()).toEqual(['Newer', 'Older']);
@@ -83,16 +75,19 @@ describe('Home', () => {
   });
 
   it('puts a show that starts after the page opened first', () => {
-    render(olderAndNewer());
+    render([older, newer]);
 
-    TestBed.inject(ShowStore).add({ title: 'Brand new', status: 'watching' });
+    TestBed.inject(ShowStore).add({ title: 'Brand new', status: 'watching' }).subscribe();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows' })
+      .flush(aShow(3, 'Brand new', '2026-11-03T12:00:00+00:00'));
     fixture.detectChanges();
 
     expect(titles()).toEqual(['Brand new', 'Newer', 'Older']);
   });
 
   it('shows the empty state instead of the list when no show is being watched', () => {
-    render([{ ...aShow('Done', '2026-10-01T00:00:00.000Z'), status: 'finished' }]);
+    render([{ ...older, status: 'finished' }]);
 
     const page = fixture.nativeElement as HTMLElement;
     expect(page.querySelector('app-show-list-empty')).not.toBeNull();

@@ -4,18 +4,20 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-16
+**Last updated:** 2026-11-17
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
 production runs the ASP.NET Core image against Neon (D2, D92). Login (B3) is done 2026-11-13:
 the API requires a login everywhere but `/healthz` and Angular's pages, and my user exists in
-production (D93–D96) – Angular still on localStorage, the Pixel's shows untouched. The
+production (D93–D96). The
 set-password command (B5) is done 2026-11-16: my password was changed with it in production
 (D97). The show endpoints (B4) are done 2026-11-16: every show has an owner, and the API reads,
-adds, saves, deletes and steps on a user's own shows only (D104–D106) – deployed the same day,
-Angular still on localStorage. B1, B2's skeleton part and D1 were done 2026-11-12. Next is C1,
-Angular against the API. The goal is
+adds, saves, deletes and steps on a user's own shows only (D104–D106) – deployed the same day.
+B1, B2's skeleton part and D1 were done 2026-11-12. C1, Angular against the API, is under way:
+the proxy, `ShowApi` and `ShowStore` on it are done 2026-11-17 (D107–D109), so Angular reads and
+writes `/api/shows` locally; production keeps the localStorage version until C1 and C2 go out
+together. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -103,11 +105,13 @@ goal (D63): it should take as little time from Angular as possible.
   `shows/:showId/edit` → `ShowEditor`, which gets the id through component input binding (D38),
   and `**` last → `PageNotFound` (the router takes the first match). The edit route has
   `canActivate: [showExistsGuard]` (`src/app/shows/show-exists-guard.ts`, D53): it reads the id
-  with `route.paramMap.get('showId')` (typed `string | null`, where `params` is `any`) and
+  with `route.paramMap.get('showId')` (typed `string | null`, where `params` is `any`), makes it a
+  number with `Number()` – `NaN` for `abc` and `12abc`, where `parseInt` would read 12 – and
   returns `true` when `ShowStore.showExists`, otherwise a `RedirectCommand` to
   `/page-not-found` – no route of its own, `**` catches it – with `browserUrl: state.url`, so
   the router shows the not-found page while the address bar keeps the URL the user asked for
-  (`router.url` is the redirect target). The router has
+  (`router.url` is the redirect target). It reads the store's list as it is, so until C1 makes
+  it wait for the first load, an edit URL opened directly gets the not-found page. The router has
   `withViewTransitions()`, so pages swap with the browser's default crossfade, and
   `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })`, so a new page starts at the
   top and Back restores the position. `App` moves focus after every navigation but the first
@@ -119,7 +123,10 @@ goal (D63): it should take as little time from Angular as possible.
 - `Home` is "Continue watching": it renders `ShowList` with the shows being watched and calls
   `ShowStore.markNextEpisodeAsWatched` when a card's button is tapped. The order is frozen when the
   page opens – an `openedOrder` id list read once in a field initializer, plus a `computed` that
-  puts the store's fresh data in that order, with shows that started since first (D36). With no
+  puts the store's fresh data in that order, with shows that started since first (D36). Since the
+  list comes from the API, the order is only frozen when it is already loaded as Home opens –
+  coming back from the editor; at app start the field initializer reads an empty list, so a tapped
+  card moves to the top until C1 freezes the order when the data arrives. With no
   show being watched it shows the empty state instead (DESIGN.md "Empty state", with an "Add your
   first show" link to `/shows/add`). Under the title a muted "N shows in progress" (singular for
   one). The title and the count are a `PageHeader`, the empty state a `ShowListEmpty` with the
@@ -153,21 +160,26 @@ goal (D63): it should take as little time from Angular as possible.
   with a full `aria-label` from a `computed` on the `show` input. Outputs `nextEpisodeWatched` (the
   show id); it never touches the store. Columns `minmax(0, 1fr)` so the ellipsis works at 320px.
 - `ShowEditor` (`src/app/shows/show-editor/`): Signal Forms `form()` over a `ShowEditorFormModel`
-  signal with `showFormModelSchema`, submitted through `[formRoot]`. `action` adds or updates the
-  show in the store; `onInvalid` sets `hasTriedToSave` and, once the errors are rendered, focuses
+  signal with `showFormModelSchema`, submitted through `[formRoot]`. `action` waits for the
+  store's `add` or `update` with `await firstValueFrom(...)` – so `submitting()` lasts as long as
+  the request, and a second submit is refused meanwhile (D107) – then goes to Home; a failed save
+  only logs the error until C1 adds "Saving…" and the message. `onInvalid` sets `hasTriedToSave`
+  and, once the errors are rendered, focuses
   the first field in `errorSummary()` (D41). Fields: Title, Status, Where I watch it (optional), and
   a `<fieldset>`/`<legend>` "Last watched episode (optional)" with two `NumberStepper`s whose labels
   are secondary (D43, D46). The fieldset is a flex column – the `<legend>` stays outside its flex
   box, as fieldsets lay it out themselves, so it gets no `gap`. Season and Episode carry
   `#seasonField`/`#episodeField` and `errorsRenderedExternally`, and a `FormFieldErrors` for each
-  under the steppers shows their errors full width (D83). `storedShow` is a `computed` that reads
+  under the steppers shows their errors full width (D83). The `showId` input gets the URL's text
+  and makes it a `ShowId` with its `transform`, `toShowId` – `undefined` on the add route, where
+  `numberAttribute` would give `NaN`. `storedShow` is a `computed` that reads
   `showId()` once into a `const` (TypeScript narrows variables, not the results of calls) and
   looks it up with
   `ShowStore.getShowById`, or is `null` in add mode. The model is a `linkedSignal` over it – the
   stored show mapped with `toShowEditorFormModel`, or the empty model when there is none (D48).
   An unknown id never reaches the editor (the guard, D53), so the empty model is only add mode –
-  and a show removed while the form is open. A successful save goes to Home with
-  `Router.navigateByUrl('/')` (D49); "Cancel" next to Save is a `RouterLink` to `/` styled as a
+  and a show removed while the form is open. A save goes to Home with `Router.navigateByUrl('/')`
+  once the server has answered (D49); "Cancel" next to Save is a `RouterLink` to `/` styled as a
   button (D52). In edit mode, "Delete show" (`.button-danger-text`, `type="button"`, inside the
   form) opens `DeleteShowDialog` through a `viewChild` query; the dialog sits after the form in
   its own `@if (storedShow(); as show)`, and its `deleted` output takes the editor to Home with
@@ -178,13 +190,14 @@ goal (D63): it should take as little time from Angular as possible.
   linked as the dialog's name and description with `aria-labelledby`/`aria-describedby` and ids
   from `crypto.randomUUID()`. A close button (the `close` icon, `aria-label="Close"`) pulled into
   the corner, Cancel with `autofocus` and "Delete show" (`.button-delete`, `--color-danger-fill`).
-  "Delete show" calls `ShowStore.remove`, closes the dialog and emits `deleted`, in one handler,
-  before the editor's `@if` removes it. The buttons are centred in a row and stack full width
+  "Delete show" waits for `ShowStore.delete` with `await firstValueFrom(...)`, then closes the
+  dialog and emits `deleted`; a failed delete leaves it open and only logs the error until C1
+  shows the waiting and the error in the dialog. The buttons are centred in a row and stack full width
   below 22rem – a container query on the dialog, so the overflowing steppers' wider layout
   viewport once hid the switch. Global `dialog` styles in `_base.scss`: 26rem wide, 24px padding,
   surface, border, backdrop.
 - `show-form-model.ts`: the form model (`null` for an empty number, `''` for no service), mapping
-  both ways (`toShowEditorFormModel`, `toEditableShowFields`) and the schema – a required title that
+  both ways (`toShowEditorFormModel`, `toShowPostModel`) and the schema – a required title that
   is not only spaces, `min(1)` and an own `integer()` validator on season and episode, and "both or
   neither" as `required` with `when` on the missing field (D44).
 - `FormFieldWrapper` (`app-form-field`, `src/app/shared/form-field/`): the label (`optional`;
@@ -227,50 +240,65 @@ goal (D63): it should take as little time from Angular as possible.
 - Data model in `src/app/shows/`, one file per concept: `show-status.ts` and `streaming-service.ts`
   (an `as const` list of `{ id, label }` plus the id union derived with `(typeof X)[number]['id']`,
   D31) and `tracked-show.ts` (`TrackedShow` + `EpisodeRef`, `readonly` fields, optional `service`
-  and `lastWatched`, ISO-string timestamps – D29, D30). Types only, no runtime state.
-- `ShowStore` (`src/app/shows/show-store.ts`): a private writable signal holding the list, exposed
-  read-only as `shows` (D32), plus a `watching` computed that filters by status and sorts on
-  `updatedAt` descending. `add`/`remove`/`update` all go through one private `updateAndSave`, so a
-  change cannot skip persistence. `add` generates the id and timestamps and returns the new show;
-  `update` takes `Partial<EditableShowFields>` (D40), so callers cannot touch id/addedAt/updatedAt.
-  `markNextEpisodeAsWatched(id)` bumps the episode via the pure `getNextEpisodeRef` in
-  `tracked-show.ts` and starts Want to watch shows; Finished and Dropped are left alone (D34).
-  Which statuses get the action is one pure function, `canMarkNextEpisodeAsWatched`, shared by
-  the store and the card so they cannot disagree. `getShowById(id)` returns the show or `null`
+  and `lastWatched`, ISO-string timestamps – D29, D30). `TrackedShow` is the show as the API sends
+  it, with a number id (D67) and the alias `ShowId`; `ShowPostModel` is the fields the user decides,
+  what `POST` and `PUT` take (D108). Types only, no runtime state.
+- `ShowStore` (`src/app/shows/show-store.ts`, D77, D107), the only thing components talk to: a
+  private writable signal holding the list, exposed read-only as `shows` (D32), a `status` –
+  `'loading' | 'loaded' | 'error'` – and a `watching` computed that filters by status and sorts on
+  `updatedAt` descending with `Date.parse`, since the server's timestamps have up to six decimals
+  and none on a whole second. The constructor calls `load()`, which sets `'loading'`, subscribes to
+  `ShowApi.getShows()` and sets the list and `'loaded'`, or `'error'` and logs; it can be called
+  again. `add`, `update` and `delete` return the request as an Observable with `tap` putting the
+  server's answer in the list – the new show, the saved one in place of the old (the private
+  `replaceShow`), or the list without the deleted one – so the caller subscribes, and the list
+  changes only after the server's yes. `update` takes all of `ShowPostModel` (D69).
+  `markNextEpisodeAsWatched(id)` subscribes itself and puts the server's answer in the list with
+  `replaceShow`: the server applies D34, and the store doesn't check the status – the card hides
+  the button with `canMarkNextEpisodeAsWatched`. `getShowById(id)` returns the show or `null`
   (D56) and `showExists(id)` builds on it – the guard and the editor both look shows up through
   them.
-- Storage behind an abstraction (D6): `ShowStorage` is an `abstract class` – both the type and the
-  DI token, since a TS interface does not exist at runtime – implemented by
-  `LocalStorageShowStorage` and wired in `app.config.ts` with `useClass`. The payload is a
-  versioned envelope `{ version: 1, shows }`. `load()` parses defensively and runs every row
-  through the `isTrackedShow` type predicate, keeping the valid ones and warning about the rest;
-  no `as` casts survive. Predicates live with the model: `isShowStatus`, `isStreamingService`,
-  `isEpisodeRef`, `isTrackedShow`.
-- Tests: 142, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- `ShowApi` (`src/app/shows/show-api.ts`, D77): `HttpClient` – available without
+  `provideHttpClient()`, which C2's interceptor will need – with one method per endpoint, each
+  returning the request's Observable and holding no state: `getShows`, `addShow`, `updateShow`,
+  `deleteShow` and `markNextEpisodeAsWatched` (a `POST` without a body). The URLs are relative
+  (`/api/shows`), the same locally and in production. The answers are typed with the hand-written
+  `TrackedShow` and not checked at runtime (D109).
+- Tests: 126, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
   and an unknown show id show the not-found page and keep the URL in the address bar –
   `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
   still open, which catches a `**` that has moved up the list), `show-exists-guard.spec.ts`
-  (stand-in pages: a known show opens, an unknown id gets the not-found page with its URL in
-  the address bar, a show removed after the app started is not found), `show-store.spec.ts` (an in-memory `ShowStorage` provided through `TestBed`, fake
-  system clock), `local-storage-show-storage.spec.ts` (round trip, corrupt data, unknown
-  version, invalid rows), `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
-  id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order
-  at open, a card stays in place after a tap, new shows first, empty state, the add link
-  projected into it),
+  (stand-in pages, the list loaded first: a known show opens, an unknown id gets the not-found
+  page with its URL in the address bar, and so do an id that isn't a number – `abc`, `12abc` –
+  and a show deleted after the app started), `show-store.spec.ts` (loading, the error and a
+  reload; `add` sends nothing until the caller subscribes, and the list takes the server's answer
+  only after a yes; `update` and next episode put the server's version in place; `delete` removes
+  only that show and keeps it on a failure; a failed next episode is logged; `watching` filters
+  and compares times, not text), `show-api.spec.ts` (method, URL and body per endpoint, the
+  answer passed on, nothing sent before a subscription, a failure passed on as an error),
+  `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
+  id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (the list
+  loaded before the page opens: order at open, a card stays in place after a tap, new shows
+  first, empty state, the add link projected into it),
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field),
   `form-field-errors.spec.ts` (nothing until the errors show, errors outside the field still
   describe the control, the hint hidden meanwhile) and
   `number-stepper.spec.ts` (steps by button and key, keys it lets through, typing and parse
   errors, ARIA state, announcements, label through the wrapper, focus) and `show-editor.spec.ts`
-  (edit mode loads the show, empty form in add mode, follows a new id when the
-  router reuses the page, save updates or adds, Home after a save but not after an invalid one,
+  (edit mode loads the show by the number in the URL, empty form in add mode, follows a new id
+  when the router reuses the page, `PUT` with every field and `POST` with the new one, Home only
+  once the server has answered and not after an invalid save,
   "Delete show" in edit mode only, Home after deleting in the dialog, a season/episode error once
   under the steppers with focus on the missing field – on the app's real routes
-  through `RouterTestingHarness`), `delete-show-dialog.spec.ts` ("Delete show" removes the show,
-  closes and emits `deleted`; Cancel and Close close without either; named and described through
-  its ids). jsdom has no `showModal()` or `close()`, so both dialog specs give
+  through `RouterTestingHarness`), `delete-show-dialog.spec.ts` ("Delete show" deletes through
+  the API, and closes and emits `deleted` only after the server's `204`; Cancel and Close close
+  without either; named and described through its ids). The specs with HTTP use
+  `provideHttpClientTesting` and `HttpTestingController`, answer the store's first load before
+  the page opens, and end with `verify()` in a `try`/`finally` around
+  `TestBed.resetTestingModule()` – a failing `verify()` otherwise skips Angular's reset, and every
+  later test fails with "already instantiated". jsdom has no `showModal()` or `close()`, so both dialog specs give
   `HTMLDialogElement.prototype` stand-ins that set and remove `open`. Component tests use a test host with a real `form()`. The CLI's `should create the app` smoke test was deleted once
   these existed (D17).
 - Zoneless (no zone.js), standalone components, SCSS, Prettier, Vitest + jsdom. Strict TypeScript
@@ -322,7 +350,11 @@ goal (D63): it should take as little time from Angular as possible.
   `dotnet build` and `dotnet test` run from there. `dotnet-tools.json` beside them pins
   `dotnet-ef` 10.0.14, run as `dotnet ef …` from the root. `server/WatchTracker.Api` runs on
   `http://localhost:5080` locally – `launchSettings.json` has only the `http` profile, and no
-  browser opens on start.
+  browser opens on start. `ng serve` sends `/api/**` on to it through `proxy.conf.json` in the
+  root (`serve.options.proxyConfig` in `angular.json`, C1), so Angular calls `/api` as in
+  production and the browser sees one origin – the login cookie and the `Sec-Fetch-Site` check
+  work without CORS. Until C2 the dev user logs in with `fetch` from the console of a page
+  `ng serve` served, in Chrome; Chrome's error page has another origin, and the call fails.
   Data: EF Core with Npgsql 10.0.3, plus `Microsoft.EntityFrameworkCore.Relational` 10.0.14 to
   lift EF Core to the Design package's patch – without it the test project, which doesn't get
   Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
@@ -820,7 +852,9 @@ show endpoints, 2026-11-16; next is C1.
 
 C1 and C2 go to production together: from C1 Angular reads `/api/shows`, which needs a login
 since B3 (D93), and the login page is C2 – deployed alone, C1 would leave the app on the Pixel
-with no shows. Until C2, log in locally as the dev user from the browser's console.
+with no shows. Until C2, log in locally as the dev user from the browser's console. Before they
+go out, screenshot the list on the Pixel: the new app no longer reads localStorage (D109), and the
+shows are typed in again in D3 (D66).
 
 - [ ] C1. `proxy.conf.json` for `ng serve` (`/api` → the API on the Mac, `http://localhost:5080`
       from `launchSettings.json` – the two must match). `ShowApi` – one method per
@@ -837,6 +871,15 @@ with no shows. Until C2, log in locally as the dev user from the browser's conso
     closes and emits `deleted` only after the server has said yes.
 
   Tests with `HttpTestingController`, by Claude.
+  _Progress 2026-11-17 (D107–D109), the developer's code with Claude as guide, one step per
+  session:_ the proxy (`ef87b2c`, logged in from the console and `/api/shows` `401` before, `200`
+  after); then `ShowApi`, the number id (`ShowId`, `ShowPostModel`), `ShowStore` on the API with
+  a `status`, writes returning Observables, and `ShowStorage` and `LocalStorageShowStorage` gone –
+  the list, adding, saving, deleting and next episode go through `/api/shows`. The tests were
+  seen to fail with each rule broken in a copy of the code. Left: the guard waits for the first
+  load, Home freezes its order when the data arrives, "Saving…" and the save error, the delete
+  dialog's waiting and error, `concatMap` for next episode, and the refetch on
+  `visibilitychange`.
 - [ ] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
       error, the logged-in user from `/api/auth/user`, a guard that sends to `/login?returnUrl=…`,
       an interceptor that turns a `401` into the login page (`catchError`), and logging out – from
@@ -879,7 +922,8 @@ with no shows. Until C2, log in locally as the dev user from the browser's conso
       there. **Creating my user waits for login (B3)** – there is no create-user command yet.
       _Done 2026-11-13 in B3._
 - [ ] D3. Log in on the Pixel and the Mac, type my shows in again (D66), and check that a change on
-      one shows on the other. Then remove `LocalStorageShowStorage` and its tests.
+      one shows on the other. ~~Then remove `LocalStorageShowStorage` and its tests.~~ Removed in
+      C1 (D109).
 - [x] D4. ~~Make the repo public (D74), after scanning the whole history with `gitleaks`.~~ It has
       been public since it was created (D80); the scan and push protection moved to A2.
 - [ ] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
@@ -1063,7 +1107,7 @@ reversed, mark it as superseded instead of deleting it.
 | D27 | 2026-10-09 | A small token set, added to only when the app needs a value: 6 colours (background, surface, border, text, text-muted, accent) – `--color-divider` added the same day for decorative lines, font family + 3 font sizes, 3 spacings (`--spacing-half`, `-1`, `-2`), one radius, 3 icon sizes, touch target and content width. Names use whole words (`small · medium · big`), sizes are in rem. Red, tints, backdrop, shadows etc. come back as tokens when a component needs them. Replaces the token list from D22. | ~50 tokens with steps 1–2px apart, component names (`--radius-fab`) and unclear names (`surface-2`, `danger-solid`) were hard to choose from. Fewer, plainer tokens are easier to use; rem follows the user's font size (WCAG 1.4.4). Text on accent reuses the background colour (10.8:1), and the one border colour meets 3:1 for form controls.                                                                                                             |
 | D28 | 2026-10-09 | Screen range: the layout must work from 320px wide (no horizontal scrolling), is designed for phones of 375–430px, and the content stops at 1280px (`--content-max-width: 1280px`), centred on wider screens.                                                                                                                                                                                                                                                                                                        | 320px is the WCAG 1.4.10 Reflow requirement (a 1280px window at 400% zoom). Most phones in Norway are 390–430px wide (StatCounter, 2026). 1280px is a common container width (Tailwind `max-w-7xl`), fits the smallest common laptop (1366px) with margin, and keeps card lists readable on 1920px screens. In px rather than rem: the width is tied to the screen, not the text (as in Bootstrap and GOV.UK); it makes no difference on phones or under zoom. |
 | D29 | 2026-10-09 | `TrackedShow` progress is a single nested value – `lastWatched: { season, episode } | undefined` – so "not started" is one state and a season without an episode cannot occur. |
-| D30 | 2026-10-09 | Timestamps are stored as ISO strings (`new Date().toISOString()`), converted to `Date` only where they are formatted. They survive the JSON round trip to localStorage and stay readable in devtools. |
+| D30 | 2026-10-09 | Timestamps are stored as ISO strings (`new Date().toISOString()`), converted to `Date` only where they are formatted. **Since C1 the server sets them (D67), with up to six decimals and `+00:00`, and `watching` compares them with `Date.parse` (D107).** They survive the JSON round trip to localStorage and stay readable in devtools. |
 | D31 | 2026-10-09 | Streaming services are a fixed `as const` list of `{ id, label }` – the stable id is stored, the label is used in the UI, so a service rename is not a data migration. Statuses follow the same pattern (ids, union type derived from the list). |
 | D32 | 2026-10-16 | Signal state in services uses the `_name` / `name` pair: a `private readonly _x = signal(...)` the service writes to, and a public `readonly x = this._x.asReadonly()` everyone else reads. The underscore contradicts the Google TypeScript style guide Angular defers to, but it is what dominates real signal-based Angular code, and consistency beats purity here. |
 | D33 | 2026-11-03 | Folders are organised by feature area (`shows/`, `layout/`, `shared/`), never by type (`components/`, `services/`, `directives/`). Every component gets its own folder named after it, as `ng generate component` creates it (`shows/show-card/show-card.ts` + `show-card.spec.ts`), also when its template and styles are inline. Services, models and helper functions sit flat in the area folder. `shared/` holds building blocks that know nothing about shows. `src/app/shared/svg-icon.ts` moves to `shared/svg-icon/` (the developer does it). | The Angular style guide recommends feature areas and advises against type folders: what changes together lives together, and removing a feature is removing a folder. One folder per component matches the CLI default, so generated and hand-written components look the same, and nothing has to move when a component grows from inline to separate template and style files. |
@@ -1073,7 +1117,7 @@ reversed, mark it as superseded instead of deleting it.
 | D37 | 2026-11-04 | A tracked show has at most one streaming service: where _I_ watch it (`service`, "Where I watch it (optional)" in the form), chosen by the user. Where a show is _available_ is a different thing – a list fetched from TMDB watch providers in M4, never entered by hand. If real use shows that one show is regularly watched on several services, `service` becomes a list then, as a new storage version with a migration. | The field answers "where do I open it to continue?" (§1, question 1), which has one answer; when a show moves to another service, the user edits it. Availability is usually several services and changes without the user doing anything, so it belongs to fetched data, not to the form. One value keeps the form a single select and the model as it is (D14). |
 | D38 | 2026-11-04 | Show pages live under `/shows`, resource first: `/shows/add` and `/shows/:showId/edit` (the parameter name is the input name, via component input binding). The id in the URL is the show's stable id – a UUID from `crypto.randomUUID()` – never its position in a list. `/shows/:showId` stays free for the show itself (details, M3); when it comes, `shows/add` stays above it in the routes, since the router takes the first match. **The UUID is replaced by a number from the database in D67; the URL's shape stays.** | The URL reads as a hierarchy: drop the last segment and you get the show, then the list; `/shows/edit/1` drops to `/shows/edit`, which means nothing. Same shape as REST and Rails (`/photos/new`, `/photos/:id/edit`), but with `add` instead of Rails' `new`: it is the word the app uses ("Add show", "Add your first show"). A UUID is never `add`, so the two cannot collide. A position changes when shows are deleted or re-sorted, so a saved link would open another show; sequential numbers would need a counter in storage and collide when devices sync (§7). Shorter ids may come with TMDB ids (M3). |
 | D39 | 2026-11-04 | On wider screens (tablet and desktop) the add/edit page is one narrower form column, centred – as on a sign-in page, e.g. Netflix's. Its max width is in rem (D27). No preview of the card next to the form. | A form is one focused task, and centring frames it as one thing to do; the phone layout stretched to 1280px looked like a phone form pulled wide, and long fields are hard to scan. The page title moves from the left edge (Home) to the centre – accepted for a focused page. A preview repeats what the fields already say; the "Shown as S02 E07" hint covers the one value that is formatted. |
-| D40 | 2026-11-04 | The part of a show the user decides – title, status, service, last watched episode – is the type `EditableShowFields` (`Omit<TrackedShow, 'id' \| 'addedAt' \| 'updatedAt'>`, in `tracked-show.ts`). `ShowStore.add` takes it whole and `update` takes `Partial<EditableShowFields>`; the form maps to it with `toEditableShowFields`. Renamed from `NewShow` / `toNewShow`. | The same type feeds both adding and updating – the mapper keeps `service: undefined` precisely so an update clears it – so "new" was wrong half the time. A type is named after what it is, not when it is used: the fields the user owns, while the store owns the id and the timestamps. Not `ShowDetails` (the show page in M3), not `ShowInput` (reads as Angular's `input()`), and not separate create/update DTOs (two names for one shape). |
+| D40 | 2026-11-04 | The part of a show the user decides – title, status, service, last watched episode – is the type `EditableShowFields` (`Omit<TrackedShow, 'id' \| 'addedAt' \| 'updatedAt'>`, in `tracked-show.ts`). `ShowStore.add` takes it whole and `update` takes `Partial<EditableShowFields>`; the form maps to it with `toEditableShowFields`. Renamed from `NewShow` / `toNewShow`. **Renamed `ShowPostModel` / `toShowPostModel` in D108, and `update` takes the whole of it since D107.** | The same type feeds both adding and updating – the mapper keeps `service: undefined` precisely so an update clears it – so "new" was wrong half the time. A type is named after what it is, not when it is used: the fields the user owns, while the store owns the id and the timestamps. Not `ShowDetails` (the show page in M3), not `ShowInput` (reads as Angular's `input()`), and not separate create/update DTOs (two names for one shape). |
 | D41 | 2026-11-05 | Form errors show after the user has tried to save, not when they leave a field. From then on they follow the value live, so a fixed field loses its error while the user types. Signal Forms has no "submitted" state (22.2.1: `touched`, `dirty`, `submitting`), and `[formField]` sets `touched` on blur, so the page keeps its own signal, set in `onInvalid`; a field shows its errors when that is set and the field is invalid. A field's hint and error share one place under the control – the error replaces the hint. A failed save focuses the first field with an error (`errorSummary()[0]`, which is in DOM order) once the errors are rendered (`afterNextRender`). The shift when errors appear on save is accepted. | Errors on blur said "Title is required" to a user tabbing through an empty form before they had tried anything, and each message pushes the content below it down: typing in a field and then clicking Save blurs the field, the new error moves Save down, and the click can land outside it and be lost. On save, the shift answers the user's own action, and focus goes straight to the error. Reserving a line under every field (as Angular Material does) leaves gaps in a short phone form and still shifts for messages that wrap – "Either specify both season and episode…" does at 320px. Also what GOV.UK Design System recommends. Shifts right after user input don't count as layout shift (CLS) either. |
 | D42 | 2026-11-05 | Error messages are `--font-size-medium` with a medium (20px) `alert-circle` icon, both in `--color-danger` (5.7:1 on the background since 2026-11-11, DESIGN.md §1.1). Replaces the small (16px) icon and 13–14px text; the small icon size has no use for now. | At 16px the icon's exclamation mark was a 3.7px line and a 1.5px dot – there, but hard to make out. A visible error is the most important text on the page, not secondary text. Stays within the size scale (D23) and the one stroke width (D24); a filled icon would break `fill="none"`. If the icon is still too faint, redraw its exclamation mark or let the error line set a heavier `--icon-stroke-width` (D24). |
 | D43 | 2026-11-05 | Season and episode use a shared `NumberStepper` (`shared/number-stepper/`): − · input · +, a Signal Forms `FormValueControl<number \| null>` bound directly with `[formField]`, its lower bound read from the schema's `min()` (the `min` input), so it knows nothing about shows. The input is `type="text"` with `inputmode="numeric"` and `role="spinbutton"`; text ↔ number goes through `transformedValue`, whose parse errors become field errors. Empty (`null`) sits one step below the minimum: going down from the minimum (−, Arrow Down, Page Down) clears the field, going up from empty (+, Arrow Up, Page Up) gives the minimum, Page Up/Down step 5 (APG only asks for a larger step than the arrows; 10 was a lot for seasons and for episodes in 6–24-episode seasons) and never jump past the minimum to empty, Home goes to the minimum, End does nothing (no maximum). The input is the only tab stop; the buttons have `tabindex="-1"`, `aria-label` "Decrease season" etc., and `aria-disabled` (not `disabled`) when they can do nothing; a polite live region announces the value after a button press. Each stepper sits in its own `FormFieldWrapper`, with `appFormFieldControl` on the stepper's inner input, inside the editor's `<fieldset>`/`<legend>` "Last watched episode". | Clearing with the buttons means "not started" never takes selecting or deleting text – on a phone (D3) that means opening the keyboard first. `type="number"` turns unparseable text ("1e") into `''`, which the model cannot tell from empty; text with `inputmode` gives a digit keypad and sends everything typed through `parse` (GOV.UK also advises against `type="number"`). ARIA 1.2 says the increment and decrement buttons should not be in the Tab ring, as in the APG example: the arrow keys do the same, and two tab stops replace six. A button that becomes `disabled` while focused drops focus to `<body>`. A label's `for` only works on a labelable element, not on the stepper's host, so the id has to reach the inner input; the directive there finds the wrapper through the stepper's host (element injectors follow where the stepper is written), which keeps labels, D41 errors and `aria-describedby` in one place. |
@@ -1110,7 +1154,7 @@ reversed, mark it as superseded instead of deleting it.
 | D74 | 2026-11-10 | Secrets. 1Password is the master copy of every secret – the Neon connection string, the Fly deploy token, the app password – and they are set from it (`fly secrets set …="$(op read …)"`), so no value lands in a file or the shell history. Fly holds the connection string; GitHub holds only `FLY_API_TOKEN`. Secrets are never pasted into a chat with Claude, and database dumps are never stored as GitHub Actions artifacts. The repo is made public as its own step in M2 (D4), after the deploy setup is in place and the whole history has been scanned with `gitleaks`; this settles the §7 question. **The repo turned out to be public already; see D80.** | The developer requires that no secret or confidential information is ever published. In a public repo a leaked secret is public for good – forks and clones keep it, and bots find it within minutes – so the first handling of real secrets happens while the repo is private, and what is published has been checked. Public then: the history, PLAN.md and the decisions show how the developer works, Actions minutes are free, and GitHub's push protection blocks known secret formats for free. A chat transcript is one more place a secret could leak from. |
 | D75 | 2026-11-10 | Logs and monitoring in M2. ASP.NET Core logs to stdout, as JSON in production (`AddJsonConsole`), read with `fly logs` or in Fly's dashboard: method, path, status and duration, and errors with their stack traces – never request bodies, cookies, passwords or connection strings. `/healthz` (`MapHealthChecks`) without a database check. No uptime monitoring and no error-tracking service. | The least that answers "why did it fail last night?", built in and free. Hours of downtime are accepted (D60), so an alert would interrupt for nothing that matters. Accepted: errors in Angular on the phone stay in the phone's console, where `chrome://inspect` on the Mac can show them. |
 | D76 | 2026-11-10 | Local development. Angular stays in the root, the backend lives in `server/` (`WatchTracker.Api`, `WatchTracker.Api.Tests`, a `.sln`), and `compose.yaml` and the Dockerfile sit in the root. Compose runs only `db`: Postgres on the Neon project's major version, a named volume, a development-only password in the file. The API runs with `dotnet watch`, Angular with `ng serve` and `proxy.conf.json`. In `Development` the API seeds an empty database with a dev user and ~10 shows covering every status and the edge cases; `docker compose down -v` starts over. Tests use their own database through Testcontainers, never the development database. An optional Compose profile builds and runs the production image against `db`. **D85 moves the solution – a `.slnx` – and `global.json` to the root; the projects stay in `server/`.** | Moving Angular to `client/` would change `angular.json`, paths and CI for nothing. Seeded data means no retyping after a reset and the odd cases always exist; tests with their own database can't spoil what is being worked on. Accepted: three things to start (`docker compose up`, `dotnet watch`, `ng serve`); an `npm run dev` that starts them all can come if it gets annoying. |
-| D77 | 2026-11-10 | The Angular data layer is `ShowApi` and `ShowStore`, and `ShowStorage` goes (supersedes D6). `ShowApi` (`@Service`) is thin: one method per endpoint, returning Observables, no state. `ShowStore` stays the only thing components talk to – `shows` and `watching`, plus a loading and an error state – and is updated with the server's answers. Tests use `provideHttpClientTesting` and `HttpTestingController`. `LocalStorageShowStorage` is removed once the backend is live. | The contract itself changed – from synchronous to asynchronous, from the whole list to one show at a time – so D6's "a change in one place" did not survive it; worth remembering. An abstraction around `HttpClient` would stand in the way of D57's rewrite, where the reads become an `httpResource` inside the store. `HttpTestingController` is the Angular way to test HTTP and shows exactly what the code sends. Components hardly notice: they still read the store. |
+| D77 | 2026-11-10 | The Angular data layer is `ShowApi` and `ShowStore`, and `ShowStorage` goes (supersedes D6). `ShowApi` (`@Service`) is thin: one method per endpoint, returning Observables, no state. `ShowStore` stays the only thing components talk to – `shows` and `watching`, plus a loading and an error state – and is updated with the server's answers. Tests use `provideHttpClientTesting` and `HttpTestingController`. `LocalStorageShowStorage` is removed once the backend is live. **It went in C1 itself, with `ShowStorage` (D109).** | The contract itself changed – from synchronous to asynchronous, from the whole list to one show at a time – so D6's "a change in one place" did not survive it; worth remembering. An abstraction around `HttpClient` would stand in the way of D57's rewrite, where the reads become an `httpResource` inside the store. `HttpTestingController` is the Angular way to test HTTP and shows exactly what the code sends. Components hardly notice: they still read the store. |
 | D78 | 2026-11-10 | What stays in M2 from its first version. The PWA, as M2's last step: a manifest and icons (installable), a service worker caching only the app shell, a message without a connection, a "new version" prompt with `SwUpdate`; until then a home-screen shortcut from Chrome. JSON export/import moves to Later. `navigator.storage.persist()` is dropped. Static hosting with deploy on push is replaced by D72 and D73. | The PWA is a lot of Angular for little code – `SwUpdate.versionUpdates` is an Observable, plus build configurations and the service worker – and D52's "Cancel" counts on an app without a browser bar. It comes last because a service worker caching the app while the data layer changes often shows old versions ("why don't I see my change?"). Export/import was the backup (D61) and a way to move data, but the developer would rather retype than move a file (D66), which is also the worst case accepted for backup. `persist()` protected data that now lives on the server. |
 | D79 | 2026-11-11 | Hosting and CI are set up by Claude (amends D64 and D72's "with Claude's guidance"): Claude writes the GitHub Actions workflows, `fly.toml`, `.nvmrc` and similar configuration, and runs the commands that need no account login and no secret. The developer creates the accounts (Fly, Neon), handles every secret (D74), sets the DNS records at one.com, and presses the deploy button. The Dockerfiles stay the developer's (D65), since Docker is a learning goal. **Dockerfile v1 written by Claude after all, at the developer's request (D81).** | Hosting and CI are not learning goals (§2); like the backend (D63) they are a means, and the goal is the app on the phone as soon as possible. Claude had read "with guidance" as "the developer writes, Claude explains", the rule for Angular code, and the developer pushed back. Accounts, secrets and DNS stay with the developer because they are the developer's credentials and domain, and secrets never pass through Claude (D74). |
 | D80 | 2026-11-11 | The repo stays public. It has been public since it was created on 2026-10-07 – found 2026-11-11 – so D74's "public after the deploy setup" never applied. From now on: secret scanning and push protection on, the whole history scanned with `gitleaks`, and the Actions settings kept as they are – a read-only default token, and approval before a first-time contributor's pull request runs a workflow. No `pull_request_target`, no self-hosted runners, and the login locks an account after repeated failed attempts (B3). | The developer wants the portfolio value (D74), and nothing secret has been committed. A public repo's risks are that a mistake is public for good and that anyone can read how the app works. The answer to the first is to keep secrets out (D74) and let push protection catch slips; the answer to the second is not to rely on secrecy – the API's routes and the login endpoint are visible, so the protection is the login itself, lockout and HTTPS. Workflows from forks get no secrets and a read-only token, and `ci` uses no secrets. |
@@ -1140,6 +1184,9 @@ reversed, mark it as superseded instead of deleting it.
 | D104 | 2026-11-16 | The show endpoints as built (M2 B4, D69). The owner is `UserId`, the developer's choice of name after Identity's own, with a `User` navigation that is only there to show EF the foreign key: required, `ON DELETE CASCADE`, indexed. The user's id comes from the cookie's `NameIdentifier` claim, not a database query; a missing one throws, as every endpoint requires a login. Access is checked in the query itself – id and user in one `WHERE` (`FindUsersShowAsync`, and `DELETE`'s `ExecuteDeleteAsync`) – not by a check at the top of each endpoint or a global query filter, and another user's show is a `404`, not a `403` or an exception. `GET` lists newest first, by id. `POST`'s `Location` is `/api/shows/{id}`, the address `PUT` and `DELETE` use; there is no `GET` for one show. `PUT` answers `200` with the show; next-episode answers `200` with the show, unchanged for Finished and Dropped. Validation is .NET 10's (`AddValidation()`) with data annotations on `ShowPostModel` and `EpisodeRef` and readable messages; the `400`'s keys are C#'s names (`LastWatched.Season`). Timestamps are cut to the microsecond (`Now()`), the title is trimmed on the server too, and the routes take `{id:int}`. | Postgres keeps microseconds and .NET on Linux (CI, Fly) counts 100 ns ticks, so without the cut `POST` returned a time the list never showed; a test caught it with a simulated Linux clock, as macOS's clock already stops at microseconds. A `404` says nothing about which ids exist in the one counter for all users (D67), like login's one `401` (D93), and an exception would be a `500` for something expected. With one rule – the show is yours or it doesn't exist – a `WHERE` is the whole check, and the fallback policy already makes the login impossible to forget (D93); a global query filter is worth it with more tables and users. Angular sorts its lists itself, so the order was the developer's taste. Angular never needs one show by itself; `Location` still names its address. The unchanged show lets a device with an old list catch up (D69). Attributes keep the rules in one place and run before the endpoint, so it never sees bad input; `AllowedValues` needs constants, hence `ShowStatuses`. `{id:int}` makes `/api/shows/abc` a `404` from the `/api` fallback rather than a `400`. |
 | D105 | 2026-11-16 | Angular and C# each list the status and service ids (D31, D63), and `AngularListsTests` fails when they differ: it reads Angular's `show-status.ts` and `streaming-service.ts`, copied next to the tests by the test project, and the `[AllowedValues]` on `ShowPostModel` by reflection. Generating the ids from C# into a TypeScript file is in LATER. | The developer wanted one list; generating it needs a rewrite of both Angular files and a test that writes source code, for two short lists that rarely change – and M4 may change what the service list is (D100). Reading what the validation allows, rather than a copy of it, means the test can't pass while the API refuses an id Angular sends. CI checks out the whole repo, and the Docker image builds only the API, so the copied files cost nothing there. |
 | D106 | 2026-11-16 | From B4, Claude hands over the backend's code – the endpoints, the model, the migration commands – one small step at a time with short explanations, built and tested in a copy of the code first; the developer types it in, asks, and commits (amends D64). Claude still writes the tests, and edits the application code only when asked – as for the comments, `Now()` and `DELETE` in B4. Comments stay short: only what the code doesn't show. | Hosting and the backend had already taken more time than the developer wanted (D63); typing the code in keeps it in the fingers without the searching. Angular stays guide-first (D1). The developer found the first comments unclear and too long. |
+| D107 | 2026-11-17 | The data layer as built in C1 (D57, D77). `ShowApi` has one method per endpoint and no state. `ShowStore` starts with an empty list and calls `load()` from its constructor; `load()` can be called again, and one `status` signal says `'loading'`, `'loaded'` or `'error'`. `add`, `update` and `delete` return the request as an Observable with `tap` putting the server's answer in the list, and the caller subscribes: the editor and the delete dialog with `await firstValueFrom(...)`. `markNextEpisodeAsWatched` subscribes in the store and doesn't check the status. `update` takes the whole `ShowPostModel` (amends D40). `watching` compares `updatedAt` with `Date.parse`. | A union can't say "loading" and "failed" at once, as two signals can, and it is the shape `httpResource`'s `status()` has in E1. The caller needs to know when a write is done and whether it failed – the editor for "Saving…" and the navigation (D49), the dialog for its waiting and error (D59) – which it can't if the store subscribes; with `tap`, the store still keeps the list right, and only after the server's yes. Awaiting the request inside Signal Forms' `action` keeps `submitting()` true while it runs, which shows "Saving…" and refuses a second submit; a `subscribe` inside `action` ends it at once. No one needs next episode's answer but the store, and the `concatMap` queue (D69) belongs there for every list of cards. The server applies D34 and returns the show even when it changes nothing (D104), so the store takes its answer as it is, and a device with an old list catches up; the card's `canMarkNextEpisodeAsWatched` hides the button, so a second check in the store could never differ. `PUT` overwrites every field (D69). The server leaves out trailing zeros, so a show saved on a whole second has no decimals, and compared as text it sorts wrongly against one saved later in the same second. |
+| D108 | 2026-11-17 | `EditableShowFields` is renamed `ShowPostModel`, and `toEditableShowFields` `toShowPostModel` (supersedes D40's names); `ShowId` is an alias for `TrackedShow['id']`. The id in a URL is made a number with `Number()`: in the guard, and in the editor's input through a `transform`, `toShowId`, that leaves the add route's `undefined` alone. | The developer's choice: the same name as the C# record `POST` and `PUT` take, so the two sides read alike. `ShowId` rather than `TrackedShowId`, since the route parameter, the editor's input and the store's methods all say `showId`. `numberAttribute` turns `undefined` into `NaN`, and `parseInt` reads `12abc` as 12; `Number()` gives `NaN` for both, so the guard's not-found page covers them. |
+| D109 | 2026-11-17 | `ShowStorage`, `LocalStorageShowStorage`, its spec and the predicates only it used (`isTrackedShow`, `isEpisodeRef`, `isShowStatus`, `isStreamingService`) are deleted in C1, not after D3 (amends D3 and D77). The API's answers are not checked at runtime: `get<TrackedShow[]>` is a promise to the compiler, held by the server's validation and the contract tests (`AngularListsTests`, the JSON in `ShowEndpointsTests`). Revisit with `httpResource`'s `parse` in E1. The Pixel's localStorage is left as it is, unread; the list is screenshotted before C1 and C2 go out. | `LocalStorageShowStorage` extends `ShowStorage` and accepts only text ids, so it couldn't stay as it was, and git keeps it. The predicates existed because localStorage could hold anything – an older version's data, edits in DevTools, a half-written save; the API is the app's own, and its contract is tested in CI. Kept, they would be code no one calls that must follow every change to the types, as the number id. |
 
 ## 7. Open questions
 

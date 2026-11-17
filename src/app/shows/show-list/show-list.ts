@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { TrackedShow } from '../tracked-show';
+import { ShowId, TrackedShow } from '../tracked-show';
 import { ShowCard } from '../show-card/show-card';
 
 @Component({
@@ -29,5 +29,5 @@ import { ShowCard } from '../show-card/show-card';
 export class ShowList {
   readonly shows = input.required<TrackedShow[]>();
 
-  readonly nextEpisodeWatched = output<string>();
+  readonly nextEpisodeWatched = output<ShowId>();
 }

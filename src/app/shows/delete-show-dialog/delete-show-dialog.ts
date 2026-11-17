@@ -2,6 +2,7 @@ import {Component, computed, ElementRef, inject, input, output, viewChild} from 
 import {ShowStore} from '../show-store';
 import {TrackedShow} from '../tracked-show';
 import {SvgIcon} from '../../shared/svg-icon/svg-icon';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   imports: [
@@ -104,8 +105,9 @@ export class DeleteShowDialog {
     this.dialogElement().nativeElement.close();
   }
 
-  protected deleteShow() {
-    this.store.remove(this.show().id);
+  protected async deleteShow() {
+    await firstValueFrom(this.store.delete(this.show().id));
+
     this.close();
     this.deleted.emit();
   }

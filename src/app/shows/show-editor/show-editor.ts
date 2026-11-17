@@ -12,8 +12,9 @@ import {
 import {ShowStore} from '../show-store';
 import {
   EMPTY_SHOW_FORM_MODEL,
-  showFormModelSchema, toEditableShowFields, toShowEditorFormModel,
+  showFormModelSchema, toShowPostModel, toShowEditorFormModel,
 } from '../show-form-model';
+import {ShowId} from '../tracked-show';
 import {form, FormField, FormRoot} from '@angular/forms/signals';
 import {FormFieldWrapper} from '../../shared/form-field/form-field';
 import {FormFieldControl} from '../../shared/form-field/form-field-control';
@@ -24,6 +25,7 @@ import {Router, RouterLink} from '@angular/router';
 import {DeleteShowDialog} from '../delete-show-dialog/delete-show-dialog';
 import {SvgIcon} from '../../shared/svg-icon/svg-icon';
 import {FormFieldErrors} from '../../shared/form-field/form-field-errors/form-field-errors';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   imports: [
@@ -143,7 +145,7 @@ export class ShowEditor {
   private readonly router = inject(Router);
 
   // Inputs
-  readonly showId = input<string>();
+  readonly showId = input(undefined, { transform: toShowId });
 
   // State
   protected readonly isNewShow = computed(() => !this.showId());
@@ -168,13 +170,13 @@ export class ShowEditor {
       action: async (fieldTree) => {
         const model = fieldTree().value();
 
-        const editableShowFields = toEditableShowFields(model);
+        const postModel = toShowPostModel(model);
 
         if (this.isNewShow()) {
-          this.store.add(editableShowFields);
+          await firstValueFrom(this.store.add(postModel));
         }
         else {
-          this.store.update(this.showId() as string, editableShowFields);
+          await firstValueFrom(this.store.update(this.showId() as number, postModel));
         }
 
         await this.router.navigateByUrl('/');
@@ -205,4 +207,9 @@ export class ShowEditor {
   protected async onShowDeleted(): Promise<void> {
     await this.router.navigateByUrl('/');
   }
+}
+
+// The id comes from the URL as text. The add route has none, so the router passes undefined.
+function toShowId(value: string | undefined): ShowId | undefined {
+  return value === undefined ? undefined : Number(value);
 }

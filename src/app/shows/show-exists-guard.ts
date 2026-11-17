@@ -6,7 +6,7 @@ export const showExistsGuard: CanActivateFn = (route, state) => {
   const store = inject(ShowStore);
   const router = inject(Router);
 
-  const showId = route.paramMap.get('showId');
+  const showId = Number(route.paramMap.get('showId'));
 
   if (!showId || !store.showExists(showId)) {
     const pageNotFound = router.parseUrl('/page-not-found');
