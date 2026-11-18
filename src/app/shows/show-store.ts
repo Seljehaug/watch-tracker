@@ -2,8 +2,9 @@ import { Service, computed, signal, inject } from '@angular/core';
 import { ShowId, ShowPostModel, TrackedShow } from './tracked-show';
 import { ShowApi } from './show-api';
 import { Observable, tap } from 'rxjs';
+import {toObservable} from '@angular/core/rxjs-interop';
 
-type ShowStoreStatus = 'loading' | 'loaded' | 'error';
+export type ShowStoreStatus = 'loading' | 'loaded' | 'error';
 
 @Service()
 export class ShowStore {
@@ -14,6 +15,7 @@ export class ShowStore {
 
   private readonly _status = signal<ShowStoreStatus>('loading');
   readonly status = this._status.asReadonly();
+  readonly status$ = toObservable(this.status);
 
   readonly watching = computed(() => {
     const filtered = this.shows().filter((show) => show.status === 'watching');
