@@ -39,9 +39,9 @@ the content max width, which is tied to the screen rather than the text (D28).
 | `--color-placeholder`   | `#2C2C33`   | Stand-ins for content: the poster slot, loading placeholders          |
 | `--color-text`          | `#F4F4F5`   | Body text, headings                                                   |
 | `--color-text-muted`    | `#A1A1AA`   | Secondary text: meta lines, hints                                     |
-| `--color-text-soft`     | `#F4F4F514` | Text at 8%: hover and press on quiet neutral buttons (the dialog's close button, the stepper's − and +) |
+| `--color-text-soft`     | `#F4F4F514` | Text at 8%: hover and press on quiet neutral buttons (the dialog's close button, the stepper's − and +), the card stepper's pill |
 | `--color-accent`        | `#F5B841`   | Main action, active tab, links, focus, brand mark                     |
-| `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons ("next episode")    |
+| `--color-accent-soft`   | `#F5B8411F` | Accent at 12%: background of quiet accent buttons (Watching in search) |
 | `--color-accent-border` | `#F5B84159` | Accent at 35%: their border (decorative, see §1.1)                    |
 | `--color-danger`        | `#FF453A`   | Errors (message, icon, the invalid control's border); destructive text |
 | `--color-danger-soft`   | `#D7B3B114` | Warm grey at 8%, behind danger text and icons: hover and press on quiet destructive buttons |
@@ -198,60 +198,87 @@ title is "Continue watching", with "6 shows in progress".
 
 ### Show card
 
-`<article>`, surface background, 1px border, radius 14, padding 12, gap 12.
+`<article>`, surface background, 1px border, `--border-radius`, padding `--spacing-1`. Two
+columns: the poster slot and the text column (D114).
 
-The whole card opens the show page (`/shows/:showId`, D101), except the plus button (D51): the title's link has
-its click area stretched over the card, and the plus button sits above it. The link stays in the
-`<h2>`, so its name is the title – never a link wrapped around the card, which would contain the
-button. Keyboard focus on the link draws the focus ring around the whole card, not the title; the
-plus button keeps its own ring.
+The whole card opens the show page (`/shows/:showId`, D101), except the stepper's buttons (D51):
+the title's link has its click area stretched over the card, and the stepper sits above it. The
+link stays in the `<h2>`, so its name is the title – never a link wrapped around the card, which
+would contain the buttons. Keyboard focus on the link draws the focus ring around the whole card,
+not the title; the stepper's buttons keep their own ring.
 
-Three parts:
-
-1. **Poster slot** 46×64 (52×74 desktop), a lighter surface, show initials in muted 15/700.
-   Placeholder until TMDB posters arrive in M3 – keep the slot so nothing else moves.
-2. **Text column** (`min-width: 0`, ellipsis on overflow):
+1. **Poster slot** – 2:3 and as tall as the text column (4×6rem in the mockup),
+   `--color-placeholder`, show initials in muted. Placeholder until TMDB posters arrive in M3
+   (D115) – keep the slot so nothing else moves. Decorative, so `aria-hidden`.
+2. **Text column** (`min-width: 0`, ellipsis on overflow) – the title and the meta line at the
+   top, the progress at the bottom:
    - Title – an `<h2>` containing a link to `/shows/:id`, 16/600. The heading lets
      screen-reader users jump from show to show; it is styled as above, not as a page heading.
-   - Progress – shown **once** (D35), right under the title: the value only, 15/400 tabular in
-     the text colour – regular weight, so the title stays the strongest element on the card.
+   - Meta line – `Service · relative time`, small and muted.
+   - Progress – shown **once** (D35), at the bottom of the column, starting at the text's edge so
+     it lines up with the title: inside the stepper (see next), or as plain text in the same
+     place on cards without one. Tabular, regular weight in the text colour, so the title stays
+     the strongest element on the card.
      - No visible label ("Last watched", "Ended at"): every card in a list would repeat it, and
        the page title / tab already says what the number means.
      - Screen readers still need the label, and `S02 E05` read aloud is unclear: put the full
        meaning in visually hidden text ("Last watched: season 2, episode 5") and hide the visible
        value with `aria-hidden="true"`. This needs a global `.visually-hidden` utility class.
-   - Meta line – `Service · relative time`, 13 muted.
-3. **Action** (only where it makes sense) – the "next episode" button, alone on the right; see
-   next.
 
 Content per status:
 
-| Status        | Visible             | Screen-reader text                | Meta                              | Action |
-| ------------- | ------------------- | --------------------------------- | --------------------------------- | ------ |
-| Watching      | `S02 E05`           | Last watched: season 2, episode 5 | `Apple TV+ · Yesterday`           | `+`    |
-| Want to watch | Not started (muted) | (the visible text)                | `Netflix · Added 2 weeks ago`     | `+`    |
-| Finished      | `S04 E10`           | Ended at season 4, episode 10     | `HBO Max · Finished in March`     | none   |
-| Dropped       | `S01 E04`           | Stopped at season 1, episode 4    | `Prime Video · Dropped last year` | none   |
+| Status        | Bottom of the card                     | Screen-reader text                | Meta                              |
+| ------------- | -------------------------------------- | --------------------------------- | --------------------------------- |
+| Watching      | `− S02 E05 +`                          | Last watched: season 2, episode 5 | `Apple TV+ · Yesterday`           |
+| Want to watch | `− Not started +` (muted, − disabled)  | (the visible text)                | `Netflix · Added 2 weeks ago`     |
+| Finished      | `S04 E10` as plain text                | Ended at season 4, episode 10     | `HBO Max · Finished in March`     |
+| Dropped       | `S01 E04` as plain text                | Stopped at season 1, episode 4    | `Prime Video · Dropped last year` |
 
-### "Next episode" button
+### Episode stepper on the card
 
-The one-tap action from D12: a plus button on the right of the card, centred vertically so it
-lines up with the progress row. Tapping it turns `S02 E05` into `S02 E06`, like a counter (D35).
-Plus means "increase", as in the stepper; a check would read as a state ("E06 is done"). The
-button holds no episode number, so the progress shows only once. In the mockup: 44×44, a soft
-accent tint as background and border, plus icon 20px in accent – quieter than a main action.
-Height at least `--touch-target`.
-**Needs an `aria-label`** with the full meaning, e.g. "Mark season 2, episode 6 of Severance as
-watched" – the icon says nothing on its own. Tapping it bumps the episode and sets "updated" to
-now, but the card **stays where it is** while the page is open: the list keeps the order it had
-when the page was opened, and the most recently updated show is on top the next time it opens
+The one-tap action from D12, as a small stepper (D114): − · the progress · +. Tapping + turns
+`S02 E05` into `S02 E06`, and − turns it back. The plus sits between a minus and a number, so it
+can only mean "next" – a plus standing alone means "add", as in Search (D100) – and it is the same
+control as the show page's steppers, only quieter.
+
+**Quiet, because every card repeats it.** One pill with no border: `--color-text-soft` behind, −
+in `--color-text-muted`, + in `--color-accent` (the only colour on the card), small icons, the
+value in the text colour. The card has no text field, so the 3:1 border rule for form controls
+(§1.1) doesn't apply: the icons identify the buttons, and they keep 3:1. In the mockup the pill is
+32px high and each button 36px wide.
+
+**Touch area:** each button is at least `--touch-target` square even though the pill is smaller –
+the extra area is invisible. Keep the two buttons far enough apart that their areas don't
+overlap.
+
+**Keyboard and screen readers:** both buttons are in the Tab order – unlike `NumberStepper`, the
+card has no input to take the arrow keys. Each needs a full `aria-label`, as the icons say nothing
+on their own: "Mark season 2, episode 6 of Severance as watched" and "Mark season 2, episode 5 of
+Severance as not watched"; on a _Want to watch_ card + says "Start Ripley: mark season 1, episode 1
+as watched". After a press a polite live region reads the new progress ("Severance: last watched
+season 2, episode 6"). A − that can't be used has `aria-disabled`, so it keeps focus; it is drawn
+fainter, which is allowed, as an inactive control has no contrast requirement.
+
+**Rules:**
+
+- + is D34: not started → S01 E01, else episode + 1 in the same season, and a _Want to watch_
+  show becomes Watching. It sets "updated" to now.
+- − goes back one episode and sets "updated" to now. From S01 E01 it goes to Not started, and the
+  status stays – Watching with no progress also comes from Search (D100). It is disabled on Not
+  started and on E01 of a later season, since the earlier season's length is unknown; stepping
+  back across a season is done on the show page. − is saved with `PUT`, one request at a time per
+  show, so quick taps can't overtake each other.
+- Finished and Dropped cards have no stepper, and the store leaves those shows unchanged (D34).
+  Their progress stands as plain text where the pill would be.
+
+After a press the card **stays where it is** while the page is open: the list keeps the order it
+had when the page was opened, and the most recently updated show is on top the next time it opens
 (D36). Moving the card at once makes the list jump, puts another card under the thumb (a quick
-second tap marks the wrong show) and can drop keyboard focus. On a _Want to watch_ card it sets
-status Watching at S01 E01 ("Start Ripley: mark season 1, episode 1 as watched"). Finished and
-Dropped cards have no button, and the store leaves those shows unchanged (D34).
-(Season rollover – E10 → next season – is done in Your show on the show page for now (D102). With TMDB's season data
-(M3), showing the _next_ episode with a check, as TV Time and Trakt do, may become the better
-pattern – see D35.)
+second tap marks the wrong show) and can drop keyboard focus.
+
+(Season rollover – E10 → next season – is done in Your show on the show page for now (D102). With
+TMDB's episode counts in M3, + rolls over to the next season's E01, and − can go back to the
+earlier season's last episode.)
 
 ### Search page (`/search?q=…`)
 
@@ -559,8 +586,8 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
-| **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip |
-| **medium** 20px | Default: brand mark, "next episode" plus, stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button, the bottom navigation, the header's search and account icons, the search result's buttons |
+| **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip, the card stepper's − and + |
+| **medium** 20px | Default: brand mark, the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button, the bottom navigation, the header's search and account icons, the search result's buttons |
 | **big** 24px    | TV icon in the empty state, search icon in Search's empty state, page-not-found icon on the not-found page |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
