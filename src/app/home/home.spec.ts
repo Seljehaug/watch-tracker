@@ -16,6 +16,11 @@ const aShow = (id: number, title: string, updatedAt: string): TrackedShow => ({
 
 const older = aShow(1, 'Older', '2026-11-01T20:00:00+00:00');
 const newer = aShow(2, 'Newer', '2026-11-02T20:00:00+00:00');
+const olderAfterNextEpisode: TrackedShow = {
+  ...older,
+  lastWatched: { season: 1, episode: 2 },
+  updatedAt: '2026-11-03T12:00:00+00:00',
+};
 
 describe('Home', () => {
   let fixture: ComponentFixture<Home>;
@@ -40,8 +45,43 @@ describe('Home', () => {
     fixture.detectChanges();
   }
 
+  // The page opens first and the list comes after, as when the app starts on Home.
+  function openBeforeTheListArrives(): void {
+    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClientTesting()] });
+    httpTesting = TestBed.inject(HttpTestingController);
+
+    fixture = TestBed.createComponent(Home);
+    fixture.detectChanges();
+  }
+
+  function renderBeforeTheListArrives(shows: TrackedShow[]): void {
+    openBeforeTheListArrives();
+    httpTesting.expectOne('/api/shows').flush(shows);
+    fixture.detectChanges();
+  }
+
+  function failToLoad(): void {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    httpTesting
+      .expectOne('/api/shows')
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+  }
+
+  const tryAgainButton = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[role="alert"] button');
+
+  function markNextEpisodeOfOlder(): void {
+    nextEpisodeButtons()[1].click();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+      .flush(olderAfterNextEpisode);
+    fixture.detectChanges();
+  }
+
   // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
+    vi.restoreAllMocks();
     try {
       httpTesting.verify();
     } finally {
@@ -58,20 +98,75 @@ describe('Home', () => {
   it('keeps a card in place when its next episode is marked', () => {
     render([older, newer]);
 
-    nextEpisodeButtons()[1].click();
-    httpTesting
-      .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
-      .flush({
-        ...older,
-        lastWatched: { season: 1, episode: 2 },
-        updatedAt: '2026-11-03T12:00:00+00:00',
-      });
-    fixture.detectChanges();
+    markNextEpisodeOfOlder();
 
     expect(titles()).toEqual(['Newer', 'Older']);
     expect(nextEpisodeButtons()[1].getAttribute('aria-label')).toBe(
       'Mark season 1, episode 3 of Older as watched',
     );
+  });
+
+  it('freezes the order when the list arrives after the page opened', () => {
+    renderBeforeTheListArrives([older, newer]);
+
+    markNextEpisodeOfOlder();
+
+    expect(titles()).toEqual(['Newer', 'Older']);
+  });
+
+  it('keeps the order when the list is fetched again', () => {
+    render([older, newer]);
+    markNextEpisodeOfOlder();
+
+    // Rendered while the request runs, as in the app, so the page sees the store loading.
+    TestBed.inject(ShowStore).load();
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/shows').flush([olderAfterNextEpisode, newer]);
+    fixture.detectChanges();
+
+    expect(titles()).toEqual(['Newer', 'Older']);
+  });
+
+  it('keeps the list on screen while it is fetched again', () => {
+    render([older, newer]);
+
+    TestBed.inject(ShowStore).load();
+    fixture.detectChanges();
+
+    expect(titles()).toEqual(['Newer', 'Older']);
+    httpTesting.expectOne('/api/shows').flush([older, newer]);
+  });
+
+  it('shows neither the empty state nor a count while the list loads', () => {
+    openBeforeTheListArrives();
+
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('app-show-list-empty')).toBeNull();
+    expect(page.textContent).not.toContain('in progress');
+    httpTesting.expectOne('/api/shows').flush([]);
+  });
+
+  it('shows an alert with "Try again" when the list cannot be loaded, and fetches it again', () => {
+    openBeforeTheListArrives();
+    failToLoad();
+
+    expect(tryAgainButton()).not.toBeNull();
+    tryAgainButton()?.click();
+    httpTesting.expectOne('/api/shows').flush([older]);
+    fixture.detectChanges();
+
+    expect(titles()).toEqual(['Older']);
+  });
+
+  it('moves focus to the heading on "Try again", as the button goes away', () => {
+    openBeforeTheListArrives();
+    failToLoad();
+
+    tryAgainButton()?.click();
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('h1'));
+    httpTesting.expectOne('/api/shows').flush([]);
   });
 
   it('puts a show that starts after the page opened first', () => {

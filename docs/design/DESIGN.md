@@ -468,6 +468,17 @@ Inside a Library tab with no shows: just "Nothing here yet." in muted text.
 Built (M1) with the `big` TV icon in a `--color-accent-soft` tile sized by its `--spacing-1`
 padding; the "Add your first show" button comes with the add form, when `/shows/add` exists.
 
+### Loading and error on Watching
+
+Only until the page has its list (D112). The title stays, without the count. **Loading:**
+"Loading…"; placeholder cards shaped like the show card (`aria-hidden`, with the text kept for
+screen readers, no movement under `prefers-reduced-motion`) are planned, for Library too.
+**Error:** laid out as the empty state, with the `alert-circle` icon, "Couldn't load your shows",
+"Check your connection and try again." and an outlined "Try again", in `role="alert"`. "Try
+again" loads the list again and moves focus to the page's `<h1>`, as the button goes away. A list
+on screen stays while it is fetched again; an error then is not shown yet (C1, the refetch on
+`visibilitychange`).
+
 ### Account page (`/account`)
 
 Reached from the account icon (D98). The `<h1>` is "Account". It has two parts:
