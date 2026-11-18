@@ -21,10 +21,6 @@ import {RouterLink} from '@angular/router';
       grid-template-columns: var(--thumbnail-width) minmax(0, 1fr) auto;
       gap: var(--spacing-half);
       align-items: center;
-      padding: var(--spacing-1);
-      background: var(--color-surface);
-      border: 1px solid var(--color-divider);
-      border-radius: var(--border-radius);
       position: relative;
 
       &:has(a:focus-visible) {
@@ -54,7 +50,7 @@ import {RouterLink} from '@angular/router';
       justify-content: center;
       align-items: center;
       border-radius: calc(var(--border-radius) / 2);
-      background: var(--color-divider);
+      background: var(--color-placeholder);
       color: var(--color-text-muted);
       font-size: var(--font-size-small);
       font-weight: 700;
@@ -116,7 +112,7 @@ import {RouterLink} from '@angular/router';
     }
   `,
   template: `
-    <article class="show-card">
+    <article class="show-card card">
       <div class="show-image" [attr.aria-hidden]="true">
         <!-- TODO get the actual thumbnail for the tv show and show as image -->
         <div class="show-thumbnail">N/A</div>

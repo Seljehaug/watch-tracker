@@ -36,6 +36,7 @@ the content max width, which is tied to the screen rather than the text (D28).
 | `--color-surface`       | `#17171A`   | Cards, inputs, dialogs                                                |
 | `--color-border`        | `#71717A`   | Borders – strong enough for form controls (3:1, §1.1)                 |
 | `--color-divider`       | `#2C2C33`   | Decorative lines: header border, separators (no contrast requirement) |
+| `--color-placeholder`   | `#2C2C33`   | Stand-ins for content: the poster slot, loading placeholders          |
 | `--color-text`          | `#F4F4F5`   | Body text, headings                                                   |
 | `--color-text-muted`    | `#A1A1AA`   | Secondary text: meta lines, hints                                     |
 | `--color-text-soft`     | `#F4F4F514` | Text at 8%: hover and press on quiet neutral buttons (the dialog's close button, the stepper's − and +) |
@@ -56,6 +57,9 @@ too (12% would fall to 4.2 there).
 background it has to be lightened to reach 4.5:1; mixing in white (green and blue equally high)
 turns it pink, while a little more green than blue keeps it red. Its hue (3°) stays far from the
 amber accent (≈40°).
+
+`--color-placeholder` has the divider's value for now, but a job of its own – a stand-in for
+content isn't a line – so the two can part in the design pass (D103, D113).
 
 **Not tokens yet.** The mockups also use a dialog backdrop, a lighter "raised" surface and a
 heading size for dialogs and the empty state.
@@ -79,6 +83,8 @@ Add them as tokens when a component needs them (M1) – the values are the `--mo
 | accent and background (accent text, or dark text on accent) | 10.8        | 4.5:1 ✔         |
 | border vs background / surface                              | 4.0 / 3.7   | 3:1 non-text ✔  |
 | divider vs background / surface                             | 1.4 / 1.3   | decorative only |
+| placeholder vs surface                                      | 1.3         | decorative only |
+| text-muted on placeholder (the poster slot's text)          | 5.4         | 4.5:1 ✔         |
 | accent icon on accent-soft (over surface)                   | 7.9         | 3:1 non-text ✔  |
 | accent-border vs surface                                    | 2.3         | decorative only |
 | danger on background / surface (error text, border)         | 5.7 / 5.3   | 4.5:1 ✔         |
@@ -470,9 +476,14 @@ padding; the "Add your first show" button comes with the add form, when `/shows/
 
 ### Loading and error on Watching
 
-Only until the page has its list (D112). The title stays, without the count. **Loading:**
-"Loading…"; placeholder cards shaped like the show card (`aria-hidden`, with the text kept for
-screen readers, no movement under `prefers-reduced-motion`) are planned, for Library too.
+Only until the page has its list (D112). The title stays; the count under it comes with the list.
+**Loading:** "Loading…" on the line under the title, where the count comes, so nothing moves
+when it does – as "Searching…" holds the count's place on Search. Below it four placeholder cards
+in the list's grid, shaped like the show card: the card's frame, a poster slot of the same size,
+and three bars in `--color-placeholder` where the title, the progress and the meta line go. The
+bars are as tall as the text and spaced like its lines, so a placeholder is as tall as a card.
+The cards are `aria-hidden`; "Loading…" is what screen readers get (D113). Library uses them too.
+No pulse yet; one would stand still under `prefers-reduced-motion`.
 **Error:** laid out as the empty state, with the `alert-circle` icon, "Couldn't load your shows",
 "Check your connection and try again." and an outlined "Try again", in `role="alert"`. "Try
 again" loads the list again and moves focus to the page's `<h1>`, as the button goes away. A list

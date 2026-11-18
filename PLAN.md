@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-17
+**Last updated:** 2026-11-18
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
@@ -17,7 +17,8 @@ adds, saves, deletes and steps on a user's own shows only (D104–D106) – depl
 B1, B2's skeleton part and D1 were done 2026-11-12. C1, Angular against the API, is under way:
 the proxy, `ShowApi` and `ShowStore` on it are done 2026-11-17 (D107–D109), so Angular reads and
 writes `/api/shows` locally, and the guard waits for the first load (D110); since 2026-11-18 Home
-freezes its order when the list arrives and shows loading and an error (D111, D112). Production
+freezes its order when the list arrives and shows placeholder cards while it loads and an error
+(D111–D113). Production
 keeps the localStorage version until C1 and C2 go out
 together. The goal is
 the app on several devices (D58), with backend, hosting and order
@@ -132,13 +133,15 @@ goal (D63): it should take as little time from Angular as possible.
   when the data arrives – and never again (D36, D111): `openedOrder` is a `linkedSignal` on
   `ShowStore.status` that keeps its previous value, `null` until then, and a `computed` puts the
   store's fresh data in that order, with shows that started since first. Until the page has its
-  list (`hasList`) it shows "Loading…", or, when the load failed, an error in a `ShowListEmpty`
-  with `role="alert"` and "Try again", which calls `ShowStore.load()` and moves focus to the
-  `<h1>`; once it has the list, the list stays whatever the status (D112). With no show being
-  watched it shows the empty state instead (DESIGN.md "Empty state", with an "Add your first
-  show" link to `/shows/add`). Under the title a muted "N shows in progress" (singular for one),
-  only once the page has its list. The title and the count are a `PageHeader`, the empty state and
-  the error a `ShowListEmpty` with the link or the button projected – Home imports `RouterLink`
+  list (`hasList`) it shows `ShowListSkeleton` while it loads (D113), or, when the load failed,
+  an error in a `ShowListEmpty` with `role="alert"` and "Try again", which calls
+  `ShowStore.load()` and moves focus to the `<h1>`; once it has the list, the list stays
+  whatever the status (D112). With no show being watched it shows the empty state instead
+  (DESIGN.md "Empty state", with an "Add your first show" link to `/shows/add`). Under the
+  title a muted "N shows in progress" (singular for one), only once the page has its list;
+  while it loads the same line says "Loading…", so the list doesn't move when the count comes,
+  and after a failed load there is none. The title and the count are a `PageHeader`, the empty
+  state and the error a `ShowListEmpty` with the link or the button projected – Home imports `RouterLink`
   and `SvgIcon` for it, since projected content is compiled in the template that writes it.
 - `PageHeader` (`src/app/shared/page-header/`): the page's `<h1 tabindex="-1">` from the
   required `heading` input and an optional muted `<p>` from `description`. The status tabs will
@@ -154,12 +157,20 @@ goal (D63): it should take as little time from Angular as possible.
   `flex: 1` in the shell's `main`. Reached by unknown URLs and, through the guard, by edit URLs
   whose show isn't in the store. The muted line has `text-align: center`, so it stays centred
   when it wraps on a phone (DESIGN.md).
-- `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in a
-  responsive grid (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
+- `ShowList` (`src/app/shows/show-list/`): a `<ul role="list">` of `<li>` + `ShowCard` in the
+  global `.card-grid` (`repeat(auto-fill, minmax(min(18rem, 100%), 1fr))` – one column on phones,
   four at full width). It forwards the card's `nextEpisodeWatched` as its own output, since
   outputs don't bubble.
-- `ShowCard` (`src/app/shows/show-card/`): an `<article>` with a 2:3 poster placeholder
-  (`aria-hidden`), the title in an `<h2>` (ellipsis) holding a `RouterLink` to
+- `ShowListSkeleton` (`src/app/shows/show-list-skeleton/`, `app-show-list-skeleton`, D113): the
+  placeholder cards while a list loads – four (`numberOfItems`, made an array with
+  `Array.from({ length })` for the `@for`, which needs something to iterate) in `.card-grid`,
+  each a `.card` with a 2:3 poster slot as wide as the card's (`--thumbnail-width` copied from
+  `ShowCard`) and three bars in `--color-placeholder`, as tall as the text with `--spacing-half`
+  between, so they sit on the card's lines and a placeholder is as tall as a card. All
+  `aria-hidden`, with no text of its own: the page says "Loading…" under its title. No inputs
+  yet; Library will need a count only if it wants another number.
+- `ShowCard` (`src/app/shows/show-card/`): an `<article>` framed by the global `.card`, with a
+  2:3 poster placeholder (`aria-hidden`, `--color-placeholder`), the title in an `<h2>` (ellipsis) holding a `RouterLink` to
   `/shows/:id/edit` whose `::after` covers the card, so the whole card opens the editor except
   the plus button, which sits above it (D51) – a hovered link lightens the card on devices that
   hover, a focused one turns its border accent – the progress once (`S02 E05` visible but
@@ -291,8 +302,8 @@ goal (D63): it should take as little time from Angular as possible.
   `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order at open, a card stays in place after a tap – also when the list
   arrives after the page opened, and after a refetch – new shows first, empty state, the add link
-  projected into it; the list stays on screen during a refetch; no empty state and no count while
-  loading; a failed load gives an alert with "Try again", which sends a new `GET`, and focus moves
+  projected into it; the list stays on screen during a refetch; "Loading…" in the count's place
+  and no empty state while loading; a failed load gives an alert with "Try again", which sends a new `GET`, and focus moves
   to the `<h1>`),
   `show-form-model.spec.ts` (mapping both ways, round trip, the schema's own rules incl. D44),
   `form-field.spec.ts` (label link, when errors show, hint/error swap, ids per field),
@@ -330,9 +341,11 @@ goal (D63): it should take as little time from Angular as possible.
   `.label-secondary`, form controls at least `--touch-target` high and wide, a danger border from
   `[aria-invalid='true']`, `cursor: not-allowed` on `[aria-disabled]` buttons, button classes
   that links can use too – `.button`, `.button-primary` (accent, like `type="submit"`),
-  `.button-secondary` (outlined), `.button-group` – and `scrollbar-gutter: stable` on `html`, so
-  nothing moves when a page grows a scrollbar). The tokens
-  now include `--color-accent-soft` and `--color-accent-border` (8-digit hex). Inter via
+  `.button-secondary` (outlined), `.button-group` – the cards' `.card-grid` and `.card` frame
+  (D113), and `scrollbar-gutter: stable` on `html`, so nothing moves when a page grows a
+  scrollbar). A component's own class overrides `.card`: Angular adds an attribute to its
+  selectors, which makes them weigh more. The tokens now include `--color-accent-soft` and
+  `--color-accent-border` (8-digit hex), and `--color-placeholder`. Inter via
   `@fontsource-variable/inter` – family name `'Inter Variable'`.
 - CI: `.github/workflows/ci.yml` runs lint, tests and the build on pushes to `main` and on pull
   requests, with Node from `.nvmrc` (24); a second job, `api`, runs `dotnet build` and
@@ -893,8 +906,10 @@ shows are typed in again in D3 (D66).
   load through `ShowStore.status$`, and sends to Home, keeping the URL, when it fails (D110).
   Then Home (2026-11-18): the order freezes when the list first arrives, with a `linkedSignal`
   (D111), and until then the page shows "Loading…" or the error with "Try again" (D112) – the
-  error and "Try again" written by Claude on request. Placeholder cards for the loading come in a
-  session of their own. Left: "Saving…" and the save error, the delete dialog's waiting and error,
+  error and "Try again" written by Claude on request. Then placeholder cards for the loading, with
+  "Loading…" moved to the line under the title, a `--color-placeholder` token and the global
+  `.card` and `.card-grid` (D113) – the styles and the shared classes written by Claude on
+  request. Left: "Saving…" and the save error, the delete dialog's waiting and error,
   `concatMap` for next episode, and the refetch on `visibilitychange`.
 - [ ] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
       error, the logged-in user from `/api/auth/user`, a guard that sends to `/login?returnUrl=…`,
@@ -1205,7 +1220,8 @@ reversed, mark it as superseded instead of deleting it.
 | D109 | 2026-11-17 | `ShowStorage`, `LocalStorageShowStorage`, its spec and the predicates only it used (`isTrackedShow`, `isEpisodeRef`, `isShowStatus`, `isStreamingService`) are deleted in C1, not after D3 (amends D3 and D77). The API's answers are not checked at runtime: `get<TrackedShow[]>` is a promise to the compiler, held by the server's validation and the contract tests (`AngularListsTests`, the JSON in `ShowEndpointsTests`). Revisit with `httpResource`'s `parse` in E1. The Pixel's localStorage is left as it is, unread; the list is screenshotted before C1 and C2 go out. | `LocalStorageShowStorage` extends `ShowStorage` and accepts only text ids, so it couldn't stay as it was, and git keeps it. The predicates existed because localStorage could hold anything – an older version's data, edits in DevTools, a half-written save; the API is the app's own, and its contract is tested in CI. Kept, they would be code no one calls that must follow every change to the types, as the number id. |
 | D110 | 2026-11-17 | `showExistsGuard` waits for the store's first load (D53): it returns `ShowStore.status$` with `filter` skipping `'loading'` and `map` making the guard's answer. `status$` is made with `toObservable` once, as a field in the store, not in the guard. No `take(1)`: the router takes the first value and unsubscribes. When the load fails, the guard sends to Home with `browserUrl: state.url`, so the address bar keeps the edit URL and a reload tries again; a `401` is C2's, where the interceptor sends to the login page. | `toObservable` makes an effect that is destroyed with its injector, not when the subscriber leaves – for a guard that is the root injector – so one made in the guard would leave an effect behind at every visit to an edit page. The router runs every guard through `first()` (angular.dev, "Route guard return types"), so `filter` is what matters: without it `'loading'` is the first value, and the guard answers before the list is there. The not-found page would say a show doesn't exist when the server didn't answer; `false` leaves an empty page under the header when the URL was opened directly; `true` would open the editor with no show. Home is where the list's error belongs (C1 step 5), and keeping the URL is D53's pattern. Accepted: Home shows under an edit URL until the user moves on, and until Home shows the error it shows the empty state. **Home shows the error since C1 step 5 (D112).** |
 | D111 | 2026-11-18 | Home freezes its order (D36) the first time `ShowStore.status` is `'loaded'`: `openedOrder` is a `linkedSignal` with the status as `source` and a `computation` that returns `previous.value` once there is one, the ids of `watching()` when the status is `'loaded'`, and `null` before that. Home opened on a loaded list freezes at once, a refetch never freezes again, and an empty list is frozen too (`[]` is not `null`), so a show started later comes first. | A field initializer runs once, when Home opens; at app start the list was still on its way, so it froze an empty list and a tapped card moved to the top. A `computed` can't remember its own earlier value; `linkedSignal`'s `previous` is that memory, without an `effect` writing a signal. Freezing on `'loaded'` rather than on a non-empty list keeps "has the data arrived" apart from "is there anything in it". `linkedSignal` is lazy – it computes when read – so the tests render while the request runs, as the app does, or a break in the `'loading'` case goes unseen. |
-| D112 | 2026-11-18 | Home's states: the page's own list wins over the store's status. Until Home has its list (`openedOrder` not `null`) it shows "Loading…" while the status is `'loading'` and an error while it is `'error'`; once it has the list it shows the list – or the empty state – whatever the status, so a refetch never hides it. The rule lives in Home as `computed`s (`hasList`, `displayLoading`, `displayError`), not as booleans on the store. The `PageHeader` stays in every state, and the count under the title shows only with a list. The error reuses `ShowListEmpty` – `alert-circle`, "Couldn't load your shows", "Check your connection and try again." – with `role="alert"` and an outlined "Try again", which calls `ShowStore.load()` and moves focus to the `<h1>`. Not yet: an error when a list on screen is fetched again is not shown (C1, the refetch on `visibilitychange`: a message beside the list, not instead of it), and placeholder cards for the loading come in a session of their own. Accepted: Home opened during a refetch shows "Loading…", and after a failed refetch the error, though the store still holds the old list, since the page's list is tied to the status; the edit URL stays in the address bar after the guard sends to Home (D110), also once "Try again" has loaded the list. | The store knows whether a request runs, not whether the page has something to show: its `'loading'` is also true during a refetch, and would put "Loading…" over the list each time the app comes back. A list that worked stays useful when a refresh fails – the store keeps it, and next episode is a request of its own – so the full-page error is only for when there is nothing to show. The `<h1>` is where `App` sends focus after navigation, the guard's redirect included, and where focus goes when "Try again" disappears; otherwise focus falls to `<body>` and a screen reader says nothing (WCAG 2.4.3). `role="alert"` is announced when it is inserted, which is when the error appears. "0 shows in progress" while loading would be wrong, not just early. |
+| D112 | 2026-11-18 | Home's states: the page's own list wins over the store's status. Until Home has its list (`openedOrder` not `null`) it shows "Loading…" while the status is `'loading'` and an error while it is `'error'`; once it has the list it shows the list – or the empty state – whatever the status, so a refetch never hides it. The rule lives in Home as `computed`s (`hasList`, `displayLoading`, `displayError`), not as booleans on the store. The `PageHeader` stays in every state, and the count under the title shows only with a list. The error reuses `ShowListEmpty` – `alert-circle`, "Couldn't load your shows", "Check your connection and try again." – with `role="alert"` and an outlined "Try again", which calls `ShowStore.load()` and moves focus to the `<h1>`. Not yet: an error when a list on screen is fetched again is not shown (C1, the refetch on `visibilitychange`: a message beside the list, not instead of it), and placeholder cards for the loading come in a session of their own. Accepted: Home opened during a refetch shows "Loading…", and after a failed refetch the error, though the store still holds the old list, since the page's list is tied to the status; the edit URL stays in the address bar after the guard sends to Home (D110), also once "Try again" has loaded the list. **The placeholder cards came 2026-11-18, with "Loading…" on the line under the title (D113).** | The store knows whether a request runs, not whether the page has something to show: its `'loading'` is also true during a refetch, and would put "Loading…" over the list each time the app comes back. A list that worked stays useful when a refresh fails – the store keeps it, and next episode is a request of its own – so the full-page error is only for when there is nothing to show. The `<h1>` is where `App` sends focus after navigation, the guard's redirect included, and where focus goes when "Try again" disappears; otherwise focus falls to `<body>` and a screen reader says nothing (WCAG 2.4.3). `role="alert"` is announced when it is inserted, which is when the error appears. "0 shows in progress" while loading would be wrong, not just early. |
+| D113 | 2026-11-18 | Placeholder cards while a list loads: `ShowListSkeleton`, on Watching now and on Library later – a fixed four cards shaped like the show card (its frame, a poster slot of the same size, three bars where the text goes) in the list's grid, `aria-hidden`, with no text of their own. The page says "Loading…" on the line under its title, where the count comes. Their colour is a token of its own, `--color-placeholder` (the divider's value for now), which the card's poster slot uses too. The card's frame and the list's grid are global classes, `.card` and `.card-grid`, shared by `ShowCard`, `ShowList` and the placeholders; the card's inner layout and `--thumbnail-width` are copied, with a comment. No pulse yet. | The count's line appeared with the list and pushed it down; with "Loading…" in its place the line is there from the start, as "Searching…" holds the count's place on Search, and screen readers get one text rather than the same one twice. `--color-divider` names lines, and a stand-in for content may get another colour in the design pass (D103). Four fill a phone's screen under the title and one row at full width; more placeholders than shows only leave the page shorter, as nothing above them moves. The frame and the grid are the same wherever there are cards, while the card's inner layout is expected to change, so it is shared once it has settled. |
 
 ## 7. Open questions
 

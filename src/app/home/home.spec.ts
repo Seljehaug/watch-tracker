@@ -137,11 +137,13 @@ describe('Home', () => {
     httpTesting.expectOne('/api/shows').flush([older, newer]);
   });
 
-  it('shows neither the empty state nor a count while the list loads', () => {
+  it('shows "Loading…" where the count goes, and no empty state, while the list loads', () => {
     openBeforeTheListArrives();
 
     const page = fixture.nativeElement as HTMLElement;
     expect(page.querySelector('app-show-list-empty')).toBeNull();
+    // The line under the title is there before the count, so the page doesn't move when it comes.
+    expect(page.querySelector('app-page-header p')?.textContent?.trim()).toBe('Loading…');
     expect(page.textContent).not.toContain('in progress');
     httpTesting.expectOne('/api/shows').flush([]);
   });

@@ -6,6 +6,7 @@ import {RouterLink} from '@angular/router';
 import {SvgIcon} from '../shared/svg-icon/svg-icon';
 import {PageHeader} from '../shared/page-header/page-header';
 import {ShowId} from '../shows/tracked-show';
+import {ShowListSkeleton} from '../shows/show-list-skeleton/show-list-skeleton';
 
 @Component({
   selector: 'app-home',
@@ -13,7 +14,7 @@ import {ShowId} from '../shows/tracked-show';
     <app-page-header heading="Continue watching" [description]="watchingText()"></app-page-header>
 
     @if (displayLoading()) {
-      <p>Loading…</p>
+      <app-show-list-skeleton/>
     } @else if (displayError()) {
       <app-show-list-empty
         role="alert"
@@ -40,7 +41,7 @@ import {ShowId} from '../shows/tracked-show';
       }
     }
   `,
-  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader],
+  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton],
 })
 export class Home {
   private readonly store = inject(ShowStore);
@@ -83,6 +84,7 @@ export class Home {
   });
 
   protected readonly watchingText = computed(() => {
+    if (this.displayLoading()) return 'Loading…';
     if (!this.hasList()) return undefined;
     const count = this.watching().length;
     return `${count} ${count === 1 ? 'show' : 'shows'} in progress`;
