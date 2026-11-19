@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import {booleanAttribute, Component, input, output} from '@angular/core';
 import {SvgIcon} from '../svg-icon/svg-icon';
 
 @Component({
@@ -29,6 +29,14 @@ import {SvgIcon} from '../svg-icon/svg-icon';
   template: `
     <app-svg-icon name="alert-circle" size="big"/>
     <ng-content/>
+    @if (dismissible()) {
+      <button type="button" class="button-close" aria-label="Dismiss" (click)="dismissed.emit()">
+        <app-svg-icon name="close"/>
+      </button>
+    }
   `,
 })
-export class AlertError {}
+export class AlertError {
+  readonly dismissible = input(false, { transform: booleanAttribute });
+  readonly dismissed = output();
+}

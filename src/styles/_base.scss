@@ -157,6 +157,23 @@ button[type="submit"],
   }
 }
 
+.button-close {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: none;
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--color-text-soft);
+    }
+  }
+
+  &:active {
+    background: var(--color-text-soft);
+  }
+}
+
 // Labels that take turns, like "Save changes" and "Saving…", share one cell, so the button keeps
 // the width of the longest.
 .button-labels {
@@ -222,6 +239,29 @@ dialog {
   background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: var(--border-radius);
+}
+
+// Alerts
+
+.alert-floating {
+  position: fixed;
+  inset-inline: var(--spacing-1);
+  bottom: var(--spacing-1);
+  z-index: 2; // above the card's buttons
+  max-width: 28rem;
+  background: var(--color-background);
+}
+
+// Focus is never hidden behind the alert (WCAG 2.4.11, technique C43): scrolling to a focused
+// control stops above it, and the page gets as much room at the end, so the last card can scroll
+// up out from under it too. Room for three lines of text.
+html:has(.alert-floating) {
+  $space: 9rem;
+  scroll-padding-bottom: $space;
+
+  main {
+    padding-bottom: $space;
+  }
 }
 
 // Validation

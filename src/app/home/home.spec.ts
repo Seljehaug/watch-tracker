@@ -79,6 +79,23 @@ describe('Home', () => {
     fixture.detectChanges();
   }
 
+  function failNextEpisodeOfOlder(): void {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    nextEpisodeButtons()[1].click();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+  }
+
+  const failureAlert = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('app-alert-error');
+
+  const dismissButton = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'app-alert-error button[aria-label="Dismiss"]',
+    );
+
   // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
     vi.restoreAllMocks();
@@ -169,6 +186,45 @@ describe('Home', () => {
 
     expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('h1'));
     httpTesting.expectOne('/api/shows').flush([]);
+  });
+
+  it('names the show in an alert when its next episode cannot be marked, and keeps the list', () => {
+    render([older, newer]);
+
+    failNextEpisodeOfOlder();
+
+    expect(failureAlert()?.textContent?.trim()).toBe(
+      "Couldn't mark the next episode of Older as watched.",
+    );
+    expect(titles()).toEqual(['Newer', 'Older']);
+  });
+
+  it('still says what failed when the show is gone from the list', () => {
+    render([older, newer]);
+    failNextEpisodeOfOlder();
+
+    TestBed.inject(ShowStore).delete(1).subscribe();
+    httpTesting
+      .expectOne({ method: 'DELETE', url: '/api/shows/1' })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+
+    expect(failureAlert()?.textContent?.trim()).toBe("Couldn't mark the next episode as watched.");
+  });
+
+  // The button goes with the alert. The page mustn't jump to the top, wherever it was scrolled.
+  it('removes the alert on "Dismiss" and moves focus to the heading without scrolling', () => {
+    render([older, newer]);
+    failNextEpisodeOfOlder();
+    const heading = (fixture.nativeElement as HTMLElement).querySelector('h1');
+    const focus = vi.spyOn(heading as HTMLElement, 'focus');
+
+    dismissButton()?.click();
+    fixture.detectChanges();
+
+    expect(failureAlert()).toBeNull();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(heading);
   });
 
   it('puts a show that starts after the page opened first', () => {

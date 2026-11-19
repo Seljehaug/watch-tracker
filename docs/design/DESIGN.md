@@ -268,6 +268,9 @@ fainter, which is allowed, as an inactive control has no contrast requirement.
   started and on E01 of a later season, since the earlier season's length is unknown; stepping
   back across a season is done on the show page. − is saved with `PUT`, one request at a time per
   show, so quick taps can't overtake each other.
+- Every press counts, and they are sent one at a time in order, so the buttons stay active and
+  show no waiting (D120, D122). A press that fails leaves the progress as it was and shows the
+  floating error alert (D121, "Error alert").
 - Finished and Dropped cards have no stepper, and the store leaves those shows unchanged (D34).
   Their progress stands as plain text where the pill would be.
 
@@ -543,6 +546,17 @@ The page sets the space above it. Field errors stay as they are, under their fie
 `AlertError`, in the editor and the delete dialog; meant for the login page and a failed refetch
 beside the list too.
 
+**Floating, for an action on a list** (D121): when the action that failed has no fixed place –
+"Couldn't mark the next episode of Severance as watched." from a card on Watching – the alert
+floats at the bottom of the window, where the message after adding goes: inside the side gutters
+on phones, centred and at most 28rem wide on wider screens, on `--color-background` since the
+page runs under it. Below the list it would be out of sight, and above it would push the cards
+down under the thumb (D36). It has a close button ("Dismiss", the `close` icon at medium, a
+`--touch-target` area) and no timer: it stays until it is dismissed or the next tap, and
+"Dismiss" moves focus to the page's `<h1>` without scrolling. While it shows, the page keeps
+focused controls above it (`scroll-padding-bottom`) and has as much room at its end, so the last
+card can scroll up from under it (WCAG 2.4.11). With the bottom navigation (M3) it sits above it.
+
 ### Account page (`/account`)
 
 Reached from the account icon (D98). The `<h1>` is "Account". It has two parts:
@@ -613,7 +627,7 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip, the card stepper's − and + |
-| **medium** 20px | Default: brand mark, the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button, the bottom navigation, the header's search and account icons, the search result's buttons |
+| **medium** 20px | Default: brand mark, the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button and the error alert's "Dismiss", the bottom navigation, the header's search and account icons, the search result's buttons |
 | **big** 24px    | TV icon in the empty state, search icon in Search's empty state, page-not-found icon on the not-found page |
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty

@@ -187,19 +187,81 @@ describe('ShowStore', () => {
       expect(store.shows()).toEqual([aShow(2), fromServer]);
     });
 
-    // Without an error callback, RxJS throws the error later, outside the store.
-    it('logs a failed command and leaves the show as it was', () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // Two at once could both read E05 on the server and save E06, and the answers could come
+    // back in either order (D69).
+    it('sends quick taps one at a time, each after the answer to the one before', () => {
+      loadShows([aShow(1, { lastWatched: { season: 2, episode: 5 } })]);
+      const afterFirst = aShow(1, { lastWatched: { season: 2, episode: 6 } });
+      const afterSecond = aShow(1, { lastWatched: { season: 2, episode: 7 } });
+
+      store.markNextEpisodeAsWatched(1);
+      store.markNextEpisodeAsWatched(1);
+
+      // expectOne fails when both have been sent.
+      expectNextEpisodeOf(1).flush(afterFirst);
+      expectNextEpisodeOf(1).flush(afterSecond);
+      expect(store.shows()).toEqual([afterSecond]);
+    });
+
+    // A retry could count an episode twice: the server may have saved before the answer was lost.
+    it('never sends a failed command again, and still sends the taps after it', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      loadShows([aShow(1), aShow(2)]);
+      const show2After = aShow(2, { lastWatched: { season: 1, episode: 1 } });
+
+      store.markNextEpisodeAsWatched(1);
+      store.markNextEpisodeAsWatched(2);
+      failNextEpisodeOf(1);
+      expectNextEpisodeOf(2).flush(show2After);
+      httpTesting.expectNone({ method: 'POST', url: '/api/shows/1/next-episode' });
+
+      store.markNextEpisodeAsWatched(1);
+      expectNextEpisodeOf(1).flush(aShow(1, { lastWatched: { season: 1, episode: 1 } }));
+    });
+
+    it('leaves the show as it was when the command fails, and says which show failed', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      loadShows([aShow(1), aShow(2)]);
+
+      store.markNextEpisodeAsWatched(2);
+      failNextEpisodeOf(2);
+
+      expect(store.shows()).toEqual([aShow(1), aShow(2)]);
+      expect(store.nextEpisodeFailedFor()).toBe(2);
+    });
+
+    it('forgets the failure on the next tap, and when it is cleared', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      loadShows([aShow(1), aShow(2)]);
+      store.markNextEpisodeAsWatched(1);
+      failNextEpisodeOf(1);
+
+      store.markNextEpisodeAsWatched(2);
+      expect(store.nextEpisodeFailedFor()).toBeNull();
+      failNextEpisodeOf(2);
+
+      store.clearNextEpisodeFailure();
+      expect(store.nextEpisodeFailedFor()).toBeNull();
+    });
+
+    // The list is loaded again often (D69); the queue must not be subscribed to again with it.
+    it('sends one command per tap after the list has been loaded again', () => {
+      loadShows([aShow(1)]);
+      store.load();
       loadShows([aShow(1)]);
 
       store.markNextEpisodeAsWatched(1);
-      httpTesting
-        .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
-        .flush(null, { status: 500, statusText: 'Internal Server Error' });
 
-      expect(store.shows()).toEqual([aShow(1)]);
-      expect(consoleError).toHaveBeenCalled();
+      expectNextEpisodeOf(1).flush(aShow(1, { lastWatched: { season: 1, episode: 1 } }));
     });
+
+    function expectNextEpisodeOf(id: number) {
+      return httpTesting.expectOne({ method: 'POST', url: `/api/shows/${id}/next-episode` });
+    }
+
+    function failNextEpisodeOf(id: number): void {
+      expectNextEpisodeOf(id).flush(null, { status: 500, statusText: 'Internal Server Error' });
+    }
   });
 
   describe('watching', () => {

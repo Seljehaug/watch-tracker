@@ -7,6 +7,7 @@ import {SvgIcon} from '../shared/svg-icon/svg-icon';
 import {PageHeader} from '../shared/page-header/page-header';
 import {ShowId} from '../shows/tracked-show';
 import {ShowListSkeleton} from '../shows/show-list-skeleton/show-list-skeleton';
+import {AlertError} from '../shared/alert-error/alert-error';
 
 @Component({
   selector: 'app-home',
@@ -39,9 +40,15 @@ import {ShowListSkeleton} from '../shows/show-list-skeleton/show-list-skeleton';
           </a>
         </app-show-list-empty>
       }
+
+      @if (nextEpisodeFailureMessage(); as message) {
+        <app-alert-error class="alert-floating" dismissible (dismissed)="dismissNextEpisodeFailure()">
+          <p>{{ message }}</p>
+        </app-alert-error>
+      }
     }
   `,
-  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton],
+  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton, AlertError],
 })
 export class Home {
   private readonly store = inject(ShowStore);
@@ -59,6 +66,16 @@ export class Home {
   });
 
   private readonly hasList = computed(() => this.openedOrder() !== null);
+
+  protected readonly nextEpisodeFailureMessage = computed(() => {
+    const failedShowId = this.store.nextEpisodeFailedFor();
+    if (failedShowId === null) return null;
+
+    const failedShow = this.store.getShowById(failedShowId);
+    return failedShow
+      ? `Couldn't mark the next episode of ${failedShow.title} as watched.`
+      : "Couldn't mark the next episode as watched.";
+  });
 
   // Only before the page has its list: a list on screen stays while it is fetched again.
   protected readonly displayLoading = computed(() => this.store.status() === 'loading' && !this.hasList());
@@ -90,8 +107,15 @@ export class Home {
     return `${count} ${count === 1 ? 'show' : 'shows'} in progress`;
   });
 
-  protected markNextEpisodeAsWatched(id: ShowId): void {
-    this.store.markNextEpisodeAsWatched(id);
+  protected markNextEpisodeAsWatched(showId: ShowId): void {
+    this.store.markNextEpisodeAsWatched(showId);
+  }
+
+  // The close button goes with the message, and focus would go with it. The page stays where it
+  // was scrolled.
+  protected dismissNextEpisodeFailure(): void {
+    this.store.clearNextEpisodeFailure();
+    this.host.nativeElement.querySelector('h1')?.focus({ preventScroll: true });
   }
 
   // The button goes away while the list loads, and focus would go with it.

@@ -83,22 +83,9 @@ import {AlertError} from '../../shared/alert-error/alert-error';
     }
 
     .button-close {
-      padding: 0;
       margin-block-start: calc((var(--icon-size-medium) - var(--touch-target)) / 2);
       margin-inline-end: calc((var(--icon-size-medium) - var(--touch-target)) / 2);
       color: var(--color-text);
-      background: transparent;
-      border: none;
-
-      @media (hover: hover) {
-        &:hover {
-          background: var(--color-text-soft);
-        }
-      }
-
-      &:active {
-        background: var(--color-text-soft);
-      }
     }
   `
 })
