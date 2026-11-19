@@ -238,7 +238,7 @@ describe('ShowEditor', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
     });
 
-    // D114: the message goes below the buttons, so it is scrolled into view on short screens.
+    // D117: the message goes below the buttons, so it is scrolled into view on short screens.
     it('stays on the form with the values kept, and shows the error in view', async () => {
       const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
       await open('/shows/1/edit');
@@ -256,7 +256,7 @@ describe('ShowEditor', () => {
       expect(saveButton().hasAttribute('aria-disabled')).toBe(false);
     });
 
-    // Save is also "Try again", with the very same values (D114).
+    // Save is also "Try again", with the very same values (D117).
     it('sends the same values again, without the error while it saves', async () => {
       await open('/shows/1/edit');
       save();
@@ -332,8 +332,11 @@ describe('ShowEditor', () => {
     const dialog = root().querySelector('dialog') as HTMLDialogElement;
     expect(dialog.hasAttribute('open')).toBe(true);
 
+    // The label on show; the hidden "Deleting…" only keeps the button as wide.
     const confirmButton = Array.from(dialog.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Delete show',
+      (button) =>
+        button.querySelector('.button-labels > :not(.button-label-hidden)')?.textContent?.trim() ===
+        'Delete show',
     );
     confirmButton?.click();
     httpTesting

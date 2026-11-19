@@ -497,6 +497,14 @@ superseded. Built 26rem wide (the browser's
 max-width keeps it inside narrow screens) with 24px padding; title and text 8px apart, as one
 group, and the buttons 24px below them. Dark translucent backdrop. Focus goes to Cancel when it opens; Escape closes it.
 
+While the server deletes, "Delete show" says "Deleting…" in the same width, and Cancel, the close
+button and Escape do nothing until it has answered – a sent delete can't be called back (D118).
+All three are `aria-disabled` meanwhile, so focus stays where it is. After a yes the dialog closes
+and the app moves on. A failed delete leaves the dialog open and shows the error alert "Couldn't
+delete the show." below the buttons, with `--spacing-1` above it; "Delete show" is "Try again".
+The alert goes when the next try starts and when the dialog is opened again. A show already
+deleted on another device counts as deleted (D119).
+
 ### Empty state
 
 Centred in the list area: 96×96 soft accent tile with the TV icon in accent, title
@@ -525,13 +533,15 @@ on screen stays while it is fetched again; an error then is not shown yet (C1, t
 
 ### Error alert
 
-For an action that failed, not a field (D117): "Couldn't save your changes.". A box with a 1px
+For an action that failed, not a field (D117): "Couldn't save your changes.", "Couldn't delete the
+show.". A box with a 1px
 `--color-danger` border and `--border-radius`, no background, the `alert-circle` icon (big) and
 the text in `--color-danger`, centred on each other, `--spacing-1` inside. `role="alert"`, so it
 is read when it appears without moving focus. It sits next to the action that failed – below
-the form's buttons – so nothing on screen moves, and is scrolled into view if it is out of sight.
-Field errors stay as they are, under their field (D41). Built as `AlertError`; meant for the
-delete dialog's error, the login page and a failed refetch beside the list too.
+the form's or the dialog's buttons – so nothing on screen moves, and is scrolled into view if it is out of sight.
+The page sets the space above it. Field errors stay as they are, under their field (D41). Built as
+`AlertError`, in the editor and the delete dialog; meant for the login page and a failed refetch
+beside the list too.
 
 ### Account page (`/account`)
 

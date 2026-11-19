@@ -15,7 +15,7 @@ import {SvgIcon} from '../svg-icon/svg-icon';
       justify-content: center;
       align-items: center;
       gap: var(--spacing-half);
-      margin: 0 auto;
+      margin-inline: auto;
       width: fit-content;
       min-width: 200px;
 

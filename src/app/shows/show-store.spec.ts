@@ -157,6 +157,19 @@ describe('ShowStore', () => {
       await expect(deleted).rejects.toMatchObject({ status: 500 });
       expect(store.shows()).toEqual([aShow(2), aShow(1)]);
     });
+
+    // Deleted on another device: the user has what they asked for (D119).
+    it('counts a 404 as deleted, and removes the show', async () => {
+      loadShows([aShow(2), aShow(1)]);
+      const deleted = firstValueFrom(store.delete(1));
+
+      httpTesting
+        .expectOne({ method: 'DELETE', url: '/api/shows/1' })
+        .flush(null, { status: 404, statusText: 'Not Found' });
+
+      await expect(deleted).resolves.toBeUndefined();
+      expect(store.shows()).toEqual([aShow(2)]);
+    });
   });
 
   describe('markNextEpisodeAsWatched', () => {

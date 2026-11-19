@@ -1,8 +1,9 @@
 import { Service, computed, signal, inject } from '@angular/core';
 import { ShowId, ShowPostModel, TrackedShow } from './tracked-show';
 import { ShowApi } from './show-api';
-import { Observable, tap } from 'rxjs';
+import {catchError, Observable, of, tap, throwError} from 'rxjs';
 import {toObservable} from '@angular/core/rxjs-interop';
+import {HttpErrorResponse, HttpStatusCode} from '@angular/common/http';
 
 export type ShowStoreStatus = 'loading' | 'loaded' | 'error';
 
@@ -72,7 +73,15 @@ export class ShowStore {
   delete(id: ShowId): Observable<void> {
     return this.showApi
       .deleteShow(id)
-      .pipe(tap(() => this._shows.update((shows) => shows.filter((show) => show.id !== id))));
+      .pipe(
+        // A 404 means the show is already gone/deleted, so it counts as deleted.
+        catchError((error: unknown) => {
+          return error instanceof HttpErrorResponse && error.status === HttpStatusCode.NotFound
+            ? of(undefined)
+            : throwError(() => error);
+        }),
+        tap(() => this._shows.update((shows) => shows.filter((show) => show.id !== id)))
+      );
   }
 
   markNextEpisodeAsWatched(id: ShowId): void {

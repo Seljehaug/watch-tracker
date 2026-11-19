@@ -25,7 +25,7 @@ describe('DeleteShowDialog', () => {
   let httpTesting: HttpTestingController;
 
   // jsdom has no showModal() or close(). These stand-ins keep the `open` attribute, which is all
-  // the tests look at.
+  // the tests look at. Nor scrollIntoView(): a no-op the tests can spy on.
   beforeAll(() => {
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
@@ -33,16 +33,19 @@ describe('DeleteShowDialog', () => {
     HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
       this.removeAttribute('open');
     };
+    Element.prototype.scrollIntoView = () => undefined;
   });
 
   afterAll(() => {
     const prototype = HTMLDialogElement.prototype as Partial<HTMLDialogElement>;
     delete prototype.showModal;
     delete prototype.close;
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
   });
 
   // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
+    vi.restoreAllMocks();
     try {
       httpTesting.verify();
     } finally {
@@ -67,15 +70,25 @@ describe('DeleteShowDialog', () => {
   const dialog = (fixture: ComponentFixture<DeleteShowDialog>) =>
     (fixture.nativeElement as HTMLElement).querySelector('dialog') as HTMLDialogElement;
 
+  // The text without the label that is hidden, as a screen reader reads it.
+  function visibleText(element: HTMLElement): string {
+    const copy = element.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll('.button-label-hidden').forEach((hidden) => hidden.remove());
+    return copy.textContent?.trim() ?? '';
+  }
+
   // Finds a button by what a screen reader calls it: its aria-label, or else its text.
   function button(fixture: ComponentFixture<DeleteShowDialog>, name: string): HTMLButtonElement {
     const buttons = Array.from(dialog(fixture).querySelectorAll('button'));
     const found = buttons.find(
-      (element) => (element.getAttribute('aria-label') ?? element.textContent?.trim()) === name,
+      (element) => (element.getAttribute('aria-label') ?? visibleText(element)) === name,
     );
     if (!found) throw new Error(`No button named "${name}"`);
     return found;
   }
+
+  const deleteError = (fixture: ComponentFixture<DeleteShowDialog>) =>
+    dialog(fixture).querySelector('[role="alert"]');
 
   function countDeletedEvents(fixture: ComponentFixture<DeleteShowDialog>): () => number {
     let count = 0;
@@ -88,19 +101,35 @@ describe('DeleteShowDialog', () => {
       .shows()
       .map((show) => show.id);
 
+  function startDeleting(fixture: ComponentFixture<DeleteShowDialog>): void {
+    button(fixture, 'Delete show').click();
+    fixture.detectChanges();
+  }
+
+  const expectDelete = () => httpTesting.expectOne({ method: 'DELETE', url: '/api/shows/12' });
+
+  async function answerDeleted(fixture: ComponentFixture<DeleteShowDialog>): Promise<void> {
+    expectDelete().flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+  }
+
+  // One macrotask lets deleteShow() finish its catch and finally before rendering.
+  async function failTheDelete(fixture: ComponentFixture<DeleteShowDialog>): Promise<void> {
+    expectDelete().flush(null, { status: 500, statusText: 'Internal Server Error' });
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.detectChanges();
+  }
+
   // D59: the dialog deletes, and the parent only decides where to go afterwards.
   it('deletes the show, then closes and emits deleted once the server has deleted it', async () => {
     const fixture = open();
     const deletedEvents = countDeletedEvents(fixture);
 
-    button(fixture, 'Delete show').click();
+    startDeleting(fixture);
     expect(dialog(fixture).hasAttribute('open')).toBe(true);
     expect(deletedEvents()).toBe(0);
 
-    httpTesting
-      .expectOne({ method: 'DELETE', url: '/api/shows/12' })
-      .flush(null, { status: 204, statusText: 'No Content' });
-    await fixture.whenStable();
+    await answerDeleted(fixture);
 
     expect(storedIds()).toEqual([1]);
     expect(dialog(fixture).hasAttribute('open')).toBe(false);
@@ -128,5 +157,94 @@ describe('DeleteShowDialog', () => {
 
     expect(textOf(element.getAttribute('aria-labelledby'))).toBe('Delete Severance?');
     expect(textOf(element.getAttribute('aria-describedby'))).toBe("This can't be undone.");
+  });
+
+  describe('while the server deletes', () => {
+    it('says "Deleting…", and a second press sends nothing', async () => {
+      const fixture = open();
+
+      startDeleting(fixture);
+      const deleteButton = button(fixture, 'Deleting…');
+      expect(deleteButton.getAttribute('aria-disabled')).toBe('true');
+      deleteButton.click();
+
+      await answerDeleted(fixture);
+    });
+
+    // A sent delete can't be called back (D118). jsdom has no Escape: closedby="none" is what
+    // keeps the browser from closing the dialog on it.
+    it('stays open on Cancel, Close and Escape until the server has answered', async () => {
+      const fixture = open();
+      const deletedEvents = countDeletedEvents(fixture);
+
+      startDeleting(fixture);
+      button(fixture, 'Cancel').click();
+      button(fixture, 'Close').click();
+
+      expect(dialog(fixture).hasAttribute('open')).toBe(true);
+      expect(button(fixture, 'Cancel').getAttribute('aria-disabled')).toBe('true');
+      expect(button(fixture, 'Close').getAttribute('aria-disabled')).toBe('true');
+      expect(dialog(fixture).getAttribute('closedby')).toBe('none');
+
+      await answerDeleted(fixture);
+
+      expect(dialog(fixture).hasAttribute('open')).toBe(false);
+      expect(deletedEvents()).toBe(1);
+    });
+  });
+
+  describe('when the delete fails', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    it('stays open with the show kept, and shows the error in view', async () => {
+      const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+      const fixture = open();
+      const deletedEvents = countDeletedEvents(fixture);
+
+      startDeleting(fixture);
+      await failTheDelete(fixture);
+
+      expect(dialog(fixture).hasAttribute('open')).toBe(true);
+      expect(deletedEvents()).toBe(0);
+      expect(storedIds()).toEqual([12, 1]);
+      expect(deleteError(fixture)?.textContent?.trim()).toBe("Couldn't delete the show.");
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' });
+      expect(scrollIntoView.mock.contexts[0]).toBe(deleteError(fixture));
+      expect(button(fixture, 'Delete show').hasAttribute('aria-disabled')).toBe(false);
+      expect(button(fixture, 'Cancel').hasAttribute('aria-disabled')).toBe(false);
+      expect(dialog(fixture).hasAttribute('closedby')).toBe(false);
+    });
+
+    // "Delete show" is also "Try again".
+    it('deletes on the next try, without the error while it deletes', async () => {
+      const fixture = open();
+      const deletedEvents = countDeletedEvents(fixture);
+      startDeleting(fixture);
+      await failTheDelete(fixture);
+      expect(deleteError(fixture)).not.toBeNull();
+
+      startDeleting(fixture);
+      expect(deleteError(fixture)).toBeNull();
+      await answerDeleted(fixture);
+
+      expect(dialog(fixture).hasAttribute('open')).toBe(false);
+      expect(deletedEvents()).toBe(1);
+    });
+
+    it('has no error when it is opened again', async () => {
+      const fixture = open();
+      startDeleting(fixture);
+      await failTheDelete(fixture);
+      expect(deleteError(fixture)).not.toBeNull();
+
+      button(fixture, 'Cancel').click();
+      fixture.componentInstance.open();
+      fixture.detectChanges();
+
+      expect(dialog(fixture).hasAttribute('open')).toBe(true);
+      expect(deleteError(fixture)).toBeNull();
+    });
   });
 });
