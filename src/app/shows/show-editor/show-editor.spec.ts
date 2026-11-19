@@ -34,7 +34,7 @@ describe('ShowEditor', () => {
   let httpTesting: HttpTestingController;
 
   // jsdom has no showModal() or close(). These stand-ins keep the `open` attribute, enough for the
-  // delete dialog to be opened and closed.
+  // delete dialog to be opened and closed. Nor scrollIntoView(): a no-op the tests can spy on.
   beforeAll(() => {
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
@@ -42,16 +42,19 @@ describe('ShowEditor', () => {
     HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
       this.removeAttribute('open');
     };
+    Element.prototype.scrollIntoView = () => undefined;
   });
 
   afterAll(() => {
     const prototype = HTMLDialogElement.prototype as Partial<HTMLDialogElement>;
     delete prototype.showModal;
     delete prototype.close;
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
   });
 
   // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
+    vi.restoreAllMocks();
     try {
       httpTesting.verify();
     } finally {
@@ -107,8 +110,27 @@ describe('ShowEditor', () => {
     harness.detectChanges();
   }
 
+  const saveButton = () => root().querySelector('button[type="submit"]') as HTMLButtonElement;
+
+  // The label on show; the other one only keeps the button as wide.
+  const saveButtonLabel = () =>
+    Array.from(saveButton().querySelectorAll('.button-labels > span'))
+      .find((label) => !label.classList.contains('button-label-hidden'))
+      ?.textContent?.trim();
+
+  const saveError = () => root().querySelector('[role="alert"]');
+
   function save(): void {
-    (root().querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    saveButton().click();
+    harness.detectChanges();
+  }
+
+  // One macrotask lets the form finish its submit, so submitting() is false again before rendering.
+  async function failTheSave(): Promise<void> {
+    httpTesting
+      .expectOne({ method: 'PUT', url: '/api/shows/1' })
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+    await new Promise((resolve) => setTimeout(resolve));
     harness.detectChanges();
   }
 
@@ -197,6 +219,71 @@ describe('ShowEditor', () => {
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  it('says "Saving…" on the button while the server saves', async () => {
+    await open('/shows/1/edit');
+    expect(saveButtonLabel()).toBe('Save changes');
+
+    save();
+
+    expect(saveButtonLabel()).toBe('Saving…');
+    expect(saveButton().getAttribute('aria-disabled')).toBe('true');
+    httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' }).flush(slowHorses);
+    await harness.fixture.whenStable();
+  });
+
+  describe('when the save fails', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    // D114: the message goes below the buttons, so it is scrolled into view on short screens.
+    it('stays on the form with the values kept, and shows the error in view', async () => {
+      const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+      await open('/shows/1/edit');
+      type('Title', 'Slow Horses: Season 4');
+
+      save();
+      await failTheSave();
+
+      expect(TestBed.inject(Router).url).toBe('/shows/1/edit');
+      expect(field('Title').value).toBe('Slow Horses: Season 4');
+      expect(saveError()?.textContent?.trim()).toBe("Couldn't save your changes.");
+      expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' });
+      expect(scrollIntoView.mock.contexts[0]).toBe(saveError());
+      expect(saveButtonLabel()).toBe('Save changes');
+      expect(saveButton().hasAttribute('aria-disabled')).toBe(false);
+    });
+
+    // Save is also "Try again", with the very same values (D114).
+    it('sends the same values again, without the error while it saves', async () => {
+      await open('/shows/1/edit');
+      save();
+      await failTheSave();
+      expect(saveError()).not.toBeNull();
+
+      save();
+
+      const retry = httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' });
+      expect(saveError()).toBeNull();
+      retry.flush(slowHorses);
+      await harness.fixture.whenStable();
+      expect(TestBed.inject(Router).url).toBe('/');
+    });
+
+    it('drops the error when the next try stops at an invalid field', async () => {
+      await open('/shows/1/edit');
+      save();
+      await failTheSave();
+      expect(saveError()).not.toBeNull();
+
+      type('Title', '');
+      save();
+      await harness.fixture.whenStable();
+
+      expect(saveError()).toBeNull();
+    });
   });
 
   it('stays on the form, and sends nothing, when the save is invalid', async () => {

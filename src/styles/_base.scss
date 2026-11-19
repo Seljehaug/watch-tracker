@@ -157,6 +157,22 @@ button[type="submit"],
   }
 }
 
+// Labels that take turns, like "Save changes" and "Saving…", share one cell, so the button keeps
+// the width of the longest.
+.button-labels {
+  display: inline-grid;
+  place-items: center;
+
+  > * {
+    grid-area: 1 / 1;
+  }
+}
+
+// Keeps its space, and is hidden from screen readers too.
+.button-label-hidden {
+  visibility: hidden;
+}
+
 .button-group {
   display: flex;
   justify-content: center;

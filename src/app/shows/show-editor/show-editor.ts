@@ -1,7 +1,7 @@
 import {
   afterNextRender,
   Component,
-  computed,
+  computed, ElementRef,
   inject,
   Injector,
   input,
@@ -26,6 +26,7 @@ import {DeleteShowDialog} from '../delete-show-dialog/delete-show-dialog';
 import {SvgIcon} from '../../shared/svg-icon/svg-icon';
 import {FormFieldErrors} from '../../shared/form-field/form-field-errors/form-field-errors';
 import {firstValueFrom} from 'rxjs';
+import {AlertError} from '../../shared/alert-error/alert-error';
 
 @Component({
   imports: [
@@ -37,7 +38,8 @@ import {firstValueFrom} from 'rxjs';
     RouterLink,
     DeleteShowDialog,
     SvgIcon,
-    FormFieldErrors
+    FormFieldErrors,
+    AlertError
   ],
   selector: 'app-show-editor',
   styles: `
@@ -128,9 +130,20 @@ import {firstValueFrom} from 'rxjs';
 
         <div class="button-group">
           <a routerLink="/" class="button button-secondary">Cancel</a>
-          <button type="submit">Save changes</button>
+          <button type="submit" [attr.aria-disabled]="form().submitting() || null">
+            <span class="button-labels">
+              <span [class.button-label-hidden]="form().submitting()">Save changes</span>
+              <span [class.button-label-hidden]="!form().submitting()">Saving…</span>
+            </span>
+          </button>
         </div>
       </form>
+
+      @if (saveHasFailed()) {
+        <app-alert-error>
+          <p>Couldn't save your changes.</p>
+        </app-alert-error>
+      }
 
       @if (storedShow(); as show) {
         <app-delete-show-dialog #deleteShowDialog [show]="show" (deleted)="onShowDeleted()"></app-delete-show-dialog>
@@ -165,6 +178,8 @@ export class ShowEditor {
 
   protected readonly hasTriedToSave = signal(false);
 
+  protected readonly saveHasFailed = signal(false);
+
   protected readonly form = form(this.model, showFormModelSchema, {
     submission: {
       action: async (fieldTree) => {
@@ -172,11 +187,25 @@ export class ShowEditor {
 
         const postModel = toShowPostModel(model);
 
-        if (this.isNewShow()) {
-          await firstValueFrom(this.store.add(postModel));
+        this.saveHasFailed.set(false);
+
+        const showId = this.showId();
+
+        try {
+          if (showId) {
+            await firstValueFrom(this.store.update(showId, postModel));
+          } else {
+            await firstValueFrom(this.store.add(postModel));
+          }
         }
-        else {
-          await firstValueFrom(this.store.update(this.showId() as number, postModel));
+        catch (error: unknown) {
+          console.error('could not save', error);
+          this.saveHasFailed.set(true);
+          afterNextRender(
+            () => { this.alertError()?.nativeElement.scrollIntoView({ block: 'nearest' }) },
+            { injector: this.injector }
+          );
+          return;
         }
 
         await this.router.navigateByUrl('/');
@@ -184,6 +213,7 @@ export class ShowEditor {
       onInvalid: (fieldTree) => {
         // Wait until the errors are rendered, so a screen reader reads them out with the field.
         this.hasTriedToSave.set(true);
+        this.saveHasFailed.set(false);
         afterNextRender(
           () => fieldTree().errorSummary()[0]?.fieldTree().focusBoundControl(),
           { injector: this.injector },
@@ -198,6 +228,7 @@ export class ShowEditor {
 
   // Queries
   private readonly deleteShowDialog = viewChild<DeleteShowDialog>('deleteShowDialog');
+  private readonly alertError = viewChild<AlertError, ElementRef<HTMLElement>>(AlertError, { read: ElementRef });
 
   // Methods
   protected openDeleteShowDialog() {

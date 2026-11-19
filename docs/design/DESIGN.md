@@ -463,6 +463,12 @@ episode. The form keeps an explicit button, as it creates something. A bottom ac
 the `form` attribute), so Enter and the button submit the form. Cancel is the page's one way out
 (D52). There is no bottom navigation on phones, as the action bar has the bottom.
 
+While the server saves, the submit button says "Saving…" and keeps its width – both labels share
+its place, the other one hidden – and it has `aria-disabled`, not `disabled`, so it keeps focus
+(D116). A failed save keeps the page and the values and shows the error alert, "Couldn't save
+your changes.", below the buttons, scrolled into view if it is out of sight; the submit button is
+"Try again" (D117). With the fixed action bar on phones, the alert moves above the bar.
+
 "Delete show" moves to Your show. It is a `<button type="button">` styled as a text link (danger,
 delete icon), because it opens the delete dialog and so is an action, not navigation. It is built
 as `.button-danger-text`:
@@ -516,6 +522,16 @@ No pulse yet; one would stand still under `prefers-reduced-motion`.
 again" loads the list again and moves focus to the page's `<h1>`, as the button goes away. A list
 on screen stays while it is fetched again; an error then is not shown yet (C1, the refetch on
 `visibilitychange`).
+
+### Error alert
+
+For an action that failed, not a field (D117): "Couldn't save your changes.". A box with a 1px
+`--color-danger` border and `--border-radius`, no background, the `alert-circle` icon (big) and
+the text in `--color-danger`, centred on each other, `--spacing-1` inside. `role="alert"`, so it
+is read when it appears without moving focus. It sits next to the action that failed – below
+the form's buttons – so nothing on screen moves, and is scrolled into view if it is out of sight.
+Field errors stay as they are, under their field (D41). Built as `AlertError`; meant for the
+delete dialog's error, the login page and a failed refetch beside the list too.
 
 ### Account page (`/account`)
 
