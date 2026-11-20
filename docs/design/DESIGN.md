@@ -520,7 +520,7 @@ padding; the "Add your first show" button comes with the add form, when `/shows/
 
 ### Loading and error on Watching
 
-Only until the page has its list (D112). The title stays; the count under it comes with the list.
+Only for the first load (D112, D124). The title stays; the count under it comes with the list.
 **Loading:** "Loading…" on the line under the title, where the count comes, so nothing moves
 when it does – as "Searching…" holds the count's place on Search. Below it four placeholder cards
 in the list's grid, shaped like the show card: the card's frame, a poster slot of the same size,
@@ -531,8 +531,8 @@ No pulse yet; one would stand still under `prefers-reduced-motion`.
 **Error:** laid out as the empty state, with the `alert-circle` icon, "Couldn't load your shows",
 "Check your connection and try again." and an outlined "Try again", in `role="alert"`. "Try
 again" loads the list again and moves focus to the page's `<h1>`, as the button goes away. A list
-on screen stays while it is fetched again; an error then is not shown yet (C1, the refetch on
-`visibilitychange`).
+on screen stays while it is fetched again, as when the app comes back (D69), and a failed fetch
+then is a line in the floating error alert, not this page ("Error alert", D126).
 
 ### Error alert
 
@@ -542,9 +542,10 @@ show.". A box with a 1px
 the text in `--color-danger`, centred on each other, `--spacing-1` inside. `role="alert"`, so it
 is read when it appears without moving focus. It sits next to the action that failed – below
 the form's or the dialog's buttons – so nothing on screen moves, and is scrolled into view if it is out of sight.
-The page sets the space above it. Field errors stay as they are, under their field (D41). Built as
-`AlertError`, in the editor and the delete dialog; meant for the login page and a failed refetch
-beside the list too.
+The page sets the space above it. Field errors stay as they are, under their field (D41). Each
+message is a line of its own, with `--spacing-half` between the lines and `--spacing-1` between
+the icon and the text (D126). Built as `AlertError`, in the editor, the delete dialog and on
+Watching; meant for the login page too.
 
 **Floating, for an action on a list** (D121): when the action that failed has no fixed place –
 "Couldn't mark the next episode of Severance as watched." from a card on Watching – the alert
@@ -555,7 +556,15 @@ down under the thumb (D36). It has a close button ("Dismiss", the `close` icon a
 `--touch-target` area) and no timer: it stays until it is dismissed or the next tap, and
 "Dismiss" moves focus to the page's `<h1>` without scrolling. While it shows, the page keeps
 focused controls above it (`scroll-padding-bottom`) and has as much room at its end, so the last
-card can scroll up from under it (WCAG 2.4.11). With the bottom navigation (M3) it sits above it.
+card can scroll up from under it (WCAG 2.4.11). The room is the alert's measured height, since it
+grows with the text, the width and the text size (D127). With the bottom navigation (M3) it sits
+above it.
+
+A failed refresh of the list on Watching floats there too (D126): "Couldn't refresh your shows.",
+with no "Try again" – the app fetches again when it comes back, and a success removes the line.
+When both have failed they are two lines in one alert, the refresh first, with one "Dismiss"
+that clears both. With two alerts, dismissing one would put the other's close button under the
+finger, and a quick second tap would dismiss what hadn't been read.
 
 ### Account page (`/account`)
 

@@ -38,39 +38,183 @@ describe('ShowStore', () => {
     httpTesting.expectOne({ method: 'GET', url: '/api/shows' }).flush(shows);
   }
 
+  function failToLoad(): void {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    httpTesting
+      .expectOne('/api/shows')
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+  }
+
   const ids = (shows: readonly TrackedShow[]) => shows.map((show) => show.id);
 
   describe('load', () => {
     it('loads the list when it is created', () => {
-      expect(store.status()).toBe('loading');
+      expect(store.initialLoad()).toBe('loading');
 
       loadShows([aShow(2), aShow(1)]);
 
       expect(ids(store.shows())).toEqual([2, 1]);
-      expect(store.status()).toBe('loaded');
+      expect(store.initialLoad()).toBe('succeeded');
     });
 
-    it('is in error, with no shows, when the list cannot be loaded', () => {
-      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    it('has failed, with no shows, when the list cannot be loaded', () => {
+      failToLoad();
 
-      httpTesting
-        .expectOne('/api/shows')
-        .flush(null, { status: 500, statusText: 'Internal Server Error' });
-
-      expect(store.status()).toBe('error');
+      expect(store.initialLoad()).toBe('failed');
       expect(store.shows()).toEqual([]);
+      expect(store.refreshHasFailed()).toBe(false);
     });
 
-    // Loaded again when the app comes to the foreground (D69) and after a login.
-    it('is loading again while it reloads, then replaces the list', () => {
+    // A failed fetch must not end the stream every fetch goes through.
+    it('is loading again when it tries again after a failed first load', () => {
+      failToLoad();
+
+      store.load();
+      expect(store.initialLoad()).toBe('loading');
+      loadShows([aShow(1)]);
+
+      expect(store.initialLoad()).toBe('succeeded');
+      expect(ids(store.shows())).toEqual([1]);
+    });
+
+    // Only the first load is waited for: the guard and Home let a list that is there be used
+    // while it is fetched again (D69).
+    it('stays loaded while the list is fetched again, then replaces it', () => {
       loadShows([aShow(1)]);
 
       store.load();
-      expect(store.status()).toBe('loading');
+      expect(store.initialLoad()).toBe('succeeded');
+      expect(store.shows()).toEqual([aShow(1)]);
       loadShows([aShow(2), aShow(1, { title: 'Renamed on the Mac' })]);
 
       expect(store.shows()).toEqual([aShow(2), aShow(1, { title: 'Renamed on the Mac' })]);
-      expect(store.status()).toBe('loaded');
+    });
+
+    it('keeps the list, and says the refresh failed, when it cannot be fetched again', () => {
+      loadShows([aShow(1)]);
+
+      store.load();
+      failToLoad();
+
+      expect(store.initialLoad()).toBe('succeeded');
+      expect(store.shows()).toEqual([aShow(1)]);
+      expect(store.refreshHasFailed()).toBe(true);
+    });
+
+    it('forgets a failed refresh once the list is fetched, and when it is cleared', () => {
+      loadShows([aShow(1)]);
+      store.load();
+      failToLoad();
+
+      store.load();
+      loadShows([aShow(1)]);
+      expect(store.refreshHasFailed()).toBe(false);
+
+      store.load();
+      failToLoad();
+      store.clearRefreshFailed();
+      expect(store.refreshHasFailed()).toBe(false);
+    });
+
+    // The answer to the older fetch may come last, and it may be older than the newer one.
+    it('cancels a fetch still on its way when a new one starts', () => {
+      loadShows([aShow(1)]);
+
+      store.load();
+      store.load();
+
+      const [older, newer] = httpTesting.match('/api/shows');
+      expect(older.cancelled).toBe(true);
+      newer.flush([aShow(2)]);
+      expect(ids(store.shows())).toEqual([2]);
+    });
+  });
+
+  // Another device may have changed the list while the app was in the background (D69).
+  describe('when the app comes to the foreground', () => {
+    function changeVisibility(state: DocumentVisibilityState): void {
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
+      document.dispatchEvent(new Event('visibilitychange'));
+    }
+
+    it('fetches the list again', () => {
+      loadShows([aShow(1)]);
+
+      changeVisibility('visible');
+
+      loadShows([aShow(1), aShow(2)]);
+      expect(ids(store.shows())).toEqual([1, 2]);
+    });
+
+    it('fetches nothing when the app goes to the background', () => {
+      loadShows([aShow(1)]);
+
+      changeVisibility('hidden');
+
+      httpTesting.expectNone('/api/shows');
+    });
+  });
+
+  // A fetch on its way may have read the shows before the write was saved, and its answer would
+  // put the old version back (D125).
+  describe('a write answered while the list is being fetched', () => {
+    it.each([
+      [
+        'adding a show',
+        () => {
+          store.add({ title: 'Andor', status: 'watching' }).subscribe();
+          httpTesting
+            .expectOne({ method: 'POST', url: '/api/shows' })
+            .flush(aShow(2), { status: 201, statusText: 'Created' });
+        },
+      ],
+      [
+        'saving a show',
+        () => {
+          store.update(1, { title: 'Renamed', status: 'watching' }).subscribe();
+          httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' }).flush(aShow(1));
+        },
+      ],
+      [
+        'deleting a show',
+        () => {
+          store.delete(1).subscribe();
+          httpTesting
+            .expectOne({ method: 'DELETE', url: '/api/shows/1' })
+            .flush(null, { status: 204, statusText: 'No Content' });
+        },
+      ],
+      [
+        'marking the next episode',
+        () => {
+          store.markNextEpisodeAsWatched(1);
+          httpTesting
+            .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+            .flush(aShow(1));
+        },
+      ],
+    ])('fetches the list again after %s', (_, writeAndAnswer) => {
+      loadShows([aShow(1)]);
+      store.load();
+
+      writeAndAnswer();
+
+      const [stale, fresh] = httpTesting.match('/api/shows');
+      expect(stale.cancelled).toBe(true);
+      fresh.flush([aShow(3)]);
+      expect(ids(store.shows())).toEqual([3]);
+    });
+
+    // verify() in afterEach also fails on a GET no test answered.
+    it('fetches nothing more when the fetch has already failed', () => {
+      loadShows([aShow(1)]);
+      store.load();
+      failToLoad();
+
+      store.markNextEpisodeAsWatched(1);
+      httpTesting.expectOne({ method: 'POST', url: '/api/shows/1/next-episode' }).flush(aShow(1));
+
+      httpTesting.expectNone('/api/shows');
     });
   });
 
@@ -240,7 +384,7 @@ describe('ShowStore', () => {
       expect(store.nextEpisodeFailedFor()).toBeNull();
       failNextEpisodeOf(2);
 
-      store.clearNextEpisodeFailure();
+      store.clearNextEpisodeFailed();
       expect(store.nextEpisodeFailedFor()).toBeNull();
     });
 

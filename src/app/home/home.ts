@@ -1,13 +1,14 @@
-import {Component, computed, ElementRef, inject, linkedSignal} from '@angular/core';
-import {ShowStore, ShowStoreStatus} from '../shows/show-store';
+import { Component, computed, ElementRef, inject, linkedSignal } from '@angular/core';
+import { ShowStore, InitialLoadState } from '../shows/show-store';
 import { ShowList } from '../shows/show-list/show-list';
-import {ShowListEmpty} from '../shows/show-list-empty/show-list-empty';
-import {RouterLink} from '@angular/router';
-import {SvgIcon} from '../shared/svg-icon/svg-icon';
-import {PageHeader} from '../shared/page-header/page-header';
-import {ShowId} from '../shows/tracked-show';
-import {ShowListSkeleton} from '../shows/show-list-skeleton/show-list-skeleton';
-import {AlertError} from '../shared/alert-error/alert-error';
+import { ShowListEmpty } from '../shows/show-list-empty/show-list-empty';
+import { RouterLink } from '@angular/router';
+import { SvgIcon } from '../shared/svg-icon/svg-icon';
+import { PageHeader } from '../shared/page-header/page-header';
+import { ShowId } from '../shows/tracked-show';
+import { ShowListSkeleton } from '../shows/show-list-skeleton/show-list-skeleton';
+import { AlertError } from '../shared/alert-error/alert-error';
+import {AlertFloating} from '../shared/alert-floating/alert-floating';
 
 @Component({
   selector: 'app-home',
@@ -15,19 +16,24 @@ import {AlertError} from '../shared/alert-error/alert-error';
     <app-page-header heading="Continue watching" [description]="watchingText()"></app-page-header>
 
     @if (displayLoading()) {
-      <app-show-list-skeleton/>
-    } @else if (displayError()) {
+      <app-show-list-skeleton />
+    } @else if (displayLoadingError()) {
       <app-show-list-empty
         role="alert"
         iconName="alert-circle"
         heading="Couldn't load your shows"
         description="Check your connection and try again."
       >
-        <button type="button" class="button button-secondary" (click)="tryAgain()">Try again</button>
+        <button type="button" class="button button-secondary" (click)="tryAgain()">
+          Try again
+        </button>
       </app-show-list-empty>
     } @else {
       @if (watching().length > 0) {
-        <app-show-list [shows]="watching()" (nextEpisodeWatched)="markNextEpisodeAsWatched($event)"/>
+        <app-show-list
+          [shows]="watching()"
+          (nextEpisodeWatched)="markNextEpisodeAsWatched($event)"
+        />
       } @else {
         <app-show-list-empty
           iconName="tv"
@@ -35,20 +41,25 @@ import {AlertError} from '../shared/alert-error/alert-error';
           description="Add the shows you're watching, and you'll always know where you stopped – and where to pick up."
         >
           <a routerLink="/shows/add" class="button button-primary">
-            <app-svg-icon name="plus"/>
+            <app-svg-icon name="plus" />
             Add your first show
           </a>
         </app-show-list-empty>
       }
 
-      @if (nextEpisodeFailureMessage(); as message) {
-        <app-alert-error class="alert-floating" dismissible (dismissed)="dismissNextEpisodeFailure()">
-          <p>{{ message }}</p>
+      @if (refreshFailedMessage() || nextEpisodeFailedMessage()) {
+        <app-alert-error appAlertFloating dismissible (dismissed)="dismissFailedMessages()">
+          @if (refreshFailedMessage(); as message) {
+            <p>{{ message }}</p>
+          }
+          @if (nextEpisodeFailedMessage(); as message) {
+            <p>{{ message }}</p>
+          }
         </app-alert-error>
       }
     }
   `,
-  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton, AlertError],
+  imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton, AlertError, AlertFloating],
 })
 export class Home {
   private readonly store = inject(ShowStore);
@@ -56,18 +67,20 @@ export class Home {
 
   // The order the first time the list is loaded, null until then, and kept after that. A tapped
   // card stays where it is and moves to the top the next time the page opens.
-  private readonly openedOrder = linkedSignal<ShowStoreStatus, ShowId[] | null>({
-    source: this.store.status,
-    computation: (status, previous) => {
+  private readonly openedOrder = linkedSignal<InitialLoadState, ShowId[] | null>({
+    source: this.store.initialLoad,
+    computation: (initialLoadState, previous) => {
       if (previous?.value) return previous.value;
-      if (status === 'loaded') return this.store.watching().map((show) => show.id);
+      if (initialLoadState === 'succeeded') return this.store.watching().map((show) => show.id);
       return null;
-    }
+    },
   });
 
-  private readonly hasList = computed(() => this.openedOrder() !== null);
+  protected readonly refreshFailedMessage = computed(() =>
+    this.store.refreshHasFailed() ? "Couldn't refresh your shows." : null,
+  );
 
-  protected readonly nextEpisodeFailureMessage = computed(() => {
+  protected readonly nextEpisodeFailedMessage = computed(() => {
     const failedShowId = this.store.nextEpisodeFailedFor();
     if (failedShowId === null) return null;
 
@@ -77,9 +90,8 @@ export class Home {
       : "Couldn't mark the next episode as watched.";
   });
 
-  // Only before the page has its list: a list on screen stays while it is fetched again.
-  protected readonly displayLoading = computed(() => this.store.status() === 'loading' && !this.hasList());
-  protected readonly displayError = computed(() => this.store.status() === 'error' && !this.hasList());
+  protected readonly displayLoading = computed(() => this.store.initialLoad() === 'loading');
+  protected readonly displayLoadingError = computed(() => this.store.initialLoad() === 'failed');
 
   protected readonly watching = computed(() => {
     const openedOrder = this.openedOrder();
@@ -93,16 +105,14 @@ export class Home {
 
     // Started after the page opened, so they are the newest
     const added = current.filter((show) => !known.has(show.id));
-    const kept = openedOrder
-      .map((id) => showsById.get(id))
-      .filter((show) => show !== undefined);
+    const kept = openedOrder.map((id) => showsById.get(id)).filter((show) => show !== undefined);
 
     return [...added, ...kept];
   });
 
   protected readonly watchingText = computed(() => {
     if (this.displayLoading()) return 'Loading…';
-    if (!this.hasList()) return undefined;
+    if (this.store.initialLoad() !== 'succeeded') return undefined;
     const count = this.watching().length;
     return `${count} ${count === 1 ? 'show' : 'shows'} in progress`;
   });
@@ -113,8 +123,9 @@ export class Home {
 
   // The close button goes with the message, and focus would go with it. The page stays where it
   // was scrolled.
-  protected dismissNextEpisodeFailure(): void {
-    this.store.clearNextEpisodeFailure();
+  protected dismissFailedMessages(): void {
+    this.store.clearRefreshFailed();
+    this.store.clearNextEpisodeFailed();
     this.host.nativeElement.querySelector('h1')?.focus({ preventScroll: true });
   }
 

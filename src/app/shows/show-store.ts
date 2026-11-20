@@ -1,27 +1,47 @@
-import { Service, computed, signal, inject } from '@angular/core';
+import { Service, computed, signal, inject, DOCUMENT } from '@angular/core';
 import { ShowId, ShowPostModel, TrackedShow } from './tracked-show';
 import { ShowApi } from './show-api';
-import { catchError, concatMap, EMPTY, Observable, of, Subject, tap, throwError } from 'rxjs';
+import {
+  catchError,
+  concatMap,
+  EMPTY,
+  filter,
+  fromEvent,
+  Observable,
+  of,
+  Subject,
+  switchMap,
+  tap,
+  throwError,
+} from 'rxjs';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 
-export type ShowStoreStatus = 'loading' | 'loaded' | 'error';
+export type InitialLoadState = 'loading' | 'failed' | 'succeeded';
 
 @Service()
 export class ShowStore {
+  private readonly document = inject(DOCUMENT);
   private readonly showApi = inject(ShowApi);
 
   private readonly _shows = signal<TrackedShow[]>([]);
   readonly shows = this._shows.asReadonly();
 
-  private readonly _status = signal<ShowStoreStatus>('loading');
-  readonly status = this._status.asReadonly();
-  readonly status$ = toObservable(this.status);
+  private readonly _initialLoad = signal<InitialLoadState>('loading');
+  readonly initialLoad = this._initialLoad.asReadonly();
+  readonly initialLoad$ = toObservable(this.initialLoad);
 
   private readonly _nextEpisodeFailedFor = signal<ShowId | null>(null);
   readonly nextEpisodeFailedFor = this._nextEpisodeFailedFor.asReadonly();
 
+  private readonly _refreshHasFailed = signal(false);
+  readonly refreshHasFailed = this._refreshHasFailed.asReadonly();
+
+  private readonly isFetching = signal(false);
+
   private readonly nextEpisodeQueue = new Subject<ShowId>();
+
+  private readonly loadRequests = new Subject<void>();
 
   readonly watching = computed(() => {
     const filtered = this.shows().filter((show) => show.status === 'watching');
@@ -29,7 +49,32 @@ export class ShowStore {
   });
 
   constructor() {
-    this.load();
+    this.loadRequests
+      .pipe(
+        switchMap(() =>
+          this.showApi.getShows().pipe(
+            catchError((error: unknown) => {
+              if (this._initialLoad() === 'succeeded') {
+                this._refreshHasFailed.set(true);
+              } else {
+                this._initialLoad.set('failed');
+              }
+              console.error('Could not load shows', error);
+              this.isFetching.set(false);
+              return EMPTY;
+            }),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe({
+        next: (shows) => {
+          this._refreshHasFailed.set(false);
+          this._shows.set(shows);
+          this._initialLoad.set('succeeded');
+          this.isFetching.set(false);
+        },
+      });
 
     this.nextEpisodeQueue
       .pipe(
@@ -53,21 +98,29 @@ export class ShowStore {
           this.replaceShow(updatedShow);
         },
       });
+
+    fromEvent(this.document, 'visibilitychange')
+      .pipe(
+        filter(() => this.document.visibilityState === 'visible'),
+        takeUntilDestroyed(),
+      )
+      .subscribe({
+        next: () => {
+          this.load();
+        },
+      });
+
+    this.load();
   }
 
   load(): void {
-    this._status.set('loading');
+    if (this._initialLoad() !== 'succeeded') {
+      this._initialLoad.set('loading');
+    }
 
-    this.showApi.getShows().subscribe({
-      next: (shows) => {
-        this._shows.set(shows);
-        this._status.set('loaded');
-      },
-      error: (error: unknown) => {
-        this._status.set('error');
-        console.error('Could not load shows', error);
-      },
-    });
+    this.isFetching.set(true);
+
+    this.loadRequests.next();
   }
 
   getShowById(showId: ShowId): TrackedShow | null {
@@ -82,6 +135,7 @@ export class ShowStore {
     return this.showApi.addShow(postModel).pipe(
       tap((addedShow) => {
         this._shows.update((shows) => [addedShow, ...shows]);
+        this.restartFetchIfRunning();
       }),
     );
   }
@@ -96,6 +150,7 @@ export class ShowStore {
     this._shows.update((shows) => {
       return shows.map((show) => (show.id === updatedShow.id ? updatedShow : show));
     });
+    this.restartFetchIfRunning();
   }
 
   delete(id: ShowId): Observable<void> {
@@ -106,16 +161,31 @@ export class ShowStore {
           ? of(undefined)
           : throwError(() => error);
       }),
-      tap(() => this._shows.update((shows) => shows.filter((show) => show.id !== id))),
+      tap(() => {
+        this._shows.update((shows) => shows.filter((show) => show.id !== id));
+        this.restartFetchIfRunning();
+      }),
     );
   }
 
   markNextEpisodeAsWatched(showId: ShowId): void {
-    this.clearNextEpisodeFailure();
+    this.clearNextEpisodeFailed();
     this.nextEpisodeQueue.next(showId);
   }
 
-  clearNextEpisodeFailure(): void {
+  clearNextEpisodeFailed(): void {
     this._nextEpisodeFailedFor.set(null);
+  }
+
+  clearRefreshFailed(): void {
+    this._refreshHasFailed.set(false);
+  }
+
+  // Called once a write's answer is in the list. A fetch already on its way may have read the
+  // shows before that write was saved, and its answer would put the old version back.
+  private restartFetchIfRunning(): void {
+    if (this.isFetching()) {
+      this.load();
+    }
   }
 }

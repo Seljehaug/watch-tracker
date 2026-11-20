@@ -252,11 +252,12 @@ dialog {
   background: var(--color-background);
 }
 
-// Focus is never hidden behind the alert (WCAG 2.4.11, technique C43): scrolling to a focused
-// control stops above it, and the page gets as much room at the end, so the last card can scroll
-// up out from under it too. Room for three lines of text.
+// Focus is never hidden behind the floating alert (WCAG 2.4.11, technique C43): the browser
+// scrolls a focused control to above it, and the page gets as much room at its end, so what is
+// last can scroll up from under it too. The room is the alert's height, set by AlertFloating,
+// plus the gap below the alert and as much above it.
 html:has(.alert-floating) {
-  $space: 9rem;
+  $space: calc(var(--alert-floating-height, 0px) + 2 * var(--spacing-1));
   scroll-padding-bottom: $space;
 
   main {

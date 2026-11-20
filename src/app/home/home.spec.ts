@@ -69,7 +69,9 @@ describe('Home', () => {
   }
 
   const tryAgainButton = () =>
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[role="alert"] button');
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[role="alert"] button',
+    );
 
   function markNextEpisodeOfOlder(): void {
     nextEpisodeButtons()[1].click();
@@ -96,9 +98,26 @@ describe('Home', () => {
       'app-alert-error button[aria-label="Dismiss"]',
     );
 
+  // jsdom has no ResizeObserver, which the floating alert needs. This one records what it observes.
+  const observed: Element[] = [];
+  beforeEach(() => {
+    observed.length = 0;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(element: Element): void {
+          observed.push(element);
+        }
+        unobserve = (): void => undefined;
+        disconnect = (): void => undefined;
+      },
+    );
+  });
+
   // Reset also when verify() throws, or every later test fails with "already instantiated".
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     try {
       httpTesting.verify();
     } finally {
@@ -225,6 +244,63 @@ describe('Home', () => {
     expect(failureAlert()).toBeNull();
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(document.activeElement).toBe(heading);
+  });
+
+  it('keeps the list, and says so in an alert, when it cannot be fetched again', () => {
+    render([older, newer]);
+
+    TestBed.inject(ShowStore).load();
+    failToLoad();
+
+    expect(titles()).toEqual(['Newer', 'Older']);
+    expect(failureAlert()?.textContent?.trim()).toBe("Couldn't refresh your shows.");
+  });
+
+  // Two alerts would put a second close button where the first was, under a quick second tap.
+  it('puts both failures in one alert, and "Dismiss" removes both', () => {
+    render([older, newer]);
+    TestBed.inject(ShowStore).load();
+    failToLoad();
+    failNextEpisodeOfOlder();
+
+    const alerts = (fixture.nativeElement as HTMLElement).querySelectorAll('app-alert-error');
+    expect(alerts).toHaveLength(1);
+    expect(Array.from(alerts[0].querySelectorAll('p'), (line) => line.textContent?.trim())).toEqual(
+      ["Couldn't refresh your shows.", "Couldn't mark the next episode of Older as watched."],
+    );
+
+    dismissButton()?.click();
+    fixture.detectChanges();
+
+    expect(failureAlert()).toBeNull();
+  });
+
+  // Measured, the alert gets as much room under the list, so the last card can scroll out from
+  // under it (D127).
+  it('measures the alert, so the page leaves room for it', () => {
+    render([older, newer]);
+
+    failNextEpisodeOfOlder();
+
+    expect(observed).toEqual([failureAlert()]);
+  });
+
+  it('counts the shows in progress under the heading', () => {
+    render([
+      older,
+      newer,
+      { ...aShow(3, 'Done', '2026-11-03T20:00:00+00:00'), status: 'finished' },
+    ]);
+
+    const description = (fixture.nativeElement as HTMLElement).querySelector('app-page-header p');
+    expect(description?.textContent?.trim()).toBe('2 shows in progress');
+  });
+
+  it('has no count when the list cannot be loaded', () => {
+    openBeforeTheListArrives();
+    failToLoad();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('in progress');
   });
 
   it('puts a show that starts after the page opened first', () => {

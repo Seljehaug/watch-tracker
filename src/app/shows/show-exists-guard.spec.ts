@@ -103,6 +103,31 @@ describe('showExistsGuard', () => {
 
       await harness.navigateByUrl('/shows/12/edit', NotFoundPage);
     });
+
+    // The list is fetched again each time the app comes back (D69). The one there is used.
+    // tick() runs the effect behind initialLoad$, as time does in the app while the fetch runs.
+    it('opens the page at once while the list is fetched again', async () => {
+      TestBed.inject(ShowStore).load();
+      TestBed.tick();
+
+      const navigation = harness.navigateByUrl('/shows/12/edit', EditPage);
+      await letTheGuardRun();
+      expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(EditPage);
+
+      httpTesting.expectOne('/api/shows').flush([severance]);
+      await navigation;
+    });
+
+    it('still opens the page after the list could not be fetched again', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      TestBed.inject(ShowStore).load();
+      httpTesting
+        .expectOne('/api/shows')
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
+      TestBed.tick();
+
+      await harness.navigateByUrl('/shows/12/edit', EditPage);
+    });
   });
 
   // An edit URL opened directly, or reloaded: the guard runs before the list has arrived.
