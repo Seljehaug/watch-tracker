@@ -102,7 +102,7 @@ export class Login {
           return;
         }
 
-        await this.router.navigateByUrl(this.returnUrl() ?? '/');
+        await this.router.navigateByUrl(this.returnUrl() ?? '/', { replaceUrl: true });
       },
       onInvalid: (fieldTree) => {
         this.hasTriedToLogin.set(true);

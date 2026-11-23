@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
+import { AuthStore } from './auth-store';
 import type { LoginPostModel } from './login-post-model';
 import { Login } from './login';
 
@@ -41,14 +42,16 @@ describe('Login', () => {
     });
     httpTesting = TestBed.inject(HttpTestingController);
 
-    harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl(url, Login);
-    harness.detectChanges();
-
-    // The page creates AuthStore, which asks who is logged in.
+    // The login route's guard waits for AuthStore's check, so it is answered before the first
+    // navigation.
+    TestBed.inject(AuthStore);
     httpTesting
       .expectOne('/api/auth/user')
       .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(url, Login);
+    harness.detectChanges();
   }
 
   // Finds a control through its label, as a user does.

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
+import { AuthStore } from '../../auth/auth-store';
 import { ShowStore } from '../show-store';
 import type { TrackedShow } from '../tracked-show';
 import { ShowEditor } from './show-editor';
@@ -88,6 +89,10 @@ describe('ShowEditor', () => {
       providers: [provideRouter(routes, withComponentInputBinding()), provideHttpClientTesting()],
     });
     httpTesting = TestBed.inject(HttpTestingController);
+
+    // Every page but the login page waits for AuthStore's check, so it is answered first.
+    TestBed.inject(AuthStore);
+    httpTesting.expectOne('/api/auth/user').flush({ email: 'test@example.com' });
 
     // The edit route's guard reads the list as it is, so it is loaded before the first navigation.
     TestBed.inject(ShowStore);

@@ -2,6 +2,7 @@ import { Service, computed, signal, inject, DOCUMENT } from '@angular/core';
 import { ShowId, ShowPostModel, TrackedShow } from './tracked-show';
 import { ShowApi } from './show-api';
 import {
+  BehaviorSubject,
   catchError,
   concatMap,
   EMPTY,
@@ -14,7 +15,7 @@ import {
   tap,
   throwError,
 } from 'rxjs';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 
 export type InitialLoadState = 'loading' | 'failed' | 'succeeded';
@@ -27,9 +28,11 @@ export class ShowStore {
   private readonly _shows = signal<TrackedShow[]>([]);
   readonly shows = this._shows.asReadonly();
 
-  private readonly _initialLoad = signal<InitialLoadState>('loading');
-  readonly initialLoad = this._initialLoad.asReadonly();
-  readonly initialLoad$ = toObservable(this.initialLoad);
+  // A BehaviorSubject hands the current state to a new subscriber at once, and toSignal updates
+  // the signal in the same call, so showExistsGuard sees a change made just before it runs.
+  private readonly initialLoadSubject = new BehaviorSubject<InitialLoadState>('loading');
+  readonly initialLoad$ = this.initialLoadSubject.asObservable();
+  readonly initialLoad = toSignal(this.initialLoad$, { requireSync: true });
 
   private readonly _nextEpisodeFailedFor = signal<ShowId | null>(null);
   readonly nextEpisodeFailedFor = this._nextEpisodeFailedFor.asReadonly();
@@ -54,10 +57,10 @@ export class ShowStore {
         switchMap(() =>
           this.showApi.getShows().pipe(
             catchError((error: unknown) => {
-              if (this._initialLoad() === 'succeeded') {
+              if (this.initialLoad() === 'succeeded') {
                 this._refreshHasFailed.set(true);
               } else {
-                this._initialLoad.set('failed');
+                this.initialLoadSubject.next('failed');
               }
               console.error('Could not load shows', error);
               this.isFetching.set(false);
@@ -71,7 +74,7 @@ export class ShowStore {
         next: (shows) => {
           this._refreshHasFailed.set(false);
           this._shows.set(shows);
-          this._initialLoad.set('succeeded');
+          this.initialLoadSubject.next('succeeded');
           this.isFetching.set(false);
         },
       });
@@ -114,8 +117,8 @@ export class ShowStore {
   }
 
   load(): void {
-    if (this._initialLoad() !== 'succeeded') {
-      this._initialLoad.set('loading');
+    if (this.initialLoad() !== 'succeeded') {
+      this.initialLoadSubject.next('loading');
     }
 
     this.isFetching.set(true);

@@ -1,8 +1,8 @@
-import { inject, Service, signal } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { UserModel } from './user-model';
 import { AuthApi } from './auth-api';
-import {catchError, map, Observable, of, tap, throwError} from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {BehaviorSubject, catchError, map, Observable, of, tap, throwError} from 'rxjs';
+import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
 import {HttpErrorResponse, HttpStatusCode} from '@angular/common/http';
 import {LoginPostModel} from './login-post-model';
 
@@ -17,8 +17,11 @@ export type AuthState =
 export class AuthStore {
   private readonly authApi = inject(AuthApi);
 
-  private readonly _authState = signal<AuthState>({ status: 'checking' });
-  readonly authState = this._authState.asReadonly();
+  // A BehaviorSubject hands the current state to a new subscriber at once, and toSignal updates
+  // the signal in the same call, so a guard right after a login or logout sees the new state.
+  private readonly authStateSubject = new BehaviorSubject<AuthState>({ status: 'checking' });
+  readonly authState$ = this.authStateSubject.asObservable();
+  readonly authState = toSignal(this.authState$, { requireSync: true });
 
   constructor() {
     this.authApi
@@ -36,7 +39,7 @@ export class AuthStore {
         }),
         takeUntilDestroyed(),
       )
-      .subscribe((newAuthState) => this._authState.set(newAuthState));
+      .subscribe((newAuthState) => this.authStateSubject.next(newAuthState));
   }
 
   login(postModel: LoginPostModel): Observable<UserModel> {
@@ -44,7 +47,7 @@ export class AuthStore {
       .login(postModel)
       .pipe(
         tap(user => {
-          this._authState.set({ status: 'loggedIn', user });
+          this.authStateSubject.next({ status: 'loggedIn', user });
         })
       );
   }
@@ -60,7 +63,7 @@ export class AuthStore {
             : throwError(() => error);
         }),
         tap(() => {
-          this._authState.set({ status: 'loggedOut' });
+          this.authStateSubject.next({ status: 'loggedOut' });
         })
       );
   }
