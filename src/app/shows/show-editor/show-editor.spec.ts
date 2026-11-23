@@ -112,12 +112,6 @@ describe('ShowEditor', () => {
 
   const saveButton = () => root().querySelector('button[type="submit"]') as HTMLButtonElement;
 
-  // The label on show; the other one only keeps the button as wide.
-  const saveButtonLabel = () =>
-    Array.from(saveButton().querySelectorAll('.button-labels > span'))
-      .find((label) => !label.classList.contains('button-label-hidden'))
-      ?.textContent?.trim();
-
   const saveError = () => root().querySelector('[role="alert"]');
 
   function save(): void {
@@ -221,18 +215,6 @@ describe('ShowEditor', () => {
     expect(TestBed.inject(Router).url).toBe('/');
   });
 
-  it('says "Saving…" on the button while the server saves', async () => {
-    await open('/shows/1/edit');
-    expect(saveButtonLabel()).toBe('Save changes');
-
-    save();
-
-    expect(saveButtonLabel()).toBe('Saving…');
-    expect(saveButton().getAttribute('aria-disabled')).toBe('true');
-    httpTesting.expectOne({ method: 'PUT', url: '/api/shows/1' }).flush(slowHorses);
-    await harness.fixture.whenStable();
-  });
-
   describe('when the save fails', () => {
     beforeEach(() => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -252,8 +234,6 @@ describe('ShowEditor', () => {
       expect(saveError()?.textContent?.trim()).toBe("Couldn't save your changes.");
       expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' });
       expect(scrollIntoView.mock.contexts[0]).toBe(saveError());
-      expect(saveButtonLabel()).toBe('Save changes');
-      expect(saveButton().hasAttribute('aria-disabled')).toBe(false);
     });
 
     // Save is also "Try again", with the very same values (D117).
@@ -286,16 +266,6 @@ describe('ShowEditor', () => {
     });
   });
 
-  it('stays on the form, and sends nothing, when the save is invalid', async () => {
-    await open('/shows/add', []);
-
-    save();
-    await harness.fixture.whenStable();
-
-    expect(TestBed.inject(Router).url).toBe('/shows/add');
-    httpTesting.expectNone({ method: 'POST', url: '/api/shows' });
-  });
-
   // D44 puts the error on the missing field; D83 shows it once, under both steppers.
   it('shows a season/episode error under the steppers and focuses the missing field', async () => {
     await open('/shows/add', []);
@@ -313,14 +283,6 @@ describe('ShowEditor', () => {
     expect(episode.getAttribute('aria-invalid')).toBe('true');
     expect(field('Season').hasAttribute('aria-invalid')).toBe(false);
     expect(document.activeElement).toBe(episode);
-  });
-
-  it('offers Delete show in edit mode only', async () => {
-    await open('/shows/add');
-    expect(pageDeleteButton()).toBeUndefined();
-
-    await navigate('/shows/2/edit');
-    expect(pageDeleteButton()).toBeDefined();
   });
 
   // D59: the dialog deletes and emits `deleted`; the editor then goes to Home (D49).

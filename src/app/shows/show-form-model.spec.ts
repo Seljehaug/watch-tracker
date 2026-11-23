@@ -90,13 +90,9 @@ describe('toShowPostModel', () => {
     expect(toShowPostModel(aFormModel({ lastWatched })).lastWatched).toBeUndefined();
   });
 
-  // ShowStore.update spreads the changes over the stored show, so a missing key would keep the
-  // old service. Choosing "Not set" in the form has to clear it.
-  it('turns "Not set" into an undefined service, keeping the key so an update clears it', () => {
-    const fields = toShowPostModel(aFormModel({ service: '' }));
-
-    expect(Object.hasOwn(fields, 'service')).toBe(true);
-    expect(fields.service).toBeUndefined();
+  // The API refuses '' with a 400; no service is a field left out.
+  it('turns "Not set" into no service', () => {
+    expect(toShowPostModel(aFormModel({ service: '' })).service).toBeUndefined();
   });
 
   it('trims the title', () => {

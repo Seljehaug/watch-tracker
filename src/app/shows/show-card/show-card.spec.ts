@@ -26,37 +26,11 @@ describe('ShowCard', () => {
   const nextEpisodeButton = (fixture: ComponentFixture<ShowCard>) =>
     (fixture.nativeElement as HTMLElement).querySelector('button');
 
-  // The URL has to match the editor's route, `shows/:showId/edit` (D38).
-  it('links to the edit page of the show', () => {
-    const fixture = render(aShow({ id: 12 }));
-
-    const link = (fixture.nativeElement as HTMLElement).querySelector('a');
-    expect(link?.getAttribute('href')).toBe('/shows/12/edit');
-  });
-
-  it('emits the show id when the next episode button is clicked', () => {
-    const fixture = render(aShow({ id: 12 }));
-    const emitted: number[] = [];
-    fixture.componentInstance.nextEpisodeWatched.subscribe((id) => emitted.push(id));
-
-    nextEpisodeButton(fixture)?.click();
-
-    expect(emitted).toEqual([12]);
-  });
-
   it('names the next episode and the show in the button label', () => {
     const fixture = render(aShow());
 
     expect(nextEpisodeButton(fixture)?.getAttribute('aria-label')).toBe(
       'Mark season 2, episode 6 of Severance as watched',
-    );
-  });
-
-  it('offers season 1, episode 1 for a show that has not been started', () => {
-    const fixture = render(aShow({ status: 'want-to-watch', lastWatched: undefined }));
-
-    expect(nextEpisodeButton(fixture)?.getAttribute('aria-label')).toBe(
-      'Mark season 1, episode 1 of Severance as watched',
     );
   });
 

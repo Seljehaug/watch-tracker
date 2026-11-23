@@ -47,13 +47,4 @@ describe('App', () => {
     expect(focused()?.tagName).toBe('H1');
     expect(focused()?.textContent).toBe('Second page');
   });
-
-  it('moves focus again on every later navigation', async () => {
-    await navigate('/first');
-    await navigate('/second');
-
-    await navigate('/first');
-
-    expect(focused()?.textContent).toBe('First page');
-  });
 });

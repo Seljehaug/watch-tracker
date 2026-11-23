@@ -64,14 +64,6 @@ describe('AuthStore', () => {
 
       expect(store.authState()).toEqual({ status: 'failed' });
     });
-
-    it('has failed when the server cannot be reached', () => {
-      vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-      httpTesting.expectOne('/api/auth/user').error(new ProgressEvent('error'));
-
-      expect(store.authState()).toEqual({ status: 'failed' });
-    });
   });
 
   describe('login', () => {

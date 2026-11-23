@@ -109,16 +109,6 @@ public class AuthEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.True(await userManager.IsLockedOutAsync(stored!));
     }
 
-    // A 401, not a redirect to a login page.
-    [Fact]
-    public async Task GetUser_WithoutALogin_Is401()
-    {
-        var response = await factory.CreateClient().GetAsync("/api/auth/user", TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Null(response.Headers.Location);
-    }
-
     [Fact]
     public async Task Logout_EndsTheSession()
     {

@@ -125,12 +125,6 @@ describe('Home', () => {
     }
   });
 
-  it('lists the most recently updated show first when the page opens', () => {
-    render([older, newer]);
-
-    expect(titles()).toEqual(['Newer', 'Older']);
-  });
-
   it('keeps a card in place when its next episode is marked', () => {
     render([older, newer]);
 

@@ -160,12 +160,13 @@ describe('DeleteShowDialog', () => {
   });
 
   describe('while the server deletes', () => {
-    it('says "Deleting…", and a second press sends nothing', async () => {
+    // deleteShow() refuses the press itself; aria-disabled stops no click (D118).
+    it('sends nothing on a second press', async () => {
       const fixture = open();
+      const deleteButton = button(fixture, 'Delete show');
 
-      startDeleting(fixture);
-      const deleteButton = button(fixture, 'Deleting…');
-      expect(deleteButton.getAttribute('aria-disabled')).toBe('true');
+      deleteButton.click();
+      fixture.detectChanges();
       deleteButton.click();
 
       await answerDeleted(fixture);

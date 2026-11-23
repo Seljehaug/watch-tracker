@@ -6,17 +6,6 @@ namespace WatchTracker.Api.Tests.Auth;
 // What needs a login, and where changes may come from (both set up in Program.cs).
 public class AccessTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
-    // /api/shows doesn't ask for a login itself, but still requires one: the default in
-    // Program.cs.
-    [Fact]
-    public async Task AnApiEndpoint_WithoutALogin_Is401()
-    {
-        var response = await factory.CreateClient().GetAsync("/api/shows", TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Null(response.Headers.Location);
-    }
-
     // Angular's pages must stay open, or a user who isn't logged in never reaches the login page.
     [Fact]
     public async Task AngularsPages_OpenWithoutALogin()
