@@ -35,7 +35,7 @@
   --icon-size-medium: 1.25rem;
   --icon-size-big: 1.5rem;
   --touch-target: 2.75rem;
-  --content-max-width: 1280px;
+  --container-max-width: 1280px;
 
   /* Not tokens yet (DESIGN.md §1): added as tokens when a component needs them */
   --mock-raised: #232328;
@@ -82,7 +82,7 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
 .frame h1[tabindex='-1']:focus { outline: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-.container { width: 100%; max-width: var(--content-max-width); margin-inline: auto; padding-inline: var(--spacing-1); }
+.container { width: 100%; max-width: var(--container-max-width); margin-inline: auto; padding-inline: var(--spacing-1); }
 
 /* Header */
 .app-header { flex: none; border-bottom: 1px solid var(--color-divider); }
@@ -448,7 +448,7 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
 
   <section class="screen" id="login">
     <h2>Log in (<code>/login</code>)</h2>
-    <p>M2 C2. Only the brand in the header, no navigation. One narrow, centred column on every size. A wrong email or password shows one message above the fields (<code>role="alert"</code>), never which of the two was wrong.</p>
+    <p>M2 C2. Only the brand in the header, no navigation. One narrow, centred column on every size. A wrong email or password shows one message below the button (<code>role="alert"</code>), never which of the two was wrong (D129).</p>
     <div class="sizes" data-screen="login"></div>
   </section>
 
@@ -1106,7 +1106,6 @@ function login(size, uid, { error = false } = {}) {
     main: `
       <form class="login">
         <h1 class="page-title" tabindex="-1">Log in</h1>
-        ${error ? `<p class="form-error" role="alert">${icon('alertCircle')}<span>Wrong email or password.</span></p>` : ''}
         <div class="field">
           <label class="label" for="${uid}-email">Email</label>
           <input class="control" id="${uid}-email" type="email" autocomplete="username" value="you@example.com">
@@ -1116,6 +1115,7 @@ function login(size, uid, { error = false } = {}) {
           <input class="control" id="${uid}-password" type="password" autocomplete="current-password" value="${error ? 'correct horse' : ''}">
         </div>
         <button type="submit" class="button button-large button-accent">Log in</button>
+        ${error ? `<p class="form-error" role="alert">${icon('alertCircle')}<span>Wrong email or password.</span></p>` : ''}
       </form>`,
   });
 }

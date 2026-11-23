@@ -66,6 +66,6 @@ export class AuthStore {
   }
 }
 
-function isUnauthorized(error: unknown): boolean {
+export function isUnauthorized(error: unknown): boolean {
   return error instanceof HttpErrorResponse && error.status === HttpStatusCode.Unauthorized;
 }

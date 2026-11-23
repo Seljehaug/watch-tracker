@@ -119,7 +119,8 @@ need no contrast of their own (WCAG 1.4.11).
 | `--border-radius`                                              | `0.5rem` (8px)                | Everything rounded. Pill tabs use `border-radius: 999px` in the component |
 | `--icon-size-small` / `--icon-size-medium` / `--icon-size-big` | `1rem` / `1.25rem` / `1.5rem` | Icons (16 / 20 / 24px), see "Icons"                                       |
 | `--touch-target`                                               | `2.75rem` (44px)              | Minimum height of anything interactive                                    |
-| `--content-max-width`                                          | `1280px`                      | Content width on desktop, centred (D28)                                   |
+| `--container-max-width`                                        | `1280px`                      | Content width on desktop, centred (D28, D130)                             |
+| `--container-inner-centered-max-width`                         | `35rem`                       | The narrow column: the add and edit page, login, account (D39, D130)      |
 
 Shadows: none yet – only floating elements (the dialog, the message after adding) and the show
 page's poster get one, added when they are built.
@@ -544,8 +545,8 @@ is read when it appears without moving focus. It sits next to the action that fa
 the form's or the dialog's buttons – so nothing on screen moves, and is scrolled into view if it is out of sight.
 The page sets the space above it. Field errors stay as they are, under their field (D41). Each
 message is a line of its own, with `--spacing-half` between the lines and `--spacing-1` between
-the icon and the text (D126). Built as `AlertError`, in the editor, the delete dialog and on
-Watching; meant for the login page too.
+the icon and the text (D126). Built as `AlertError`, in the editor, the delete dialog, on
+Watching and on the login page.
 
 **Floating, for an action on a list** (D121): when the action that failed has no fixed place –
 "Couldn't mark the next episode of Severance as watched." from a card on Watching – the alert
@@ -581,10 +582,13 @@ Later: My subscriptions and export (Later, D78). One column, max 32rem, centred 
 ### Login page (`/login`)
 
 M2 C2. Only the brand in the header, and no navigation. One narrow column, centred on every size:
-the `<h1>` "Log in", Email (`autocomplete="username"`), Password
-(`autocomplete="current-password"`) and an accent "Log in" button. A wrong email or password
-shows one message above the fields ("Wrong email or password.", `role="alert"`), never which of
-the two was wrong.
+the `<h1>` "Log in", Email (`type="email"`, `autocomplete="username"`), Password
+(`type="password"`, `autocomplete="current-password"`) and an accent "Log in" button, which says
+"Logging in…" while the server answers (D116). Both fields are required and the email must be an
+email address; the password has no rules of its own, since login only asks the server. A wrong
+email or password shows one error alert below the button ("Wrong email or password."), never
+which of the two was wrong; any other failure shows another message there. Both values stay
+(D129).
 
 ### Not-found page
 
@@ -650,7 +654,7 @@ the usual stroke instead (M1), so the scale and D24 hold everywhere.
 Screen range (D28): the layout **must work from 320px** wide with no horizontal scrolling (WCAG
 1.4.10 Reflow – also what a 1280px window looks like at 400% zoom), is **designed for phones of
 375–430px** (most phones in Norway are 390–430), and the content stops growing at **1280px**
-(`--content-max-width`), centred on wider screens.
+(`--container-max-width`), centred on wider screens.
 
 - **Phone (design width 390px, must work at 320px):** single column: header (brand, account icon)
   → page → bottom navigation (D98). On Library: title → scrolling tab row → card list.
@@ -666,7 +670,8 @@ Screen range (D28): the layout **must work from 320px** wide with no horizontal 
 - **Show page from 48rem (D101):** poster · info · a right column with Your show and Where to
   watch that stays in view (`position: sticky`).
 - **Add page, account and login on tablet and desktop (D39):** one narrower column, centred, with
-  its max width in rem. No preview of the card next to the form.
+  its max width in rem (`--container-inner-centered-max-width`, D130). No preview of the card next
+  to the form.
 - No fixed heights on content; use `min-width: 0` on flex children that truncate text.
 
 ## 4. Mockups

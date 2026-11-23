@@ -43,20 +43,6 @@ import {AlertError} from '../../shared/alert-error/alert-error';
   ],
   selector: 'app-show-editor',
   styles: `
-    .show-editor {
-      max-width: 600px;
-      display: flex;
-      flex-direction: column;
-      margin: 0 auto;
-      gap: var(--spacing-1);
-    }
-
-    .show-editor-form {
-      display: inline-flex;
-      flex-direction: column;
-      gap: var(--spacing-2);
-    }
-
     .last-watched-episode {
       border: none;
       display: flex;
@@ -70,9 +56,9 @@ import {AlertError} from '../../shared/alert-error/alert-error';
     }
   `,
   template: `
-    <div class="show-editor">
+    <div class="container-inner-centered">
       <h1 tabindex="-1">{{ pageTitle() }}</h1>
-      <form [formRoot]="form" class="show-editor-form">
+      <form [formRoot]="form">
         <app-form-field label="Title" [showErrors]="hasTriedToSave()">
           <input type="text" [formField]="form.title" appFormFieldControl/>
         </app-form-field>

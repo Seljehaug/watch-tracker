@@ -15,10 +15,18 @@ body {
 }
 
 .container {
-  max-width: var(--content-max-width);
+  max-width: var(--container-max-width);
   width: 100%;
   margin-inline: auto;
   padding: var(--spacing-1);
+}
+
+.container-inner-centered {
+  max-width: var(--container-inner-centered-max-width);
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  gap: var(--spacing-1);
 }
 
 :focus-visible {
@@ -89,6 +97,12 @@ a {
 }
 
 // Form
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
 input, select, textarea, button {
   min-height: var(--touch-target);
   min-width: var(--touch-target);

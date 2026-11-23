@@ -8,6 +8,11 @@ export const routes: Routes = [
     loadComponent: () => import('./home/home').then((m) => m.Home),
   },
   {
+    path: 'login',
+    title: 'Log in - Watch Tracker',
+    loadComponent: () => import('./auth/login').then((m) => m.Login),
+  },
+  {
     path: 'shows/add',
     title: 'Add show - Watch Tracker',
     loadComponent: () => import('./shows/show-editor/show-editor').then((m) => m.ShowEditor),
