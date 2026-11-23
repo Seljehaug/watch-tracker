@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-20
+**Last updated:** 2026-11-23
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
@@ -23,9 +23,10 @@ delete dialog waits for the server, shows an error and counts a `404` as deleted
 and quick taps on next episode go through one queue, never retried, with a failure shown in an
 alert at the bottom of the window (2026-11-19, D120–D122); and the list is fetched again when
 the app comes back, with a failed refresh shown in the same alert, and the room under that alert
-follows its height (2026-11-20, D123–D127). Next
-is C2, login in Angular. Production keeps the localStorage version until C1 and C2 go out
-together. The goal is
+follows its height (2026-11-20, D123–D127). C2, login in Angular, has begun: `AuthApi` and
+`AuthStore` know who is logged in and can log in and out (2026-11-23, D128); the login page,
+the guard, the interceptor and the account page come next. Production keeps the localStorage
+version until C1 and C2 go out together. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -350,7 +351,21 @@ goal (D63): it should take as little time from Angular as possible.
   `deleteShow` and `markNextEpisodeAsWatched` (a `POST` without a body). The URLs are relative
   (`/api/shows`), the same locally and in production. The answers are typed with the hand-written
   `TrackedShow` and not checked at runtime (D109).
-- Tests: 172, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- `AuthApi` (`src/app/auth/auth-api.ts`, C2) is `ShowApi`'s kind for login: `getUser`
+  (`GET /api/auth/user`), `login` (`POST /api/auth/login` with a `LoginPostModel`) and `logout`
+  (`POST /api/auth/logout`), no state. The types carry the server's names (D128): `UserModel`
+  (`{ email }`, `user-model.ts`) and `LoginPostModel` (`{ email, password }`,
+  `login-post-model.ts`). `AuthStore` (`src/app/auth/auth-store.ts`, D128) holds an `AuthState`,
+  a discriminated union on `status` – `'checking'`, `'loggedIn'` with the `user`, `'loggedOut'`
+  and `'failed'` – private and writable, exposed read-only as `authState`. The constructor asks
+  `getUser()` once: `map` makes the user `'loggedIn'`, `catchError` makes a `401` `'loggedOut'`
+  and any other error, logged, `'failed'`, each with `of(...)`, and `subscribe` sets the state
+  in one place. `login` and `logout` return the request with `tap` setting the state after the
+  server's yes, as `add` and `delete` do; a failed login reaches the caller and leaves the state
+  as it was, and `logout` counts a `401` as logged out (`of(undefined)` in a `catchError` before
+  the `tap`). `isUnauthorized` is a function in the file, outside the class. Nothing uses the
+  store yet: the guard, the login page and the account page do in C2's next steps.
+- Tests: 186, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
   and an unknown show id show the not-found page and keep the URL in the address bar –
   `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
@@ -375,6 +390,12 @@ goal (D63): it should take as little time from Angular as possible.
   per tap after a reload; `watching` filters
   and compares times, not text), `show-api.spec.ts` (method, URL and body per endpoint, the
   answer passed on, nothing sent before a subscription, a failure passed on as an error),
+  `auth-api.spec.ts` (method, URL and body per endpoint, a `401` passed on as an error),
+  `auth-store.spec.ts` (checking until the server answers, then logged in with its user; a `401`
+  is logged out, not failed; a `500` and no answer are failed; login sends nothing until the
+  caller subscribes, is logged in only after the server's yes and passes a `401` on, logged out
+  still; logout is logged out only after the server's answer, counts a `401` as logged out, and
+  stays logged in and passes the error on when it fails),
   `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (emits the
   id, link to the editor, button label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (order at open, a card stays in place after a tap – also when the list
   arrives after the page opened, and after a refetch – new shows first, empty state, the add link
@@ -1053,6 +1074,13 @@ shows are typed in again in D3 (D66).
       pages still show their message) or ends the request – `firstValueFrom` rejects with
       `EmptyError` on an Observable that ends without a value (D119). `AlertError` is ready for
       the login page's error.
+      Done in seven steps, one session each. Step 1, 2026-11-23: `AuthApi` and `AuthStore`
+      (D128), written by the developer; 14 tests by Claude, each seen failing with its rule
+      broken in a copy (16 breaks). Left: the login page, the guard (which decides what a
+      failed check means), the interceptor (the store's own check runs it while the store is being
+      created, so an `inject(AuthStore)` there likely ends in a DI cycle, NG0200 – to be checked
+      in step 4), `ShowStore` after a new login and a logout,
+      the account page with the header's account icon, and the wrap-up.
 - [ ] C3. Commit the classic version on its own (D57).
 
 **D. To production**
@@ -1378,6 +1406,7 @@ reversed, mark it as superseded instead of deleting it.
 | D125 | 2026-11-20 | A write answered while a fetch is on its way starts the fetch again. The store notes that a fetch runs (`isFetching`, set in `load()`, cleared on an answer and on a failure), and once an add, a save, a delete or a next episode has put the server's answer in the list, `restartFetchIfRunning()` calls `load()`, whose `switchMap` cancels the old fetch. | The `GET` may have read the shows before the write was saved, and its answer put the old version back: a + tapped on return to the app, while the refetch ran, was undone on screen until the next fetch (seen with a delay in the API's `GET`). Rejected: accepting the race (wrong data on screen); the `GET` in next episode's queue (covers next episode only, and every fetch would wait for the taps); dropping the fetch's answer without fetching again (misses the other device's changes, and could leave the first load waiting). Accepted: a show added while a fetch runs, when the fetch's answer comes before the add's, is in the list twice until the next fetch. |
 | D126 | 2026-11-20 | A failed refresh is shown in Home's floating alert (D121): "Couldn't refresh your shows.", with no "Try again" – the next return to the app fetches again, and a success removes it. A failed refresh and a failed next episode share one `AlertError`, one `<p>` each, refresh first, with one "Dismiss" that clears both and moves focus to the `<h1>`. `AlertError` puts its `<ng-content>` in a column, so a page projects its lines with no wrapper of its own; a `messages` input beside the slot was tried and dropped (amends D117, D121). Designed with the developer. | With two alerts, stacked or one after the other, dismissing one put the other's close button where the finger had just been, so a quick second tap would dismiss what hadn't been read; one alert has one button, and it goes. A list on screen stays useful when a refresh fails, so the message goes beside it, not instead of it (D112), and the error page's "Couldn't load your shows" would say something is missing. Two ways into one component meant two layouts to keep alike, and `[]` and `null` meaning different things. Accepted: the two can't be dismissed one at a time. Two lines may wrap to six on a narrow phone – checked at 320px, where they left the last card behind the alert, so the room follows the alert's height since D127. |
 | D127 | 2026-11-20 | The room under the floating alert follows its measured height (amends D121). `AlertFloating` (`[appAlertFloating]`, `shared/alert-floating/`), an attribute directive, gives the alert `.alert-floating` through `host` and observes it with a `ResizeObserver`, writing its border-box height to `--alert-floating-height` on `<html>`; `html:has(.alert-floating)` sets `scroll-padding-bottom` and `main`'s `padding-bottom` to that height plus `--spacing-1` twice – the gap below the alert and as much above it. On destroy it disconnects and removes the variable. The alert looks as before on phones: a bar along the bottom, with and without the icon, was drawn on the real page, measured and turned down. | Measured in the app with a stand-in API: at 320px a failed refresh and a failed next episode with a long title made the alert 210px tall, and one line with a short title 186px, against 9rem (144px), so at the end of the page the last card's + was wholly behind it (WCAG 2.4.11); at 412px a long title needed 154px. The height follows the title, the width and the text size, so any fixed room is a guess. A directive is made and destroyed with the alert's `@if`, so it measures exactly while the alert is there; in Home it would need a `viewChild` and an `effect`, and Library will float the same alert. `AlertError` doesn't know it floats – in the editor and the dialog it sits in the flow. With the class in the directive, floating and measuring can't come apart. The bar gave the text 200px at 320px against 150px, and 232px without the icon, but at the Pixel's 412px all were within a few px, and most phones are wider – the developer's call. Accepted: at 320px the alert covers a third of the window until it is dismissed. |
+| D128 | 2026-11-23 | Who is logged in, in Angular (C2 step 1): `AuthApi` and `AuthStore`, as `ShowApi` and `ShowStore` (D77). The state is one signal of `AuthState`, a discriminated union on `status`: `'checking'`, `'loggedIn'` with the `user`, `'loggedOut'`, `'failed'`. The store asks `GET /api/auth/user` once when it is created; a `401` is `'loggedOut'`, any other error `'failed'`, which only the first check can be. The store says what happened; the guard (step 3) decides what a failed check means. `login` and `logout` return the request with `tap` and no own `catchError` – the caller handles the errors – except that `logout` counts a `401` as logged out, as `delete` counts a `404` as deleted (D119). The types carry the server's names, `UserModel` and `LoginPostModel`, each in its own file. | The cookie is `HttpOnly`, so only the server knows whether it still holds (D70). On `/user` a `401` is the answer for no login, not a failure; a `500` or no answer means the app doesn't know. With the user inside `'loggedIn'`, a logged-in state without a user, or a logged-out one with an old user, can't be written, as it could with two signals; the names follow D124's participles. A `401` on logout means the cookie had already expired – the user has what they asked for. Login is cold until the caller subscribes, so the password is sent once, and a wrong one counts once towards the lockout (D93). The names say the same thing on both sides – the server's `User` is the database row; `TrackedShow` keeps its name from before the API. `LoginPostModel` is not part of the user, so it has its own file. |
 
 ## 7. Open questions
 
