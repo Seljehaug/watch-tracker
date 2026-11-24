@@ -42,6 +42,7 @@ describe('loggedInGuard', () => {
     ['/', '/login?returnUrl=%2F'],
     ['/shows/add', '/login?returnUrl=%2Fshows%2Fadd'],
     ['/shows/12/edit', '/login?returnUrl=%2Fshows%2F12%2Fedit'],
+    ['/account', '/login?returnUrl=%2Faccount'],
     ['/unknown', '/login?returnUrl=%2Funknown'],
   ])(
     'waits for the check, then sends a logged-out user from %s to %s',

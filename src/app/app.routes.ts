@@ -7,6 +7,7 @@ export const routes: Routes = [
   {
     path: 'login',
     title: 'Log in - Watch Tracker',
+    data: { hideHeaderLinks: true },
     canActivate: [loggedOutGuard],
     loadComponent: () => import('./auth/login').then((m) => m.Login),
   },
@@ -18,6 +19,11 @@ export const routes: Routes = [
         path: '',
         title: 'Continue watching - Watch Tracker',
         loadComponent: () => import('./home/home').then((m) => m.Home),
+      },
+      {
+        path: 'account',
+        title: 'Account - Watch Tracker',
+        loadComponent: () => import('./account/account').then((m) => m.Account),
       },
       {
         path: 'shows/add',

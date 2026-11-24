@@ -164,7 +164,13 @@ From 48rem the header also holds the main navigation and the search field:
   `/search?q=…` (D100), which shows the results below. <kbd>/</kbd> as a shortcut to the field is
   optional.
 
-On the login page the header has only the brand.
+On the login page the header has only the brand. The page says so itself, with `data` on its
+route, and the header hides its links until the first page is shown, so they never flash before
+the login page while the login is checked (D140).
+
+Until Search comes (M3), "Add show" stays in the header, left of the account icon, and both are
+hidden on the login page. At 320px they don't fit on one line and the icon wraps below "Add show"
+– accepted until "Add show" leaves.
 
 ### Bottom navigation (phone)
 
@@ -546,7 +552,7 @@ the form's or the dialog's buttons – so nothing on screen moves, and is scroll
 The page sets the space above it. Field errors stay as they are, under their field (D41). Each
 message is a line of its own, with `--spacing-half` between the lines and `--spacing-1` between
 the icon and the text (D126). Built as `AlertError`, in the editor, the delete dialog, on
-Watching and on the login page.
+Watching, on the login page and on the account page.
 
 **Floating, for an action on a list** (D121): when the action that failed has no fixed place –
 "Couldn't mark the next episode of Severance as watched." from a card on Watching – the alert
@@ -577,7 +583,14 @@ Reached from the account icon (D98). The `<h1>` is "Account". It has two parts:
   not endorsed or certified by TMDB." (TMDB asks for its credit in an About or Credits part); and
   "Where-to-watch data comes from JustWatch."
 
-Later: My subscriptions and export (Later, D78). One column, max 32rem, centred from 48rem.
+Later: My subscriptions and export (Later, D78). One column, the narrow one
+(`--container-inner-centered-max-width`, D130).
+
+Built in M2 C2 without About, which comes whole with TMDB in M3 (D138). When the login check
+failed (D132) there is no email: its place says "Couldn't check who is logged in. Reload the page
+to try again.", and Log out stays. Log out says "Logging out…" while the server answers (D116),
+then goes to the login page in the history's place of the account page, with no `returnUrl`. A
+failed logout keeps the page and shows an error alert below the section (D139).
 
 ### Login page (`/login`)
 

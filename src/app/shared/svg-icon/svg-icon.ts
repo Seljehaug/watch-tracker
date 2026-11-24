@@ -3,7 +3,7 @@ import { Component, input } from '@angular/core';
 export type IconSize = 'small' | 'medium' | 'big';
 
 export type IconName =
-  'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'close' | 'delete' | 'minus' | 'page-not-found' | 'plus' | 'tv';
+  'account' | 'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'close' | 'delete' | 'minus' | 'page-not-found' | 'plus' | 'tv';
 
 @Component({
   selector: 'app-svg-icon',
@@ -22,6 +22,11 @@ export type IconName =
       stroke-linejoin="round"
     >
       @switch (icon) {
+        @case ('account') {
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="10" r="3" />
+          <path d="M6.6 18.3c1.3-1.7 3.2-2.6 5.4-2.6s4.1.9 5.4 2.6" />
+        }
         @case ('alert-circle') {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7.5v5.5M12 16.5v.01" />
