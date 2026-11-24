@@ -14,7 +14,8 @@ export const loggedInGuard: CanActivateChildFn = (_childRoute, state) => {
         return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
       }
 
-      // 'failed' too: the server didn't answer, which a login can't fix, so the page shows its own error.
+      // 'failed' too: the server gave no usable answer, which a login can't fix, so the page shows
+      // its own error.
       return true;
     }),
   );

@@ -601,7 +601,9 @@ the `<h1>` "Log in", Email (`type="email"`, `autocomplete="username"`), Password
 email address; the password has no rules of its own, since login only asks the server. A wrong
 email or password shows one error alert below the button ("Wrong email or password."), never
 which of the two was wrong; any other failure shows another message there. Both values stay
-(D129).
+(D129). After a login it goes on to the page that sent the user there (`returnUrl`), or to
+Watching, in the history's place of the login page; a logged-in user who opens it gets Watching
+(D133).
 
 ### Not-found page
 

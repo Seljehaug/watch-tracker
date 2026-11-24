@@ -53,7 +53,7 @@ type LoginError = 'failed' | 'wrongCredentials' | null;
             <p>Wrong email or password.</p>
           }
           @else if (loginHasFailed()) {
-            <p>Something went wrong when trying to log in.</p>
+            <p>Couldn't log in.</p>
           }
         </app-alert-error>
       }

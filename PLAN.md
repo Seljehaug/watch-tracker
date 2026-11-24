@@ -23,17 +23,14 @@ delete dialog waits for the server, shows an error and counts a `404` as deleted
 and quick taps on next episode go through one queue, never retried, with a failure shown in an
 alert at the bottom of the window (2026-11-19, D120–D122); and the list is fetched again when
 the app comes back, with a failed refresh shown in the same alert, and the room under that alert
-follows its height (2026-11-20, D123–D127). C2, login in Angular, has begun: `AuthApi` and
-`AuthStore` know who is logged in and can log in and out (2026-11-23, D128), and the login page
-logs in and goes on to `returnUrl` (2026-11-23, D129, D130), and every page but the login page
-needs a login: a guard sends to `/login?returnUrl=…`, and a logged-in user who opens `/login`
-gets Home (2026-11-23, D132–D134), and a `401` in use logs the user out and sends to the login
-page with `returnUrl` (2026-11-24, D135), and `ShowStore` follows the login: it fetches the
-list after a new login and forgets it at a logout, a fetch on its way included (2026-11-24,
-D136, D137), and the account page shows the email and logs out, reached by the header's account
-icon, and the login page's header shows only the brand (2026-11-24, D138–D140); the wrap-up
-comes next. Production keeps the localStorage
-version until C1 and C2 go out together. The goal is
+follows its height (2026-11-20, D123–D127). C2, login in Angular, is done 2026-11-24
+(D128–D141): `AuthApi` and `AuthStore` know who is logged in; every page but the login page
+needs a login, and a guard sends to `/login?returnUrl=…`; the login page logs in and goes on to
+`returnUrl`; a `401` in use logs the user out and sends to the login page; `ShowStore` fetches
+the list after a login and forgets it at a logout; and the account page, reached by the
+header's account icon, shows the email and logs out. C3 is ticked without a tag (D141). Next is
+D3: C1 and C2 go to production together, deployed by the developer; until then production runs
+the localStorage version. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -336,11 +333,11 @@ goal (D63): it should take as little time from Angular as possible.
   `computed` on `'failed'`) the email's place says "Couldn't check who is logged in. Reload the
   page to try again." – checked on `'failed'` itself, not on a missing email, since the state is
   `'loggedOut'` for a moment after a logout, before the login page. "Log out" (`.button-secondary`)
-  calls `logOut()`: its own `isLoggingOut` refuses a second press – no Signal Forms here – and
+  calls `logout()`: its own `isLoggingOut` refuses a second press – no Signal Forms here – and
   says "Logging out…" with `aria-disabled` (`.button-labels`, D116); `await
   firstValueFrom(AuthStore.logout())` in a `try`/`catch` around the request only. The `catch`
-  logs, frees the button, sets `logOutHasFailed` – cleared when the next try starts – and
-  scrolls the `AlertError` "Something went wrong while trying to log out." below the section
+  logs, frees the button, sets `logoutHasFailed` – cleared when the next try starts – and
+  scrolls the `AlertError` "Couldn't log out." below the section
   into view after it is rendered, as the login page does; after a yes,
   `Router.navigateByUrl('/login', { replaceUrl: true })`, after the `try`, with no `returnUrl`.
   It doesn't know `ShowStore`, which forgets the list itself (D136). No About yet: it comes
@@ -458,7 +455,7 @@ goal (D63): it should take as little time from Angular as possible.
   `Router.navigateByUrl(this.returnUrl() ?? '/', { replaceUrl: true })`, so the login page leaves
   the browser's history and Back goes to the page before it (D133): `returnUrl` is an `input()` that
   `withComponentInputBinding()` fills from the query parameter. One `AlertError` below the form
-  shows "Wrong email or password." or "Something went wrong when trying to log in." "Log in"
+  shows "Wrong email or password." or "Couldn't log in." "Log in"
   says "Logging in…" with `aria-disabled` while `submitting()` is true (D116). `loginError` is
   cleared when the next try starts and in `onInvalid`. Both set `hasTriedToLogin`, the fields'
   `showErrors`, and `onInvalid` focuses the first field in `errorSummary()` once the errors are
@@ -472,7 +469,7 @@ goal (D63): it should take as little time from Angular as possible.
   router.url } })`, not awaited (`void`); every error, the `401` too, goes on to the caller with
   `throwError`, so each caller's own handling still runs. A later `401` – on the login page, say –
   leaves the first `returnUrl` alone.
-- Tests: 198, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- Tests: 197, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
   and an unknown show id show the not-found page and keep the URL in the address bar –
   `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
@@ -482,7 +479,8 @@ goal (D63): it should take as little time from Angular as possible.
   and a show deleted after the app started, and `verify()` fails on a second `GET`; the page opens
   at once while the list is fetched again, and after a fetch again failed; before the
   first load has answered: no page until the list arrives, then the show or the not-found page,
-  and Home with the edit URL kept after a failed load), `show-store.spec.ts` (loading and the
+  and Home with the edit URL kept after a failed load; after a logout and a new login it waits
+  for the new list – which also catches the lag D134 removed), `show-store.spec.ts` (loading and the
   error; trying again after a failed first load; a fetch again keeps the list and `'succeeded'`,
   a failed one sets `refreshHasFailed`, which the next fetch and `clearRefreshFailed()` clear; a
   new fetch cancels the one on its way (`cancelled`); `visibilitychange` fetches when visible and
@@ -493,7 +491,9 @@ goal (D63): it should take as little time from Angular as possible.
   only that show and keeps it on a failure, and a `404` counts as deleted; next episode sends
   quick taps one at a time in order, never sends a failed one again and still sends the taps after
   it, records the failed show and forgets it on the next tap or when cleared, and sends one command
-  per tap after a reload; `watching` filters
+  per tap after a reload; after a logout the list and its failures are gone and `initialLoad`
+  is `'loading'`, a fetch on its way is cancelled, and nothing is fetched when the app comes
+  back – the fetch after the next login is the guard's test (D141); `watching` filters
   and compares times, not text – the store's specs also check each request's method, URL and
   body, so `ShowApi` and `AuthApi` have none of their own, D131),
   `auth-store.spec.ts` (checking until the server answers, then logged in with its user; a `401`
@@ -637,8 +637,7 @@ goal (D63): it should take as little time from Angular as possible.
   browser opens on start. `ng serve` sends `/api/**` on to it through `proxy.conf.json` in the
   root (`serve.options.proxyConfig` in `angular.json`, C1), so Angular calls `/api` as in
   production and the browser sees one origin – the login cookie and the `Sec-Fetch-Site` check
-  work without CORS. Until C2 the dev user logs in with `fetch` from the console of a page
-  `ng serve` served, in Chrome; Chrome's error page has another origin, and the call fails.
+  work without CORS. The dev user logs in on the login page `ng serve` serves.
   Data: EF Core with Npgsql 10.0.3, plus `Microsoft.EntityFrameworkCore.Relational` 10.0.14 to
   lift EF Core to the Design package's patch – without it the test project, which doesn't get
   Design, has a version conflict. `Shows/Show.cs` is the entity: an identity `Id` (D67),
@@ -1150,7 +1149,7 @@ show endpoints, 2026-11-16; next is C1.
 
 C1 and C2 go to production together: from C1 Angular reads `/api/shows`, which needs a login
 since B3 (D93), and the login page is C2 – deployed alone, C1 would leave the app on the Pixel
-with no shows. Until C2, log in locally as the dev user from the browser's console. Before they
+with no shows. Before they
 go out, screenshot the list on the Pixel: the new app no longer reads localStorage (D109), and the
 shows are typed in again in D3 (D66).
 
@@ -1203,55 +1202,36 @@ shows are typed in again in D3 (D66).
   follows the alert's measured height through `AlertFloating` (D127), the code shown by Claude on
   request; a bar along the bottom on phones was drawn and turned down. Checked by hand against the
   API with DevTools' throttling and a delay in the `GET`. _Done 2026-11-20._
-- [ ] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
-  error, the logged-in user from `/api/auth/user`, a guard that sends to `/login?returnUrl=…`,
-  an interceptor that turns a `401` into the login page (`catchError`), and logging out – from
-  the account page (`/account`), reached by the account icon in the header (D98; DESIGN.md,
-      "Account page" and "Login page"). From C1: a `401` – an expired login – shows today as any
-  other failure: Home's error page or the refresh alert, "Couldn't save your changes.", the
-  delete dialog's error and the next-episode alert, each caught where the request is made.
-  Decide whether the interceptor passes the error on after sending to the login page (the
-  pages still show their message) or ends the request – `firstValueFrom` rejects with
-      `EmptyError` on an Observable that ends without a value (D119). `AlertError` is ready for
-  the login page's error.
-  Done in seven steps, one session each. Step 1, 2026-11-23: `AuthApi` and `AuthStore`
-      (D128), written by the developer; 14 tests by Claude, each seen failing with its rule
-  broken in a copy (16 breaks). Step 2, 2026-11-23: the login page (D129) and the shared
-  narrow column (D130), written by the developer – the last fixes (the navigation after the
-      `try`, the alert scrolled into view, a typo) by Claude on request; 11 tests by Claude, each
-  seen failing with its rule broken in a copy (20 breaks), 8 left after D131. Checked by hand against the API:
-      a login, `returnUrl`, and a logout with `fetch` from the console. Step 3, 2026-11-23: the
-  guards (D132, D133) and `replaceUrl` on the login page, written by the developer – the
-  first guard's last cleanup by Claude on request – and `AuthStore` on a `BehaviorSubject`
-      (D134), by Claude on request after the login spec showed the guard reading the state from
-  before the login, and `ShowStore`'s `initialLoad` on the same pattern; 7 tests by Claude, each seen failing with its rule broken in a copy (14
-  breaks – `login` below the parent route never finishes, the endless redirect), and
-      `GET /api/auth/user` answered in the three specs on the app's real routes. Seen in the
-  browser before D134: a logged-out `/shows/add` goes to `/login?returnUrl=%2Fshows%2Fadd`,
-  and the first login only went back to the login page – two `POST /api/auth/login` in the
-  Network tab. Step 4, 2026-11-24: `unauthorizedInterceptor` and
-      `AuthStore.markAsLoggedOut()` (D135), written by the developer from a first draft – the
-  final code shown by Claude on request; 4 tests by Claude, each seen failing with its rule
-  broken in a copy (12 breaks, 11 caught – setting `'loggedOut'` after the navigation can't
-  show, since the router runs the guard later). An `inject(AuthStore)` above the check for
-      `/api/auth/` gives NG0200, seen in a copy. Checked by hand against the API by the
-  developer. Step 5, 2026-11-24: `ShowStore` follows
-      `AuthStore.authState$` (D136, D137), written by the developer in four small steps – the
-  first one's cleanup (`takeUntilDestroyed()`, the comment, the inferred type) by Claude on
-  request; 5 tests by Claude, and the four specs that create `ShowStore` answer the login
-  check first; each seen failing with its rule broken in a copy (11 breaks, 10 caught –
-      `isFetching` left on at the reset can't show, since `load()` returns while logged out; a
-  failed check that doesn't fetch is caught by `loggedInGuard`'s spec; the guard test also
-  catches `initialLoad$` from `toObservable`, the lag D134 removed). Checked by hand against
-  the API by the developer: a first load's `401` and a new login, a fetch on its way
-  cancelled from the console, and an edit page as `returnUrl` with the show changed – and
-  deleted – in a private window. Step 6, 2026-11-24: the account page (D138, D139) and the
-  header's account link, hidden with "Add show" on the login page (D140), written by the
-  developer – the `account` icon, the check on `'failed'`, the account link's ARIA, the login
-  route's flag and the header's `linksVisible` by Claude on request; 7 tests by Claude, and
-      `/account` in `loggedInGuard`'s list; each seen failing with its rule broken in a copy (16
-  breaks, all caught). Left: the wrap-up.
-- [ ] C3. Commit the classic version on its own (D57).
+- [x] C2. Login in Angular (D70): a login page with Signal Forms and the server's `401` shown as an
+      error, the logged-in user from `/api/auth/user`, a guard that sends to
+      `/login?returnUrl=…`, an interceptor that turns a `401` into the login page
+      (`catchError`), and logging out – from the account page (`/account`), reached by the
+      account icon in the header (D98; DESIGN.md, "Account page" and "Login page").
+      _Done 2026-11-24 in seven steps, one session each:_ the developer's code with Claude as
+      guide, and the tests by Claude, each seen failing with its rule broken in a copy.
+  1. `AuthApi` and `AuthStore` (2026-11-23, D128, `699d9fb`).
+  2. The login page and the shared narrow column (2026-11-23, D129, D130, `d8e2c79`), and the
+     tests pruned after it (D131, `691c156`).
+  3. The guards, and both stores on a `BehaviorSubject` – after the login spec showed the guard
+     reading the state from before the login (2026-11-23, D132–D134, `5647560`).
+  4. `unauthorizedInterceptor`, which passes the `401` on to the caller (2026-11-24, D135,
+     `67902c9`).
+  5. `ShowStore` following `authState$` (2026-11-24, D136, D137, `23aaf28`).
+  6. The account page and the header's account link (2026-11-24, D138–D140, `0d9dd47`).
+  7. The wrap-up (2026-11-24, D141): checked by hand against the API by the developer – a fresh
+     start with throttling, a reload on `/login`, `aria-current`, a blocked logout, Back after a
+     logout, a `401` in use and a tab switch on the login page after it, all as expected; the
+     logged-out start seen in the browser pane too, with only the brand until the check
+     answered. The failure texts and the login/logout names made alike, a comment corrected
+     and a test that repeated another removed – 197 tests.
+
+  Written or shown by Claude on request along the way: the `BehaviorSubject`s, the
+  interceptor's final code, the `account` icon, the account link's ARIA, the header's
+  `linksVisible`, smaller cleanups in each step, and step 7's changes.
+- [x] C3. Commit the classic version on its own (D57). _Done 2026-11-24 without a tag (D141):_
+      the classic reads – `ShowApi.getShows()` through `ShowStore`'s `switchMap`, and
+      `AuthStore`'s check – are in `main`'s history as C2's wrap-up commit leaves them, and E1
+      rewrites them in commits of their own.
 
 **D. To production**
 
@@ -1287,9 +1267,17 @@ shows are typed in again in D3 (D66).
       1654; `fly scale show` one shared 512 MB machine in `fra`; the shows on the Pixel still
       there. **Creating my user waits for login (B3)** – there is no create-user command yet.
       _Done 2026-11-13 in B3._
-- [ ] D3. Log in on the Pixel and the Mac, type my shows in again (D66), and check that a change on
-      one shows on the other. ~~Then remove `LocalStorageShowStorage` and its tests.~~ Removed in
-      C1 (D109).
+- [ ] D3. C1 and C2 go to production together; the developer deploys. Before the deploy,
+      screenshot the list on the Pixel: the new app doesn't read localStorage (D109), and the
+      shows are typed in again (D66). New in production: `provideHttpClient` with
+      `unauthorizedInterceptor`, and the login cookie `__Host-watchtracker`, which needs HTTPS –
+      so the first login on the Pixel is the first real test of both. On the Pixel, also try a
+      `401` in use and a tab switch on the login page after it, as on the Mac in C2 step 7:
+      `chrome://inspect` on the Mac, with the Pixel on USB, gives its tab a console for
+      `fetch('/api/auth/logout', { method: 'POST' })` before a tap, and a Network tab that should
+      show no `/api/shows` when the login page comes back. Then log in on the Pixel and the Mac,
+      type my shows in again, and check that a change on one shows on the other.
+      ~~Then remove `LocalStorageShowStorage` and its tests.~~ Removed in C1 (D109).
 - [x] D4. ~~Make the repo public (D74), after scanning the whole history with `gitleaks`.~~ It has
       been public since it was created (D80); the scan and push protection moved to A2.
 - [ ] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
@@ -1590,6 +1578,7 @@ reversed, mark it as superseded instead of deleting it.
 | D138 | 2026-11-24 | The account page (C2 step 6): `/account` → `Account` in `src/app/account/`, among the guarded parent's children before `**`, in `.container-inner-centered` (D130) – not 32rem as DESIGN.md had. "Logged in as" shows the email from `authState`. When the check failed (`'failed'`, D132) the email's place says "Couldn't check who is logged in. Reload the page to try again.", and "Log out" stays. The text is chosen on `'failed'` itself, not on a missing email. About comes whole in M3, with TMDB. Chosen by the developer. | The guard lets `'failed'` through, so the page must say something there; `AuthStore` has no way to ask again, so the text says what helps instead of offering "Try again". The cookie is `HttpOnly` – only the server can end it – and if the server is back, the logout goes through. Plain text, not an alert: it is there when the page opens, and the screen reader reads it after the `<h1>`; `AlertError` is for actions (D117). After a logout the state is `'loggedOut'` before the login page is shown, and a check on a missing email showed the failure text in that moment. An About with only the line on what the app is says little to its one user; with TMDB it has a job. |
 | D139 | 2026-11-24 | Logging out (C2 step 6): "Log out" waits for `AuthStore.logout()` with `await firstValueFrom(...)` in a `try`/`catch` around the request only, its own `isLoggingOut` refusing a second press, and says "Logging out…" with `aria-disabled` (D116). After a yes it goes to `/login` with `navigateByUrl('/login', { replaceUrl: true })` – after the `try`, with no `returnUrl`. A failure is logged, frees the button and shows `AlertError` "Something went wrong while trying to log out." below the section, scrolled into view; the page stays, and `logOutHasFailed` is cleared when the next try starts. Chosen by the developer. | `logout()` returns the request cold (D128): without a subscriber nothing is sent – the first draft's button did nothing. `logout()` doesn't navigate and goes past the interceptor (`/api/auth/`), so the page decides where the user goes; `ShowStore` forgets the list itself (D136). The login page, not Home: Home would only be sent on by the guard, with `returnUrl` `/`. No `returnUrl`: the next login may be someone else's, and starts on Home. `replaceUrl` keeps Back from reopening `/account`, as the login page keeps Back from `/login` (D133). After the `try`, as on the login page (D129): a failed navigation would say the logout failed while the user is logged out. The page is no form, so nothing else refuses the second press. A failed logout leaves the user logged in (D128); the alert next to the button follows D117. |
 | D140 | 2026-11-24 | The header's account link and the login page's header (C2 step 6). The account link is the `account` icon at medium, named with `aria-label="Account"`, with `aria-current="page"` from `routerLinkActive` and `ariaCurrentWhenActive="page"`, at least `--touch-target` both ways, right of "Add show" and in view at every width. On the login page both are hidden: the login route has `data: { hideHeaderLinks: true }`, and the header's `linksVisible` is `false` when the page shown at the last `NavigationEnd` has the flag (`toSignal`, `initialValue: false`). Chosen by the developer, over `isActive('/login', ...)` and over `authState`; the signal written by Claude on request. Accepted: at 320px the icon wraps below "Add show" until "Add show" leaves in M3. | The header sits outside `<router-outlet>`, so it reads the router: the routes form a tree, and the page shown is its deepest node, where `data` sits – `ActivatedRoute` there is the root, whose `data` is empty. The page says what it wants, as DESIGN.md ties it to the page, and M3 hides the bottom navigation on the login and add pages the same way. `isActive` is one line but `false` until the first navigation ends, so the links would flash while the guards wait for the check – longer in production, when Fly starts the machine; `initialValue: false` shows them with the page instead. With `authState`, `'failed'` – which `loggedOutGuard` lets through – would show the links on the login page. `routerLinkActive` with no class only sets `aria-current`; the icon is `aria-hidden` (D25), so the name is the link's. The link reached the window's edge on phones, where the focus ring was cut off (seen in the browser pane with Tab); 4px short of the edge it fits. At 320px nothing scrolls sideways (WCAG 1.4.10 holds), and "Add show" leaves the header in M3 (D98). |
+| D141 | 2026-11-24 | C2's wrap-up (step 7), chosen by the developer, the changes made by Claude on request. The login page's and the account page's failures say "Couldn't log in." and "Couldn't log out." (amends D129 and D139). Names write login and logout as one word, as `AuthStore` and the endpoints do: the account page's `logout()` and `logoutHasFailed`, and the specs' helpers. `show-store.spec.ts` loses "fetches the list for the next login", and `showExistsGuard`'s "waits for the next login's list" covers that fetch. `loggedInGuard`'s comment says `'failed'` is no usable answer, not no answer. C3 is ticked without a git tag: D57's classic reads are the commits on `main` up to C2's wrap-up. | The app's other failures all say "Couldn't …" – seven of them, the account page's "Couldn't check who is logged in." among them – while C2's two said "Something went wrong when/while trying to …". The account page was the one file with `logOut()` beside `AuthStore.logout()`. Every break that stopped the fetch after a new login failed the store's test and the guard's together (three breaks in a copy), and the guard's test also catches the lag D134 removed (D131). A `5xx` is an answer, just not one that says who is logged in. A tag would name a commit `git log` finds as easily, and the developer saw no need for one. |
 
 ## 7. Open questions
 

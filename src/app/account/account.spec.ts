@@ -54,28 +54,28 @@ describe('Account', () => {
     await harness.navigateByUrl('/account', Account);
   }
 
-  const logOutButton = () =>
+  const logoutButton = () =>
     Array.from(root().querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Log out'),
     ) as HTMLButtonElement;
 
   const logoutError = () => root().querySelector('[role="alert"]');
 
-  function logOut(): void {
-    logOutButton().click();
+  function logout(): void {
+    logoutButton().click();
     harness.detectChanges();
   }
 
   const logoutRequest = () => httpTesting.expectOne({ method: 'POST', url: '/api/auth/logout' });
 
-  // One macrotask lets logOut() reach its catch, and whenStable() renders the message.
+  // One macrotask lets logout() reach its catch, and whenStable() renders the message.
   async function failTheLogout(): Promise<void> {
     logoutRequest().flush(null, { status: 500, statusText: 'Internal Server Error' });
     await new Promise((resolve) => setTimeout(resolve));
     await harness.fixture.whenStable();
   }
 
-  // One macrotask lets logOut() go on to the navigation, and whenStable() waits for it to end –
+  // One macrotask lets logout() go on to the navigation, and whenStable() waits for it to end –
   // the login page's code is loaded first.
   async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve));
@@ -85,7 +85,7 @@ describe('Account', () => {
   it('logs out once the server has answered, and goes to the login page with no returnUrl', async () => {
     await open();
 
-    logOut();
+    logout();
 
     const request = logoutRequest();
     await harness.fixture.whenStable();
@@ -101,7 +101,7 @@ describe('Account', () => {
   // The state is 'loggedOut' before the login page is shown, and that is no failed check.
   it("doesn't say the check failed in the moment before the login page", async () => {
     await open();
-    logOut();
+    logout();
 
     logoutRequest().flush(null);
     harness.detectChanges();
@@ -130,24 +130,22 @@ describe('Account', () => {
       const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
       await open();
 
-      logOut();
+      logout();
       await failTheLogout();
 
       expect(path()).toBe('/account');
-      expect(logoutError()?.textContent?.trim()).toBe(
-        'Something went wrong while trying to log out.',
-      );
+      expect(logoutError()?.textContent?.trim()).toBe("Couldn't log out.");
       expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' });
       expect(scrollIntoView.mock.contexts[0]).toBe(logoutError());
     });
 
     it('can be tried again, and the message goes while the next try is on its way', async () => {
       await open();
-      logOut();
+      logout();
       await failTheLogout();
       expect(logoutError()).not.toBeNull();
 
-      logOut();
+      logout();
 
       const retry = logoutRequest();
       expect(logoutError()).toBeNull();

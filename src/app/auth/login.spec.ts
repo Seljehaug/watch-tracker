@@ -7,7 +7,7 @@ import { AuthStore } from './auth-store';
 import type { LoginPostModel } from './login-post-model';
 import { Login } from './login';
 
-const login: LoginPostModel = { email: 'test@example.com', password: 'a-long-test-password' };
+const credentials: LoginPostModel = { email: 'test@example.com', password: 'a-long-test-password' };
 
 // Uses the app's real routes, so the tests also catch a `returnUrl` that no longer reaches the
 // input through the router's query parameters.
@@ -70,15 +70,15 @@ describe('Login', () => {
   }
 
   function fillIn(): void {
-    type('Email', login.email);
-    type('Password', login.password);
+    type('Email', credentials.email);
+    type('Password', credentials.password);
   }
 
   const loginButton = () => root().querySelector('button[type="submit"]') as HTMLButtonElement;
 
   const loginError = () => root().querySelector('[role="alert"]');
 
-  function logIn(): void {
+  function login(): void {
     loginButton().click();
     harness.detectChanges();
   }
@@ -108,14 +108,14 @@ describe('Login', () => {
     await open();
     fillIn();
 
-    logIn();
+    login();
 
     const request = loginRequest();
-    expect(request.request.body).toEqual(login);
+    expect(request.request.body).toEqual(credentials);
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/login');
 
-    request.flush({ email: login.email });
+    request.flush({ email: credentials.email });
     await settle();
 
     expect(TestBed.inject(Router).url).toBe('/');
@@ -126,8 +126,8 @@ describe('Login', () => {
     await open('/login?returnUrl=%2Fshows%2Fadd');
     fillIn();
 
-    logIn();
-    loginRequest().flush({ email: login.email });
+    login();
+    loginRequest().flush({ email: credentials.email });
     await settle();
 
     expect(TestBed.inject(Router).url).toBe('/shows/add');
@@ -145,12 +145,12 @@ describe('Login', () => {
       await open();
       fillIn();
 
-      logIn();
+      login();
       await failTheLogin(401, 'Unauthorized');
 
       expect(TestBed.inject(Router).url).toBe('/login');
-      expect(field('Email').value).toBe(login.email);
-      expect(field('Password').value).toBe(login.password);
+      expect(field('Email').value).toBe(credentials.email);
+      expect(field('Password').value).toBe(credentials.password);
       expect(loginError()?.textContent?.trim()).toBe('Wrong email or password.');
       expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' });
       expect(scrollIntoView.mock.contexts[0]).toBe(loginError());
@@ -160,25 +160,25 @@ describe('Login', () => {
       await open();
       fillIn();
 
-      logIn();
+      login();
       await failTheLogin(500, 'Internal Server Error');
 
       expect(TestBed.inject(Router).url).toBe('/login');
-      expect(loginError()?.textContent?.trim()).toBe('Something went wrong when trying to log in.');
+      expect(loginError()?.textContent?.trim()).toBe("Couldn't log in.");
     });
 
     it('drops the message while the next try is on its way', async () => {
       await open();
       fillIn();
-      logIn();
+      login();
       await failTheLogin(401, 'Unauthorized');
       expect(loginError()).not.toBeNull();
 
-      logIn();
+      login();
 
       const retry = loginRequest();
       expect(loginError()).toBeNull();
-      retry.flush({ email: login.email });
+      retry.flush({ email: credentials.email });
       await settle();
       answerShows();
     });
@@ -186,12 +186,12 @@ describe('Login', () => {
     it('drops the message when the next try stops at an invalid field', async () => {
       await open();
       fillIn();
-      logIn();
+      login();
       await failTheLogin(401, 'Unauthorized');
       expect(loginError()).not.toBeNull();
 
       type('Password', '');
-      logIn();
+      login();
       await harness.fixture.whenStable();
 
       expect(loginError()).toBeNull();
@@ -202,7 +202,7 @@ describe('Login', () => {
     it('sends nothing and focuses Email when both fields are empty', async () => {
       await open();
 
-      logIn();
+      login();
       await harness.fixture.whenStable();
 
       httpTesting.expectNone({ method: 'POST', url: '/api/auth/login' });
@@ -214,9 +214,9 @@ describe('Login', () => {
     it('sends nothing when the email is not an email address', async () => {
       await open();
       type('Email', 'test.example.com');
-      type('Password', login.password);
+      type('Password', credentials.password);
 
-      logIn();
+      login();
       await harness.fixture.whenStable();
 
       httpTesting.expectNone({ method: 'POST', url: '/api/auth/login' });

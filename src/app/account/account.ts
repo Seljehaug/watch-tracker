@@ -29,7 +29,7 @@ import {AlertError} from '../shared/alert-error/alert-error';
           <p>Couldn't check who is logged in. Reload the page to try again.</p>
         }
 
-        <button type="button" class="button button-secondary spacing-top-1" [attr.aria-disabled]="isLoggingOut() || null" (click)="logOut()">
+        <button type="button" class="button button-secondary spacing-top-1" [attr.aria-disabled]="isLoggingOut() || null" (click)="logout()">
           <span class="button-labels">
             <span [class.button-label-hidden]="isLoggingOut()">Log out</span>
             <span [class.button-label-hidden]="!isLoggingOut()">Logging out…</span>
@@ -37,9 +37,9 @@ import {AlertError} from '../shared/alert-error/alert-error';
         </button>
       </section>
 
-      @if (logOutHasFailed()) {
+      @if (logoutHasFailed()) {
         <app-alert-error class="spacing-top-1">
-          <p>Something went wrong while trying to log out.</p>
+          <p>Couldn't log out.</p>
         </app-alert-error>
       }
     </div>
@@ -63,14 +63,14 @@ export class Account {
   protected readonly authCheckHasFailed = computed(() => this.authStore.authState().status === 'failed');
 
   protected readonly isLoggingOut = signal(false);
-  protected readonly logOutHasFailed = signal(false);
+  protected readonly logoutHasFailed = signal(false);
 
   private readonly alertError = viewChild<AlertError, ElementRef<HTMLElement>>(AlertError, { read: ElementRef });
 
-  protected async logOut() {
+  protected async logout() {
     if (this.isLoggingOut()) return;
 
-    this.logOutHasFailed.set(false);
+    this.logoutHasFailed.set(false);
     this.isLoggingOut.set(true);
 
     try {
@@ -78,8 +78,8 @@ export class Account {
     }
     catch (error: unknown) {
       this.isLoggingOut.set(false);
-      this.logOutHasFailed.set(true);
-      console.error('Something went wrong while trying to log out.', error);
+      this.logoutHasFailed.set(true);
+      console.error('Could not log out.', error);
 
       afterNextRender(
         () => { this.alertError()?.nativeElement.scrollIntoView({ block: 'nearest' }) },

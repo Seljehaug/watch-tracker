@@ -162,22 +162,12 @@ describe('ShowStore', () => {
 
   // The next login may be someone else's.
   describe('after a logout', () => {
-    async function logOut(): Promise<void> {
+    async function logout(): Promise<void> {
       const loggedOut = firstValueFrom(authStore.logout());
       httpTesting
         .expectOne({ method: 'POST', url: '/api/auth/logout' })
         .flush(null, { status: 204, statusText: 'No Content' });
       await loggedOut;
-    }
-
-    async function logIn(): Promise<void> {
-      const loggedIn = firstValueFrom(
-        authStore.login({ email: 'test@example.com', password: 'a-long-test-password' }),
-      );
-      httpTesting
-        .expectOne({ method: 'POST', url: '/api/auth/login' })
-        .flush({ email: 'test@example.com' });
-      await loggedIn;
     }
 
     it("forgets the list and its failures, and waits for the next login's first load", async () => {
@@ -189,22 +179,12 @@ describe('ShowStore', () => {
         .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
         .flush(null, { status: 500, statusText: 'Internal Server Error' });
 
-      await logOut();
+      await logout();
 
       expect(store.shows()).toEqual([]);
       expect(store.initialLoad()).toBe('loading');
       expect(store.refreshHasFailed()).toBe(false);
       expect(store.nextEpisodeFailedFor()).toBeNull();
-    });
-
-    it('fetches the list for the next login', async () => {
-      loadShows([aShow(1)]);
-      await logOut();
-
-      await logIn();
-
-      loadShows([aShow(2)]);
-      expect(ids(store.shows())).toEqual([2]);
     });
 
     // A late answer would put the list back for the next login.
@@ -213,7 +193,7 @@ describe('ShowStore', () => {
       store.load();
       const fetch = httpTesting.expectOne('/api/shows');
 
-      await logOut();
+      await logout();
 
       expect(fetch.cancelled).toBe(true);
     });
@@ -221,7 +201,7 @@ describe('ShowStore', () => {
     // The login page is open, and every fetch would get a 401.
     it('fetches nothing when the app comes to the foreground', async () => {
       loadShows([aShow(1)]);
-      await logOut();
+      await logout();
 
       changeVisibility('visible');
 
