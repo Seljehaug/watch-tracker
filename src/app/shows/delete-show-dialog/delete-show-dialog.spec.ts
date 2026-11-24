@@ -1,5 +1,6 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { AuthStore } from '../../auth/auth-store';
 import { ShowStore } from '../show-store';
 import type { TrackedShow } from '../tracked-show';
 import { DeleteShowDialog } from './delete-show-dialog';
@@ -57,6 +58,8 @@ describe('DeleteShowDialog', () => {
   function open(): ComponentFixture<DeleteShowDialog> {
     TestBed.configureTestingModule({ providers: [provideHttpClientTesting()] });
     httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.inject(AuthStore);
+    httpTesting.expectOne('/api/auth/user').flush({ email: 'test@example.com' });
     TestBed.inject(ShowStore);
     httpTesting.expectOne('/api/shows').flush([severance, slowHorses]);
 

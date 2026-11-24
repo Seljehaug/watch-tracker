@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
+import { AuthStore } from '../auth/auth-store';
 import { ShowStore } from './show-store';
 import type { ShowPostModel, TrackedShow } from './tracked-show';
 
@@ -15,11 +16,15 @@ const aShow = (id: number, overrides: Partial<TrackedShow> = {}): TrackedShow =>
 
 describe('ShowStore', () => {
   let store: ShowStore;
+  let authStore: AuthStore;
   let httpTesting: HttpTestingController;
 
+  // The store fetches only once someone is logged in, so the login check is answered first.
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideHttpClientTesting()] });
     httpTesting = TestBed.inject(HttpTestingController);
+    authStore = TestBed.inject(AuthStore);
+    httpTesting.expectOne('/api/auth/user').flush({ email: 'test@example.com' });
     store = TestBed.inject(ShowStore);
   });
 
@@ -46,6 +51,11 @@ describe('ShowStore', () => {
   }
 
   const ids = (shows: readonly TrackedShow[]) => shows.map((show) => show.id);
+
+  function changeVisibility(state: DocumentVisibilityState): void {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
 
   describe('load', () => {
     it('loads the list when it is created', () => {
@@ -132,11 +142,6 @@ describe('ShowStore', () => {
 
   // Another device may have changed the list while the app was in the background (D69).
   describe('when the app comes to the foreground', () => {
-    function changeVisibility(state: DocumentVisibilityState): void {
-      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
-      document.dispatchEvent(new Event('visibilitychange'));
-    }
-
     it('fetches the list again', () => {
       loadShows([aShow(1)]);
 
@@ -150,6 +155,75 @@ describe('ShowStore', () => {
       loadShows([aShow(1)]);
 
       changeVisibility('hidden');
+
+      httpTesting.expectNone('/api/shows');
+    });
+  });
+
+  // The next login may be someone else's.
+  describe('after a logout', () => {
+    async function logOut(): Promise<void> {
+      const loggedOut = firstValueFrom(authStore.logout());
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/auth/logout' })
+        .flush(null, { status: 204, statusText: 'No Content' });
+      await loggedOut;
+    }
+
+    async function logIn(): Promise<void> {
+      const loggedIn = firstValueFrom(
+        authStore.login({ email: 'test@example.com', password: 'a-long-test-password' }),
+      );
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/auth/login' })
+        .flush({ email: 'test@example.com' });
+      await loggedIn;
+    }
+
+    it("forgets the list and its failures, and waits for the next login's first load", async () => {
+      loadShows([aShow(1)]);
+      store.load();
+      failToLoad();
+      store.markNextEpisodeAsWatched(1);
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
+
+      await logOut();
+
+      expect(store.shows()).toEqual([]);
+      expect(store.initialLoad()).toBe('loading');
+      expect(store.refreshHasFailed()).toBe(false);
+      expect(store.nextEpisodeFailedFor()).toBeNull();
+    });
+
+    it('fetches the list for the next login', async () => {
+      loadShows([aShow(1)]);
+      await logOut();
+
+      await logIn();
+
+      loadShows([aShow(2)]);
+      expect(ids(store.shows())).toEqual([2]);
+    });
+
+    // A late answer would put the list back for the next login.
+    it('cancels a fetch still on its way', async () => {
+      loadShows([aShow(1)]);
+      store.load();
+      const fetch = httpTesting.expectOne('/api/shows');
+
+      await logOut();
+
+      expect(fetch.cancelled).toBe(true);
+    });
+
+    // The login page is open, and every fetch would get a 401.
+    it('fetches nothing when the app comes to the foreground', async () => {
+      loadShows([aShow(1)]);
+      await logOut();
+
+      changeVisibility('visible');
 
       httpTesting.expectNone('/api/shows');
     });

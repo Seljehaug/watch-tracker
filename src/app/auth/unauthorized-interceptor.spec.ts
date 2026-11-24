@@ -67,8 +67,8 @@ describe('unauthorizedInterceptor', () => {
     expect(path()).toBe('/login?returnUrl=%2Fshows%2Fadd');
   });
 
-  // So the caller's own handling still runs: ShowStore's fetch stops waiting, and next episode
-  // shows its alert.
+  // So the caller's own handling still runs: next episode shows its alert, and the editor and the
+  // delete dialog their message.
   it('passes the 401 on to the caller', async () => {
     expect(await answer(401, 'Unauthorized')).toMatchObject({ status: 401 });
   });

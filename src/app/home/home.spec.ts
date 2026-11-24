@@ -2,6 +2,7 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Home } from './home';
+import { AuthStore } from '../auth/auth-store';
 import { ShowStore } from '../shows/show-store';
 import type { TrackedShow } from '../shows/tracked-show';
 
@@ -34,10 +35,17 @@ describe('Home', () => {
   const nextEpisodeButtons = () =>
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
 
-  // The list is loaded before the page opens, as when coming back to Home from the editor.
-  function render(shows: TrackedShow[]): void {
+  // The store fetches only once someone is logged in, so the login check is answered first.
+  function configureLoggedIn(): void {
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClientTesting()] });
     httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.inject(AuthStore);
+    httpTesting.expectOne('/api/auth/user').flush({ email: 'test@example.com' });
+  }
+
+  // The list is loaded before the page opens, as when coming back to Home from the editor.
+  function render(shows: TrackedShow[]): void {
+    configureLoggedIn();
     TestBed.inject(ShowStore);
     httpTesting.expectOne('/api/shows').flush(shows);
 
@@ -47,8 +55,7 @@ describe('Home', () => {
 
   // The page opens first and the list comes after, as when the app starts on Home.
   function openBeforeTheListArrives(): void {
-    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClientTesting()] });
-    httpTesting = TestBed.inject(HttpTestingController);
+    configureLoggedIn();
 
     fixture = TestBed.createComponent(Home);
     fixture.detectChanges();

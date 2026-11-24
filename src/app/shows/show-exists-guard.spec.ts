@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { firstValueFrom } from 'rxjs';
+import { AuthStore } from '../auth/auth-store';
 import { showExistsGuard } from './show-exists-guard';
 import { ShowStore } from './show-store';
 import type { TrackedShow } from './tracked-show';
@@ -49,7 +50,9 @@ describe('showExistsGuard', () => {
     });
     httpTesting = TestBed.inject(HttpTestingController);
 
-    // The store asks for the list as soon as it is created.
+    // The store asks for the list as soon as it is created and someone is logged in.
+    TestBed.inject(AuthStore);
+    httpTesting.expectOne('/api/auth/user').flush({ email: 'test@example.com' });
     TestBed.inject(ShowStore);
   });
 
@@ -113,6 +116,27 @@ describe('showExistsGuard', () => {
       expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(EditPage);
 
       httpTesting.expectOne('/api/shows').flush([severance]);
+      await navigation;
+    });
+
+    // On a 401 the interceptor logs out and sends to the login page with the edit URL as
+    // returnUrl, and the login page goes there right after the login.
+    it("waits for the next login's list, then opens the not-found page for a show it no longer has", async () => {
+      const authStore = TestBed.inject(AuthStore);
+      authStore.markAsLoggedOut();
+      const loggedIn = firstValueFrom(
+        authStore.login({ email: 'test@example.com', password: 'a-long-test-password' }),
+      );
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/auth/login' })
+        .flush({ email: 'test@example.com' });
+      await loggedIn;
+
+      const navigation = harness.navigateByUrl('/shows/12/edit', NotFoundPage);
+      await letTheGuardRun();
+      expect(harness.routeDebugElement).toBeNull();
+
+      httpTesting.expectOne('/api/shows').flush([]);
       await navigation;
     });
 

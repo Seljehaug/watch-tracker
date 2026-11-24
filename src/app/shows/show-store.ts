@@ -17,13 +17,17 @@ import {
 } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { AuthStore } from '../auth/auth-store';
 
 export type InitialLoadState = 'loading' | 'failed' | 'succeeded';
+
+type LoadRequest = 'fetch' | 'stop';
 
 @Service()
 export class ShowStore {
   private readonly document = inject(DOCUMENT);
   private readonly showApi = inject(ShowApi);
+  private readonly authStore = inject(AuthStore);
 
   private readonly _shows = signal<TrackedShow[]>([]);
   readonly shows = this._shows.asReadonly();
@@ -44,7 +48,7 @@ export class ShowStore {
 
   private readonly nextEpisodeQueue = new Subject<ShowId>();
 
-  private readonly loadRequests = new Subject<void>();
+  private readonly loadRequests = new Subject<LoadRequest>();
 
   readonly watching = computed(() => {
     const filtered = this.shows().filter((show) => show.status === 'watching');
@@ -54,8 +58,10 @@ export class ShowStore {
   constructor() {
     this.loadRequests
       .pipe(
-        switchMap(() =>
-          this.showApi.getShows().pipe(
+        switchMap((request) => {
+          if (request === 'stop') return EMPTY;
+
+          return this.showApi.getShows().pipe(
             catchError((error: unknown) => {
               if (this.initialLoad() === 'succeeded') {
                 this._refreshHasFailed.set(true);
@@ -66,8 +72,8 @@ export class ShowStore {
               this.isFetching.set(false);
               return EMPTY;
             }),
-          ),
-        ),
+          );
+        }),
         takeUntilDestroyed(),
       )
       .subscribe({
@@ -113,17 +119,43 @@ export class ShowStore {
         },
       });
 
-    this.load();
+    this.authStore.authState$.pipe(takeUntilDestroyed()).subscribe({
+      next: (authState) => {
+        switch (authState.status) {
+          // The guard lets a failed check through, so the list is fetched and Home shows its error.
+          case 'loggedIn':
+          case 'failed':
+            this.load();
+            break;
+          case 'checking':
+            break;
+          case 'loggedOut':
+            this.reset();
+            break;
+        }
+      },
+    });
   }
 
   load(): void {
+    if (this.authStore.authState().status === 'loggedOut') return;
+
     if (this.initialLoad() !== 'succeeded') {
       this.initialLoadSubject.next('loading');
     }
 
     this.isFetching.set(true);
 
-    this.loadRequests.next();
+    this.loadRequests.next('fetch');
+  }
+
+  private reset(): void {
+    this._shows.set([]);
+    this.initialLoadSubject.next('loading');
+    this._refreshHasFailed.set(false);
+    this._nextEpisodeFailedFor.set(null);
+    this.loadRequests.next('stop');
+    this.isFetching.set(false);
   }
 
   getShowById(showId: ShowId): TrackedShow | null {
