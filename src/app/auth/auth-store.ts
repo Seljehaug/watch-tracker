@@ -67,6 +67,10 @@ export class AuthStore {
         })
       );
   }
+
+  markAsLoggedOut(): void {
+    this.authStateSubject.next({ status: 'loggedOut' });
+  }
 }
 
 export function isUnauthorized(error: unknown): boolean {

@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-23
+**Last updated:** 2026-11-24
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
@@ -27,7 +27,9 @@ follows its height (2026-11-20, D123–D127). C2, login in Angular, has begun: `
 `AuthStore` know who is logged in and can log in and out (2026-11-23, D128), and the login page
 logs in and goes on to `returnUrl` (2026-11-23, D129, D130), and every page but the login page
 needs a login: a guard sends to `/login?returnUrl=…`, and a logged-in user who opens `/login`
-gets Home (2026-11-23, D132–D134); the interceptor and the account page come next. Production keeps the localStorage
+gets Home (2026-11-23, D132–D134), and a `401` in use logs the user out and sends to the login
+page with `returnUrl` (2026-11-24, D135); `ShowStore` after a login and the account page come
+next. Production keeps the localStorage
 version until C1 and C2 go out together. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
@@ -358,8 +360,8 @@ goal (D63): it should take as little time from Angular as possible.
   the button with `canMarkNextEpisodeAsWatched`. `getShowById(id)` returns the show or `null`
   (D56) and `showExists(id)` builds on it – the guard and the editor both look shows up through
   them.
-- `ShowApi` (`src/app/shows/show-api.ts`, D77): `HttpClient` – available without
-  `provideHttpClient()`, which C2's interceptor will need – with one method per endpoint, each
+- `ShowApi` (`src/app/shows/show-api.ts`, D77): `HttpClient` – provided in `app.config.ts` by
+  `provideHttpClient(withInterceptors([unauthorizedInterceptor]))` since C2's step 4 (D135) – with one method per endpoint, each
   returning the request's Observable and holding no state: `getShows`, `addShow`, `updateShow`,
   `deleteShow` and `markNextEpisodeAsWatched` (a `POST` without a body). The URLs are relative
   (`/api/shows`), the same locally and in production. The answers are typed with the hand-written
@@ -380,9 +382,10 @@ goal (D63): it should take as little time from Angular as possible.
   in one place. `login` and `logout` return the request with `tap` setting the state after the
   server's yes, as `add` and `delete` do; a failed login reaches the caller and leaves the state
   as it was, and `logout` counts a `401` as logged out (`of(undefined)` in a `catchError` before
-  the `tap`). `isUnauthorized` is a function in the file, outside the class, exported since the
-  login page needs the same check. The login page and both guards use the store; the account
-  page does in C2's step 6.
+  the `tap`). `markAsLoggedOut()` sets `'loggedOut'` without a request, for the interceptor: the
+  server has already ended the login (D135). `isUnauthorized` is a function in the file, outside
+  the class, exported since the login page and the interceptor need the same check. The login
+  page, both guards and the interceptor use the store; the account page does in C2's step 6.
 - `loggedInGuard` (`src/app/auth/logged-in-guard.ts`, a `CanActivateChildFn`, D132) sits on the
   parent route of every page but `/login`. It returns `AuthStore.authState$` with `filter`
   skipping `'checking'` and `map` making the answer, as `showExistsGuard` does: a `UrlTree` to
@@ -415,7 +418,16 @@ goal (D63): it should take as little time from Angular as possible.
   cleared when the next try starts and in `onInvalid`. Both set `hasTriedToLogin`, the fields'
   `showErrors`, and `onInvalid` focuses the first field in `errorSummary()` once the errors are
   rendered (D41). The page and the editor share the global `.container-inner-centered` (D130).
-- Tests: 181, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
+- `unauthorizedInterceptor` (`src/app/auth/unauthorized-interceptor.ts`, an `HttpInterceptorFn`,
+  D135) is the app's one interceptor, registered in `app.config.ts`. Requests to `/api/auth/`
+  go straight to `next(req)` – checked first, before `inject(AuthStore)`, since the store's own
+  check runs through here while the store is being created (NG0200). On every other request,
+  `catchError` on `next(req)`: a `401` while the state isn't already `'loggedOut'` calls
+  `AuthStore.markAsLoggedOut()` and then `router.navigate(['/login'], { queryParams: { returnUrl:
+  router.url } })`, not awaited (`void`); every error, the `401` too, goes on to the caller with
+  `throwError`, so each caller's own handling still runs. A later `401` – on the login page, say –
+  leaves the first `returnUrl` alone.
+- Tests: 185, in `app.spec.ts` (focus moves to the new page's heading after a navigation, but not
   on the first one; stand-in pages instead of the real ones), `app.routes.spec.ts` (unknown URLs
   and an unknown show id show the not-found page and keep the URL in the address bar –
   `Location.path()`, since with `browserUrl` it differs from `router.url` – and the real pages
@@ -457,6 +469,11 @@ goal (D63): it should take as little time from Angular as possible.
   on each route, where the edit route's two guards run together; a failed check opens the page),
   `logged-out-guard.spec.ts` (a logged-in user who opens `/login` gets Home once the check has
   answered, and a failed check shows the form; the login spec opens it logged out),
+  `unauthorized-interceptor.spec.ts` (on the app's real routes, logged in on `/shows/add`: a
+  `401` gives `'loggedOut'` and the login page with the page as `returnUrl`, and reaches the
+  caller; a `500` reaches the caller and leaves the state and the page; once logged out, a later
+  `401` keeps the login page's `returnUrl`; with `inject(AuthStore)` above the check for
+  `/api/auth/` the setup's `GET /api/auth/user` is never sent, so every test fails then),
   `tracked-show.spec.ts` (next episode), `show-card.spec.ts` (button
   label, no button for Finished/Dropped, screen-reader text), `home.spec.ts` (a card stays in place after a tap – also when the list
   arrives after the page opened, and after a refetch – new shows first, empty state, the add link
@@ -492,7 +509,10 @@ goal (D63): it should take as little time from Angular as possible.
   the page opens – and, on the app's real routes, `GET /api/auth/user` too, since every page
   waits for it – and end with `verify()` in a `try`/`finally` around
   `TestBed.resetTestingModule()` – a failing `verify()` otherwise skips Angular's reset, and every
-  later test fails with "already instantiated". jsdom has no `showModal()` or `close()`, so both dialog specs give
+  later test fails with "already instantiated". The interceptor's spec puts
+  `provideHttpClient(withInterceptors([...]))` before `provideHttpClientTesting()`, which
+  replaces the backend; the other specs leave the interceptor out, since none answers a `401`
+  outside `/api/auth/` and the login page's user is already logged out (D135). jsdom has no `showModal()` or `close()`, so both dialog specs give
   `HTMLDialogElement.prototype` stand-ins that set and remove `open`; nor `scrollIntoView()`,
   which they and the login spec give `Element.prototype` as a no-op to spy on. The login spec
   waits for the navigation after a yes with one macrotask and then `whenStable()`: until the
@@ -1157,11 +1177,14 @@ shows are typed in again in D3 (D66).
       `GET /api/auth/user` answered in the three specs on the app's real routes. Seen in the
       browser before D134: a logged-out `/shows/add` goes to `/login?returnUrl=%2Fshows%2Fadd`,
       and the first login only went back to the login page – two `POST /api/auth/login` in the
-      Network tab. Left: the interceptor (the store's own check runs it while the store is being
-      created, so an `inject(AuthStore)` there likely ends in a DI cycle, NG0200 – to be checked
-      in step 4; it must set the store to `'loggedOut'` before it sends to `/login`, or
-      `loggedOutGuard` sends the user back to Home), `ShowStore` after a new login and a logout,
-      the account page with the header's account icon, and the wrap-up.
+      Network tab. Step 4, 2026-11-24: `unauthorizedInterceptor` and
+      `AuthStore.markAsLoggedOut()` (D135), written by the developer from a first draft – the
+      final code shown by Claude on request; 4 tests by Claude, each seen failing with its rule
+      broken in a copy (12 breaks, 11 caught – setting `'loggedOut'` after the navigation can't
+      show, since the router runs the guard later). An `inject(AuthStore)` above the check for
+      `/api/auth/` gives NG0200, seen in a copy. Checked by hand against the API by the
+      developer. Left: `ShowStore` after a new login and a
+      logout, the account page with the header's account icon, and the wrap-up.
 - [ ] C3. Commit the classic version on its own (D57).
 
 **D. To production**
@@ -1494,6 +1517,7 @@ reversed, mark it as superseded instead of deleting it.
 | D132 | 2026-11-23 | Every page but `/login` needs a login (C2 step 3): `loggedInGuard`, a `CanActivateChildFn` in `src/app/auth/`, on a parent route with `path: ''`, no component and the other pages – `**` too – as `children`. `login` stays above it. The guard waits for `AuthStore`'s check as `showExistsGuard` waits for the list (D110): `filter` skips `'checking'`, and `map` makes `'loggedOut'` a `UrlTree` to `/login` with `returnUrl: state.url` and both `'loggedIn'` and `'failed'` `true`. No time limit on the check. Named by the developer, like `showExistsGuard`, after what must hold for the route to open. | `canActivateChild` runs on every navigation to a child; `canActivate` on the parent runs only when the parent is activated, which it isn't between Home and the editor. The router runs the parent's guards before the child's, one route at a time, and stops at the first answer that isn't `true` (`runCanActivateChecks` in the router's code), so a logged-out user never reaches `showExistsGuard`, and `ShowStore` – and its `GET /api/shows` – is never created; two guards on one route run together, so per-route guards would fetch the list anyway, and a new page could forget its guard. `**` among the children means an unknown URL asks for a login too; it also matches `/login`, so `login` below the parent would send itself to itself without end (seen in a test: it never finishes). A plain `UrlTree`, not a `RedirectCommand`: the address bar should show the login page's URL, and a `RedirectCommand` only adds navigation options such as `browserUrl`. `'failed'` is a `5xx` or no answer – the server's error, not a missing login: sent to the login page, the user would type a password the cookie may still make unneeded, and get "Something went wrong when trying to log in." while the server is down; let through, Home says "Couldn't load your shows" with "Try again" (D112), and a real logout shows as a `401` the interceptor handles (step 4). The guard is a signpost, not a lock: the API checks the cookie on every request. `HttpClient` has no time limit, but the page came from the same server, a lost connection is an error, and a hanging database ends in a `500` – as for the list (D110). At start-up the redirect cancels the first navigation, so `/login`'s `NavigationEnd` is the first and `App` leaves focus alone, as on any page load. Accepted: `authState` stays `'failed'` until a reload, so the account page (step 6) has no email to show then; a check that never answers leaves an empty page under the header; after a logout through `fetch` in the console the app still thinks it is logged in until the next `401` or reload. |
 | D133 | 2026-11-23 | A logged-in user who opens `/login` gets Home: `loggedOutGuard`, a `CanActivateFn` on the `login` route, waits for the same check and returns `router.parseUrl('/')` for `'loggedIn'`, `true` otherwise – `'failed'` shows the form. The login page navigates to `returnUrl` with `replaceUrl: true`. Asked for by the developer. | The form is no use to someone logged in, and it looks as if they were logged out. `false` is no redirect: it stops the navigation, and on a bookmark, a typed URL or a reload there is no page to stay on – an empty page under the header. Home rather than `returnUrl`: a logged-in user on the login page is rare, and the guard needn't read the query. `replaceUrl` takes the login page out of the history, so Back after a login goes to the page before it; without it Back would reach `/login`, and the guard would turn it into Home. |
 | D134 | 2026-11-23 | `AuthStore` keeps its state in a private `BehaviorSubject`: `authState$` is `asObservable()`, `authState` comes from `toSignal(authState$, { requireSync: true })`, and the state is set with `next()` (amends D110 and D128). `ShowStore`'s `initialLoad` gets the same: `initialLoadSubject`, `initialLoad$` and `initialLoad` (amends D124). Chosen by the developer, who wants one pattern in both stores; written by Claude on request. Each store's comment says why it is a `BehaviorSubject`. | `toObservable` sends a signal's new value through an effect, so only after the next render; until then a subscriber gets the value it sent last. The login page sets `'loggedIn'` and navigates in the same task, so `loggedInGuard` got `'loggedOut'` and sent the user back to the login page – seen in the login spec, in the developer's Network tab (two `POST /api/auth/login`, the list fetched only after the second) and in the browser pane, where the first navigation after setting the state ended on `/login` and the second on `/shows/add`. A logout followed by `/login` had the same fault the other way: Home (seen in a test in a copy). A `BehaviorSubject` gives its current value at once to whoever subscribes, and `toSignal` sets the signal in the same call, so both are new at the same moment; `requireSync` types the signal without `undefined`. Two other fixes worked in copies – each guard reading the signal first, or `startWith(store.authState())` in each guard – but every later reader of `authState$`, such as the interceptor, would need the same; the classic `BehaviorSubject` service is also a learning goal (D57). `initialLoad$` had the same lag without a fault yet – nothing set `initialLoad` and read `initialLoad$` in the same task – but step 5 may set it back on a logout and then open an edit page right after the next login; one pattern means neither store has the trap. `showExistsGuard`'s spec no longer needs `TestBed.tick()` to run the effect, and still catches a fetch again that sets `'loading'` or `'failed'` (seen in a copy). |
+| D135 | 2026-11-24 | A `401` in use sends to the login page (C2 step 4): `unauthorizedInterceptor`, an `HttpInterceptorFn` in `src/app/auth/`, registered with `provideHttpClient(withInterceptors([...]))` in `app.config.ts`. Requests to `/api/auth/` go straight on, checked with `req.url.startsWith('/api/auth/')` first in the function, before `inject(AuthStore)`. On the others, `catchError` on `next(req)`: a `401` while the state isn't `'loggedOut'` sets it with the new `AuthStore.markAsLoggedOut()` – no request – and then navigates with `router.navigate(['/login'], { queryParams: { returnUrl: router.url } })`, not awaited (`void`); every error, the `401` too, goes on to the caller with `throwError`. Named by the developer; the code shown by Claude on request after the developer's draft. | On the auth endpoints a `401` means something else – a wrong password, no login at the check, a login already gone at logout – and the store or the login page handles it. `AuthStore`'s constructor subscribes to `getUser()`, and `HttpClient` runs the interceptors at once, inside the constructor: an `inject(AuthStore)` above the check asks for the store being created, NG0200, thrown inside the Observable, so the store's own `catchError` took it for a failed check – `'failed'`, `GET /api/auth/user` never sent, and only "Could not fetch the user" in the console (seen in a copy and in the spec). A URL check rather than an `HttpContextToken`: the three requests are exactly the `/api/auth/` endpoints, and the rule stays in one place; a token would be a flag on each request in `AuthApi`. Passing the `401` on keeps each caller's handling right: `ShowStore`'s fetch sets `'failed'` or `refreshHasFailed` and ends `isFetching`, next episode keeps its failure, which is still true after a new login, and the editor and the dialog show their message until the login page comes; `EMPTY` would leave `initialLoad` on `'loading'` and `isFetching` on `true`, drop a tap without a trace, and give the editor and the dialog `EmptyError` (D119) – the same message with the wrong error in the log. `'loggedOut'` comes before the navigation, or `loggedOutGuard` would send the user back to Home; the router runs the guard only after the interceptor is done, so swapping them doesn't show today (seen in a copy), and the code keeps the order that doesn't lean on that. Only the first `401` acts: a later one – the next tap in the next-episode queue, or the list fetched again when the user comes back to the login page from the password manager – would find `router.url` on the login page and make it the `returnUrl`, and the login would end on Home; after a login the state is `'loggedIn'` again. Not awaited: `catchError` must return an Observable at once, and nothing waits for the login page. The other specs leave the interceptor out: none answers a `401` outside `/api/auth/`, and the login spec stays green with it, also with only `/api/auth/user` skipped, since the user on the login page is already logged out (seen in a copy) – so no test of its own for `/api/auth/login`. Accepted: unsaved changes in the editor are lost when the login expires mid-edit – the cookie slides and lasts 60 days; a `401` during the first navigation at start-up gets `returnUrl` `/`, since `router.url` is still the page being left; Home shows the fetch's error after the new login until step 5 calls `load()`. |
 
 ## 7. Open questions
 
