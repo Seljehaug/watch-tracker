@@ -4,7 +4,7 @@
 > code and `git log`, and update it when a task is finished or a decision is made. If the plan and
 > the code disagree, the code is the truth – fix the plan.
 
-**Last updated:** 2026-11-24
+**Last updated:** 2026-11-25
 **Current milestone:** M2 – the app on my phone and laptop, with the rest of M1 woven in. Part A
 is done: the app is live at `https://watch.cseljehaug.no` since 2026-11-11 (M2 A2–A5) and on
 the Pixel's home screen since 2026-11-12 (A6). The walking skeleton (D88) is done 2026-11-13:
@@ -28,9 +28,9 @@ follows its height (2026-11-20, D123–D127). C2, login in Angular, is done 2026
 needs a login, and a guard sends to `/login?returnUrl=…`; the login page logs in and goes on to
 `returnUrl`; a `401` in use logs the user out and sends to the login page; `ShowStore` fetches
 the list after a login and forgets it at a logout; and the account page, reached by the
-header's account icon, shows the email and logs out. C3 is ticked without a tag (D141). Next is
-D3: C1 and C2 go to production together, deployed by the developer; until then production runs
-the localStorage version. The goal is
+header's account icon, shows the email and logs out. C3 is ticked without a tag (D141). C1 and
+C2 went to production together on 2026-11-25 (D3): the Pixel and the Mac log in and show the
+same list, and a change on one shows on the other. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -622,7 +622,8 @@ goal (D63): it should take as little time from Angular as possible.
   an HTTP check on `/healthz` every 30 seconds after a 30-second `grace_period` – and
   `.github/workflows/deploy.yml`, a `workflow_dispatch` button that only runs on `main`, calls
   `ci` first, then `flyctl deploy --remote-only --ha=false` with the `FLY_API_TOKEN` secret.
-  Production runs Dockerfile v2 since 2026-11-13 (M2 D2); the connection string is
+  Production runs Dockerfile v2 since 2026-11-13 (M2 D2), with Angular on the API and the login
+  (C1, C2) since 2026-11-25 (M2 D3); the connection string is
   the Fly secret `ConnectionStrings__Default`. A deploy updates the one machine in place – nginx
   stopped and .NET listened about 5 seconds later – so a release that fails its check stays
   down until a rollback with `fly deploy --image` (D92). Fly's proxy compresses every response
@@ -1267,18 +1268,25 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
       1654; `fly scale show` one shared 512 MB machine in `fra`; the shows on the Pixel still
       there. **Creating my user waits for login (B3)** – there is no create-user command yet.
       _Done 2026-11-13 in B3._
-- [ ] D3. C1 and C2 go to production together; the developer deploys. No screenshot of
+- [x] D3. C1 and C2 go to production together; the developer deploys. No screenshot of
       the Pixel's list first – the developer doesn't need it (2026-11-24); the new app doesn't
       read localStorage (D109), and the shows are typed in again (D66). New in production:
       `provideHttpClient` with `unauthorizedInterceptor`, and the login cookie
       `__Host-watchtracker`, which needs HTTPS – so the first login on the Pixel is the first
-      real test of both. On the Pixel, also try a
-      `401` in use and a tab switch on the login page after it, as on the Mac in C2 step 7:
-      `chrome://inspect` on the Mac, with the Pixel on USB, gives its tab a console for
-      `fetch('/api/auth/logout', { method: 'POST' })` before a tap, and a Network tab that should
-      show no `/api/shows` when the login page comes back. Then log in on the Pixel and the Mac,
-      type my shows in again, and check that a change on one shows on the other.
+      real test of both. On the Pixel, also try a `401` in use and a tab switch on the login page
+      after it, as on the Mac in C2 step 7. Then log in on the Pixel and the Mac, type my shows in
+      again, and check that a change on one shows on the other.
       ~~Then remove `LocalStorageShowStorage` and its tests.~~ Removed in C1 (D109).
+      _Done 2026-11-25:_ deployed by the developer. Seen from outside without a login:
+      `/healthz` `200`, `/login` and `/account` give `index.html` with `no-cache`,
+      `/api/auth/user` and `/api/shows` `401`, and the bundle served has C2's login check and
+      no localStorage. Checked by the developer on the Pixel: the app sends to the login page,
+      the login works and holds after the app is closed and opened again; with
+      `chrome://inspect` on the Mac (the Pixel on USB),
+      `fetch('/api/auth/logout', { method: 'POST' })` and a tap give the login page with
+      `returnUrl`, and a tab switch there sends no `/api/shows`. Logged in on the Mac too, the
+      shows typed in again, and a change on one device shows on the other when the app comes
+      back.
 - [x] D4. ~~Make the repo public (D74), after scanning the whole history with `gitleaks`.~~ It has
       been public since it was created (D80); the scan and push protection moved to A2.
 - [ ] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
