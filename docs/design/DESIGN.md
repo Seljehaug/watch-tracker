@@ -118,6 +118,7 @@ need no contrast of their own (WCAG 1.4.11).
 | `--spacing-half` / `--spacing-1` / `--spacing-2`               | `0.5rem` / `1rem` / `2rem`    | Margins, padding, gaps; page gutter is `--spacing-1`                      |
 | `--border-radius`                                              | `0.5rem` (8px)                | Everything rounded. Pill tabs use `border-radius: 999px` in the component |
 | `--icon-size-small` / `--icon-size-medium` / `--icon-size-big` | `1rem` / `1.25rem` / `1.5rem` | Icons (16 / 20 / 24px), see "Icons"                                       |
+| `--logo-size`                                                  | `1.75rem` (28px)              | The logo in the header, see "App header"                                  |
 | `--touch-target`                                               | `2.75rem` (44px)              | Minimum height of anything interactive                                    |
 | `--container-max-width`                                        | `1280px`                      | Content width on desktop, centred (D28, D130)                             |
 | `--container-inner-centered-max-width`                         | `35rem`                       | The narrow column: the add and edit page, login, account (D39, D130)      |
@@ -147,10 +148,11 @@ accessibility and behaviour notes are requirements (see the intro, D26).
 
 ### App header
 
-Brand mark (30×30, accent background, TV icon 20px in the background colour) + "Watch Tracker"
-(17px / 600), a link to `/`. Bottom border in `--color-divider`, across the full width. The
-account icon sits on the right at every width (D98): a link to `/account` named "Account", with
-`aria-current="page"` on that page. The account is visited rarely, so it stays out of the bottom
+The logo (the `logo` icon at size `logo`, i.e. `--logo-size`, in the accent) + "Watch Tracker"
+(16px / 700), a link to `/`. The logo is the app icon's TV as a line icon – see
+[`app-icon/`](app-icon/) for the app icons, the favicon and how they are exported. Bottom border
+in `--color-divider`, across the full width. The account icon sits on the right at every width
+(D98): a link to `/account` named "Account", with `aria-current="page"` on that page. The account is visited rarely, so it stays out of the bottom
 navigation. No "Add show" in the header: shows are added from Search (D100).
 
 From 48rem the header also holds the main navigation and the search field:
@@ -631,7 +633,9 @@ same tokens (D55).
 
 ### Icons
 
-Simple inline stroke SVGs: TV (brand), page-not-found (the TV with a cross), check, plus, minus,
+Simple inline stroke SVGs: logo (the header's TV with antennas, play and a progress bar, in
+[`app-icon/logo.svg`](app-icon/logo.svg); its play is filled and the bar's track is at 35 %
+opacity), TV, page-not-found (the TV with a cross), check, plus, minus,
 chevron-left, chevron-down, delete (a trash can), alert-circle, close (an x), and for navigation
 and search (D98, D100) search (a magnifier), bookmark, account (a person in a circle) and library
 (books on a shelf) – one file each in
@@ -655,8 +659,11 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
 | **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip, the card stepper's − and + |
-| **medium** 20px | Default: brand mark, the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button and the error alert's "Dismiss", the bottom navigation, the header's search and account icons, the search result's buttons |
+| **medium** 20px | Default: the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button and the error alert's "Dismiss", the bottom navigation, the header's search and account icons, the search result's buttons |
 | **big** 24px    | TV icon in the empty state, search icon in Search's empty state, page-not-found icon on the not-found page |
+
+The logo is not on this scale: it has a size of its own, **logo** (`--logo-size`, 28px), so it
+reads as the brand next to the 20px icons.
 
 The stroke widths are in viewBox units, so they scale with the icon. The original mockup's empty
 state drew the TV icon at 46px with stroke 1.6, as an illustration; the app uses the `big` size with

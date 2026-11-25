@@ -1,9 +1,9 @@
 import { Component, input } from '@angular/core';
 
-export type IconSize = 'small' | 'medium' | 'big';
+export type IconSize = 'small' | 'medium' | 'big' | 'logo';
 
 export type IconName =
-  'account' | 'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'close' | 'delete' | 'minus' | 'page-not-found' | 'plus' | 'tv';
+  'account' | 'alert-circle' | 'check' | 'chevron-down' | 'chevron-left' | 'close' | 'delete' | 'logo' | 'minus' | 'page-not-found' | 'plus' | 'tv';
 
 @Component({
   selector: 'app-svg-icon',
@@ -54,6 +54,13 @@ export type IconName =
           <path d="M8 21h8" />
           <path d="M10.5 9v4l3-2z" />
         }
+        @case ('logo') {
+          <path d="M8.5 2.75l3.5 3.5 3.5-3.5" />
+          <rect x="2.5" y="6.25" width="19" height="15" rx="2.5" />
+          <path d="M11 9.9v3.5l3-1.75z" fill="currentColor" />
+          <path d="M6.5 17.25h11" stroke-opacity=".35" />
+          <path d="M6.5 17.25h7.5" />
+        }
         @case ('page-not-found') {
           <rect x="3" y="5" width="18" height="12" rx="2"/>
           <path d="M8 21h8"/>
@@ -81,6 +88,9 @@ export type IconName =
     }
     :host(.big) {
       --size: var(--icon-size-big);
+    }
+    :host(.logo) {
+      --size: var(--logo-size);
     }
 
     svg {

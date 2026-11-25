@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The app icon where nothing crops it (manifest purpose "any"): a rounded tile with transparent corners and a larger TV. -->
+  <style>
+    .background { fill: var(--color-accent, #f5b841); }
+    .line { fill: none; stroke: var(--color-background, #0e0e10); stroke-linecap: round; stroke-linejoin: round; }
+    .solid { fill: var(--color-background, #0e0e10); stroke: var(--color-background, #0e0e10); stroke-linejoin: round; }
+  </style>
+  <rect class="background" width="512" height="512" rx="112"/>
+  <g transform="translate(256 256) scale(1.35) translate(-256 -256)">
+    <path class="line" stroke-width="30" d="M204 140l52 50 52-50"/>
+    <rect class="line" stroke-width="30" x="136" y="190" width="240" height="182" rx="40"/>
+    <path class="solid" stroke-width="18" d="M240 230v58l50-29z"/>
+    <path class="line" stroke-width="22" stroke-opacity=".25" d="M184 324h144"/>
+    <path class="line" stroke-width="22" d="M184 324h104"/>
+  </g>
+</svg>
