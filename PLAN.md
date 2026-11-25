@@ -30,7 +30,8 @@ needs a login, and a guard sends to `/login?returnUrl=…`; the login page logs 
 the list after a login and forgets it at a logout; and the account page, reached by the
 header's account icon, shows the email and logs out. C3 is ticked without a tag (D141). C1 and
 C2 went to production together on 2026-11-25 (D3): the Pixel and the Mac log in and show the
-same list, and a change on one shows on the other. The goal is
+same list, and a change on one shows on the other. Security headers (D5) went to production
+on 2026-11-25 (D143). The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -1289,15 +1290,20 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
       back.
 - [x] D4. ~~Make the repo public (D74), after scanning the whole history with `gitleaks`.~~ It has
       been public since it was created (D80); the scan and push protection moved to A2.
-- [ ] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
+- [x] D5. Security headers (D96): `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`
       and protection against framing – production sends none (checked 2026-11-13). `UseHsts()`
       sends nothing behind Fly, which forwards plain HTTP: set the headers in a small middleware,
       through forwarded headers, or at Fly's edge if `fly.toml` allows it. A full CSP waits for
       Angular's inline styles. Its own session.
-      _Progress 2026-11-25 (D143):_ the four headers set in a middleware first in `Program.cs`,
+      _Done 2026-11-25 (D143):_ the four headers set in a middleware first in `Program.cs`,
       typed in by the developer from Claude's code, and one test by Claude – Angular's files,
       answered before every other step, carry all four – seen failing with the middleware moved
-      below `UseStaticFiles` in a copy. 51 API tests pass. Not deployed yet.
+      below `UseStaticFiles` in a copy. 51 API tests pass. Committed by Claude at the
+      developer's request (`f63f4ef`) and deployed by the developer. Checked in production:
+      `/`, `/shows/add`, `main.js`, `/healthz`, a `401` from `/api/shows` and a cross-site
+      `403` all carry the headers; every file `index.html` loads comes with its right type, so
+      `nosniff` blocks none. `http://` gets Fly's `301` without HSTS, which browsers ignore
+      over plain HTTP anyway.
 
 **E. Last**
 
