@@ -31,7 +31,9 @@ the list after a login and forgets it at a logout; and the account page, reached
 header's account icon, shows the email and logs out. C3 is ticked without a tag (D141). C1 and
 C2 went to production together on 2026-11-25 (D3): the Pixel and the Mac log in and show the
 same list, and a change on one shows on the other. Security headers (D5) went to production
-on 2026-11-25 (D143). The goal is
+on 2026-11-25 (D143). E2, the manifest and the icons, is done 2026-11-25 (D144): the app is
+installed on the Pixel from Chrome's menu and opens without a browser bar; the service worker
+waits in Later. The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -312,7 +314,8 @@ goal (D63): it should take as little time from Angular as possible.
   muted. The editor lets Season and Episode share the width (`flex: 1; min-width: 0`) and gives
   the fieldset `min-inline-size: 0`.
 - `Header` (`src/app/layout/header/header.ts`, inline template and styles): `<header class="container">`
-  with a `RouterLink` to `/` holding the TV icon (accent, via `color`) and the app name (not an
+  with a `RouterLink` to `/` holding the logo (the `logo` icon at size `logo`, accent via
+  `color`, M2 E2) and the app name (not an
   `<h1>` – pages own their heading), and on the right an "Add show" link (plus icon + text) to
   `/shows/add` – at every width until Search (D50, D98) – and the account link to `/account`
   (D140): the `account` icon only, `aria-label="Account"`, `aria-current="page"` on the account
@@ -345,8 +348,18 @@ goal (D63): it should take as little time from Angular as possible.
   whole in M3, with TMDB.
 - `SvgIcon` (`src/app/shared/svg-icon/svg-icon.ts`, selector `app-svg-icon`) is done: `name` input
   (`IconName` union) rendered by a `@switch` with `@default never` (D25), `size` input
-  (`small | medium | big`) mapped to `--icon-size-*` tokens via a host class (D23, D27), one stroke
-  width 2.2 (D24), `aria-hidden="true"` on the host.
+  (`small | medium | big`) mapped to `--icon-size-*` tokens via a host class (D23, D27), plus
+  `logo` for the header's logo on `--logo-size` (28px), one stroke width 2.2 (D24),
+  `aria-hidden="true"` on the host.
+- The installable app (M2 E2, D144): `public/manifest.webmanifest`, written by hand – `id`,
+  `start_url` and `scope` `/`, `display: standalone`, both colours `--color-background`, and the
+  icons in `public/icons/`: a rounded one for `any` and a square one for `maskable`, at 192 and
+  512 px. `index.html` links it with a matching `theme-color`, the favicon (`favicon.svg`, with
+  `favicon.ico` as fallback, `sizes="32x32"` so Chrome prefers the SVG) and
+  `apple-touch-icon.png` (180 px). The SVG sources are in `docs/design/app-icon/`;
+  `node docs/design/app-icon/export.mjs` draws the PNGs and the ICO with Chrome in the tokens'
+  colours, run by hand after a change, and the PNGs are committed. The API serves
+  `.webmanifest` as `application/manifest+json`. No service worker (Later).
 - Data model in `src/app/shows/`, one file per concept: `show-status.ts` and `streaming-service.ts`
   (an `as const` list of `{ id, label }` plus the id union derived with `(typeof X)[number]['id']`,
   D31) and `tracked-show.ts` (`TrackedShow` + `EpisodeRef`, `readonly` fields, optional `service`
@@ -1049,7 +1062,7 @@ show endpoints, 2026-11-16; next is C1.
 - [x] A6. A home-screen shortcut from Chrome on the Pixel – and start using the app. Done
       2026-11-12: the shortcut is on the Pixel and the app tested there. Without a manifest it
       is a plain Chrome shortcut, opening in a tab with the address bar; installing comes with the
-      PWA (E2).
+      PWA (E2). **It was in fact an app Chrome made without a manifest – see E2.**
 
 **B. The backend, locally**
 
@@ -1307,10 +1320,11 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
 
 **E. Last**
 
-- [ ] E2. Manifest and icons (D144): a web app manifest and the app's icons, so Chrome installs
+- [x] E2. Manifest and icons (D144): a web app manifest and the app's icons, so Chrome installs
       the app on the Pixel without a browser bar (which D52 counts on). No service worker: it and
       its two messages moved to Later, with reading without a connection (D144). Before E1
-      (D142).
+      (D142). Done 2026-11-25: installed on the Pixel from Chrome's menu, it opens without a
+      browser bar, and login and the list work in it.
   1. The app icon, in a session of its own, designed with Claude and chosen by the developer:
      an `any` icon at 192 and 512 px and a `maskable` one for Android's shapes. _Done
      2026-11-25:_ a retro TV with play and a progress bar, black on amber, plus a 180 px iPhone
@@ -1326,7 +1340,12 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
      screen is the page's background; the short name is the full name, to be checked under the
      icon on the Pixel. The API serves `.webmanifest` as `application/manifest+json`.
   3. Deployed by the developer and installed on the Pixel from Chrome's menu, after removing
-     A6's shortcut: no browser bar, and the app in the app drawer and the task switcher.
+     A6's shortcut: no browser bar, and the app in the app drawer and the task switcher. _Done
+     2026-11-25:_ A6's shortcut was an app Chrome had made without a manifest – named
+     "WatchTracker" from `<title>`, `minimal-ui`, so a bar with title and address – and it has
+     the same id as the manifest, so Chrome said the app was already installed. "Remove" on the
+     home screen only took away the icon; it had to be uninstalled in Android's settings (found
+     in `chrome://webapks`, which lists Chrome's installed apps and what they were made from).
 - [ ] E1. Rewrite the reads to `httpResource` (or `rxResource` where a read needs operators),
       committed on its own (D57).
 - [ ] Tests alongside each task (D16, D17, D64).
