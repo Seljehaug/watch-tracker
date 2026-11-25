@@ -1294,15 +1294,34 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
       sends nothing behind Fly, which forwards plain HTTP: set the headers in a small middleware,
       through forwarded headers, or at Fly's edge if `fly.toml` allows it. A full CSP waits for
       Angular's inline styles. Its own session.
+      _Progress 2026-11-25 (D143):_ the four headers set in a middleware first in `Program.cs`,
+      typed in by the developer from Claude's code, and one test by Claude – Angular's files,
+      answered before every other step, carry all four – seen failing with the middleware moved
+      below `UseStaticFiles` in a copy. 51 API tests pass. Not deployed yet.
 
 **E. Last**
 
-- [ ] E1. Rewrite the reads to `httpResource` (or `rxResource` where a read needs operators),
-      committed on its own (D57).
 - [ ] E2. PWA (D78): `ng add @angular/pwa` – a manifest and icons, so the app installs on the Pixel
       without a browser bar (which D52 counts on); a service worker that caches the app shell
       only, no API data (D62); a clear message without a connection; a "new version" prompt with
-      `SwUpdate.versionUpdates`.
+      `SwUpdate.versionUpdates`. **Before E1 since 2026-11-25 (D142).** In steps, one session
+      each, as C2: the developer's code with Claude as guide, the tests by Claude.
+  1. Angular 22.3, then `ng add @angular/pwa`, in two commits. On CLI 22.2.6 `ng add` picks
+     `@angular/pwa@12.2.18`, since the latest (22.3.0) wants `@angular/cli ^22.3.0`; and
+     `@angular/pwa@22.2` fails in npm, as it adds `@angular/service-worker: ^22.2.5`, which
+     resolves to 22.3.0 and wants `@angular/core` 22.3.0 exactly. So `ng update @angular/core
+     @angular/cli` first (tried in a copy: lint, the 197 tests and the build pass). Then what
+     the schematic changed, `ngsw-config.json` with no `dataGroups` and `/api/**` out of
+     `navigationUrls` (D62), the manifest's names and colours, the Dockerfile's
+     `ngsw-config.json` (the build fails without it), and the service worker seen in the
+     Compose `app` profile – `ng serve` never runs it.
+  2. The icons: the brand mark as an `any` icon and a `maskable` one for Android's shapes.
+  3. The message without a connection (D62).
+  4. The "new version" message on `VERSION_READY`, and what `unrecoverable` does.
+  5. The wrap-up: deployed by the developer, installed on the Pixel – no browser bar, flight
+     mode, and "new version" after the next deploy.
+- [ ] E1. Rewrite the reads to `httpResource` (or `rxResource` where a read needs operators),
+      committed on its own (D57).
 - [ ] Tests alongside each task (D16, D17, D64).
 
 The rest of M1 – status tabs (now Library, D99), the pipes, the styling pass, route transitions – can be woven in at
@@ -1588,6 +1607,8 @@ reversed, mark it as superseded instead of deleting it.
 | D139 | 2026-11-24 | Logging out (C2 step 6): "Log out" waits for `AuthStore.logout()` with `await firstValueFrom(...)` in a `try`/`catch` around the request only, its own `isLoggingOut` refusing a second press, and says "Logging out…" with `aria-disabled` (D116). After a yes it goes to `/login` with `navigateByUrl('/login', { replaceUrl: true })` – after the `try`, with no `returnUrl`. A failure is logged, frees the button and shows `AlertError` "Something went wrong while trying to log out." below the section, scrolled into view; the page stays, and `logOutHasFailed` is cleared when the next try starts. Chosen by the developer. | `logout()` returns the request cold (D128): without a subscriber nothing is sent – the first draft's button did nothing. `logout()` doesn't navigate and goes past the interceptor (`/api/auth/`), so the page decides where the user goes; `ShowStore` forgets the list itself (D136). The login page, not Home: Home would only be sent on by the guard, with `returnUrl` `/`. No `returnUrl`: the next login may be someone else's, and starts on Home. `replaceUrl` keeps Back from reopening `/account`, as the login page keeps Back from `/login` (D133). After the `try`, as on the login page (D129): a failed navigation would say the logout failed while the user is logged out. The page is no form, so nothing else refuses the second press. A failed logout leaves the user logged in (D128); the alert next to the button follows D117. |
 | D140 | 2026-11-24 | The header's account link and the login page's header (C2 step 6). The account link is the `account` icon at medium, named with `aria-label="Account"`, with `aria-current="page"` from `routerLinkActive` and `ariaCurrentWhenActive="page"`, at least `--touch-target` both ways, right of "Add show" and in view at every width. On the login page both are hidden: the login route has `data: { hideHeaderLinks: true }`, and the header's `linksVisible` is `false` when the page shown at the last `NavigationEnd` has the flag (`toSignal`, `initialValue: false`). Chosen by the developer, over `isActive('/login', ...)` and over `authState`; the signal written by Claude on request. Accepted: at 320px the icon wraps below "Add show" until "Add show" leaves in M3. | The header sits outside `<router-outlet>`, so it reads the router: the routes form a tree, and the page shown is its deepest node, where `data` sits – `ActivatedRoute` there is the root, whose `data` is empty. The page says what it wants, as DESIGN.md ties it to the page, and M3 hides the bottom navigation on the login and add pages the same way. `isActive` is one line but `false` until the first navigation ends, so the links would flash while the guards wait for the check – longer in production, when Fly starts the machine; `initialValue: false` shows them with the page instead. With `authState`, `'failed'` – which `loggedOutGuard` lets through – would show the links on the login page. `routerLinkActive` with no class only sets `aria-current`; the icon is `aria-hidden` (D25), so the name is the link's. The link reached the window's edge on phones, where the focus ring was cut off (seen in the browser pane with Tab); 4px short of the edge it fits. At 320px nothing scrolls sideways (WCAG 1.4.10 holds), and "Add show" leaves the header in M3 (D98). |
 | D141 | 2026-11-24 | C2's wrap-up (step 7), chosen by the developer, the changes made by Claude on request. The login page's and the account page's failures say "Couldn't log in." and "Couldn't log out." (amends D129 and D139). Names write login and logout as one word, as `AuthStore` and the endpoints do: the account page's `logout()` and `logoutHasFailed`, and the specs' helpers. `show-store.spec.ts` loses "fetches the list for the next login", and `showExistsGuard`'s "waits for the next login's list" covers that fetch. `loggedInGuard`'s comment says `'failed'` is no usable answer, not no answer. C3 is ticked without a git tag: D57's classic reads are the commits on `main` up to C2's wrap-up. | The app's other failures all say "Couldn't …" – seven of them, the account page's "Couldn't check who is logged in." among them – while C2's two said "Something went wrong when/while trying to …". The account page was the one file with `logOut()` beside `AuthStore.logout()`. Every break that stopped the fetch after a new login failed the store's test and the guard's together (three breaks in a copy), and the guard's test also catches the lag D134 removed (D131). A `5xx` is an answer, just not one that says who is logged in. A tag would name a commit `git log` finds as easily, and the developer saw no need for one. |
+| D142 | 2026-11-25 | E2, the PWA, comes before E1, the `httpResource` rewrite – chosen by the developer (amends D78, which put the PWA last). The "new version" message is part of E2, so it goes to production with the first service worker. | D78 put the PWA last because a service worker that caches the app shows the old version after a deploy, which is confusing while the data layer changes often. The message says a new version is ready and a reload gets it, so a deploy no longer passes unseen; `ng serve` never runs the service worker, so E1's work on the Mac isn't touched by it. |
+| D143 | 2026-11-25 | Security headers (D5) in a middleware in the app, first in `Program.cs` after the user commands, on every response: `Strict-Transport-Security: max-age=31536000`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. No `includeSubDomains` and no `preload`. One test: Angular's static files carry all four. | In the app, the headers are in one place and seen locally and in the tests. `UseHsts()` only acts on HTTPS requests, and Fly passes them on as plain HTTP; browsers ignore HSTS over plain HTTP, so sending it locally does no harm. A year is the usual length, and Fly renews the certificate. `preload` would bind the whole domain. `frame-ancestors` is the current rule against framing and leaves Angular's inline styles alone, and the full CSP later joins the same header; `X-Frame-Options` says the same to older browsers. `UseStaticFiles` answers Angular's files without going on, so a middleware after it misses them – and every place late enough to miss the API's `401` or `403` also misses the files, so one test covers them all (D131). |
 
 ## 7. Open questions
 

@@ -153,6 +153,22 @@ if (args is ["set-password", ..])
     return;
 }
 
+// Security headers on every response, Angular's files included, so this comes first.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    // For a year after a visit the browser uses HTTPS only, so a hostile network can't answer
+    // http:// with a fake page. Set on every response, since Fly passes requests on as plain HTTP.
+    headers.StrictTransportSecurity = "max-age=31536000";
+    // The browser trusts Content-Type, and never runs a file as a script because it looks like one.
+    headers.XContentTypeOptions = "nosniff";
+    // No other site may show the app in a frame (clickjacking). X-Frame-Options for older browsers.
+    headers.ContentSecurityPolicy = "frame-ancestors 'none'";
+    headers.XFrameOptions = "DENY";
+
+    await next(context);
+});
+
 app.UseResponseCompression();
 
 // Serve Angular's build from wwwroot. Before the logging, so its files get no log lines.
