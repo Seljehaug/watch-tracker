@@ -33,7 +33,9 @@ C2 went to production together on 2026-11-25 (D3): the Pixel and the Mac log in 
 same list, and a change on one shows on the other. Security headers (D5) went to production
 on 2026-11-25 (D143). E2, the manifest and the icons, is done 2026-11-25 (D144): the app is
 installed on the Pixel from Chrome's menu and opens without a browser bar; the service worker
-waits in Later. The goal is
+waits in Later. Next, from 2026-11-25 (D145): the card's episode stepper (D114) with the
+`S02 E05` pipe, then Library with the status tabs and the navigation (D98, D99), then M3.
+The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
 navigation were designed 2026-11-16 (D98–D103, DESIGN.md and the mockups), for M3; the floating
@@ -864,7 +866,8 @@ Goal: something actually useful – a list of my shows with progress, entered by
     missing fields, an old format version) and decide what to do with data that does not fit.
 - [x] Home screen "Continue watching": shows with status Watching, most recently updated first,
       each with a thumb-friendly "watched next episode" action. Empty state.
-- [ ] The other statuses one tap away – **on Library since D99 (2026-11-16)**: status tabs as router
+- [ ] The other statuses one tap away – **on Library since D99 (2026-11-16), after the card's
+      stepper (D145)**: status tabs as router
       links, one route per status (`/library/want-to-watch`, `/finished`, `/dropped`; DESIGN.md,
       "Status tabs on Library"), Watching staying alone on Home. Comes with the navigation (D98):
       the bottom navigation on phones and the header links from 48rem, for Watching and Library;
@@ -941,7 +944,8 @@ Goal: something actually useful – a list of my shows with progress, entered by
       on its host, so no page repeats the condition and an empty one takes no `gap`. Tests by
       Claude and a line in DESIGN.md. New Angular: a component instance passed as an input
       through a template reference variable.
-- [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md)
+- [ ] Custom pipe that formats progress as `S02 E05` (format from DESIGN.md) – the first step of
+      the card's stepper (D145)
 - [ ] Relative time in the show card's meta line ("Yesterday", "2 weeks ago" – DESIGN.md §2,
       "Show card"): a custom pipe on `Intl.RelativeTimeFormat`. The value changes as time passes
       while the input stays the same, so decide whether the pipe can be pure. Until then the card
@@ -956,7 +960,24 @@ Goal: something actually useful – a list of my shows with progress, entered by
       successful +, which C1 doesn't (D122). The placeholder
       cards (D113) follow the new shape. Tests: the − rules (S01 E01 to Not started with the
       status kept, disabled on Not started and on E01 of a later season), the labels, and no
-      stepper on Finished and Dropped.
+      stepper on Finished and Dropped. **Next (D145).** Steps, from 2026-11-25:
+  1. The progress pipe (`S02 E05`, "Not started"), pure, in place of the card's
+     `lastWatchedDisplay`.
+  2. The − rule as pure functions in `tracked-show.ts`, beside `getNextEpisodeRef`. Three
+     outcomes – an earlier episode, Not started, or none – and `undefined` already means Not
+     started, so "none" needs its own value.
+  3. − in `ShowStore`'s queue: the queue carries the id and the direction. −'s new episode is
+     worked out when its turn comes, from the list as it is then, and the rule is checked again –
+     a + and a quick − must end where they started. Saved with `PUT`, which sets a missing
+     `lastWatched` to null and `updatedAt` to now (`ShowEndpoints.cs`). The failure (D121) says
+     which way.
+  4. The card's new shape and the stepper (DESIGN.md, "Show card" and "Episode stepper on the
+     card"): the per-status table, the touch areas, the labels with the title, `aria-disabled`
+     on −.
+  5. The live region: in the DOM before its text changes (as in `NumberStepper`), spoken after
+     the server's answer to a press, never for a fetch again.
+  6. The placeholder cards (D113) in the new shape.
+  7. Tests by Claude.
 - [ ] Styling pass, put off on 2026-11-09 until the functionality is in. **The look is provisional
       (D103):** a proper visual design pass – colours, type, spacing, images – comes once the app
       does what it should, and may change much of DESIGN.md §1 and the mockups. Until then: the header link, and the
@@ -1351,7 +1372,7 @@ again in D3 (D66). No screenshot of the Pixel's list first: the developer doesn'
 - [ ] Tests alongside each task (D16, D17, D64).
 
 The rest of M1 – status tabs (now Library, D99), the pipes, the styling pass, route transitions – can be woven in at
-any time; it doesn't block M2.
+any time; it doesn't block M2. The order from 2026-11-25 is in D145.
 
 **Done when:** the Pixel and the Mac show the same list at `https://watch.cseljehaug.no` behind a
 login, a show marked on the phone shows on the Mac, a deploy is one button after a green CI, the
@@ -1643,6 +1664,7 @@ reversed, mark it as superseded instead of deleting it.
 | D142 | 2026-11-25 | E2, the PWA, comes before E1, the `httpResource` rewrite – chosen by the developer (amends D78, which put the PWA last). The "new version" message is part of E2, so it goes to production with the first service worker. **E2 became the manifest and the icons, with the service worker and its messages in Later (D144).** | D78 put the PWA last because a service worker that caches the app shows the old version after a deploy, which is confusing while the data layer changes often. The message says a new version is ready and a reload gets it, so a deploy no longer passes unseen; `ng serve` never runs the service worker, so E1's work on the Mac isn't touched by it. |
 | D143 | 2026-11-25 | Security headers (D5) in a middleware in the app, first in `Program.cs` after the user commands, on every response: `Strict-Transport-Security: max-age=31536000`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. No `includeSubDomains` and no `preload`. One test: Angular's static files carry all four. | In the app, the headers are in one place and seen locally and in the tests. `UseHsts()` only acts on HTTPS requests, and Fly passes them on as plain HTTP; browsers ignore HSTS over plain HTTP, so sending it locally does no harm. A year is the usual length, and Fly renews the certificate. `preload` would bind the whole domain. `frame-ancestors` is the current rule against framing and leaves Angular's inline styles alone, and the full CSP later joins the same header; `X-Frame-Options` says the same to older browsers. `UseStaticFiles` answers Angular's files without going on, so a middleware after it misses them – and every place late enough to miss the API's `401` or `403` also misses the files, so one test covers them all (D131). |
 | D144 | 2026-11-25 | M2's PWA is the web app manifest and the icons only: Chrome installs the app on the Pixel from its menu, without a browser bar (D52), and there is no service worker. The service worker, the message without a connection and the "new version" message move to Later, together with reading without a connection, built only if real use misses reading offline (amends D62, D78 and D142). The manifest is written by hand, since `ng add @angular/pwa` adds the service worker too. Chosen by the developer; the icon is designed in a session of its own. | The app is used with a connection (D3, D62), so a service worker that caches only the app shell gives little – a slightly faster start for a small app on wifi – and costs a version behind after every deploy, until a reload. The two messages exist only because of it: the app opens without a connection, and it serves the old version. Without it every start gets the latest deploy, as today. Chrome on Android installs from its menu without a service worker since version 108, so the manifest alone gives what is seen: no browser bar, the app's own icon, window and place in the app drawer and the task switcher. The service worker earns its place once the list should show offline, as the app can't start without one. A sync engine such as PowerSync was weighed and turned down: it would replace C1's data layer and E1's rewrite, add a service to run, and move the conflicts rather than remove them (D62). |
+| D145 | 2026-11-25 | The next features, in order, chosen by the developer: the card's episode stepper (D114) first, with the `S02 E05` pipe as its first step, then Library with the status tabs and the navigation (D98, D99), then M3. E1 stays open in M2 and isn't placed by this. | Library is the first page to show the card for Want to watch, Finished and Dropped, and the stepper task gives the card its look for each status (DESIGN.md, "Show card"), so Library gets the finished card, and the placeholder cards (D113) change shape once. The stepper is the smaller task and brings the undo the card lacks: a wrong tap on the Pixel is fixed in the editor today. The progress format is needed in the stepper, in Search ("In your list · Watching · S04 E12") and on the show page, so it becomes a pipe now. Accepted: shows that aren't Watching stay out of sight a little longer. |
 
 ## 7. Open questions
 
@@ -1651,6 +1673,7 @@ Not decided yet – don't treat these as settled. Decide them when the relevant 
 | Question                                             | Needed by | Current thinking                                                                                                                                                                                                            |
 | ---------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | How to handle the TMDB API key?                      | M3        | Updated 2026-11-10: with the backend in M2 (D63), the natural answer is to call TMDB through the own API, with the key as a Fly secret kept in 1Password (D74), so it never reaches the browser. The other options – the key in the frontend, or a separate proxy – are weighed against that when M3 starts. Never commit the key either way. |
+| Search as a page or a dropdown?                      | M3        | D100 decided a page, `/search?q=…`, with results as you type, and no dropdown under the field. On 2026-11-25 the developer spoke of "search with dropdown results" for M3: settle when M3 starts whether that means D100's results as you type, or a list under the header's field, which would change D100. |
 | Language of show data from TMDB                      | M3        | Probably Norwegian (`nb-NO`) titles/overviews with English fallback – or English only. Try both with real data.                                                                                                             |
 | How do other users get in and log in?                | Later     | When a concrete person wants in (D60). Getting in: an invitation link, or a list of allowed addresses. Logging in without the developer resetting passwords: password reset by email (an email service, and SPF/DKIM records in one.com's DNS), Google sign-in (`AddGoogle()`, an OAuth client in Google Cloud Console, allowed addresses), or passkeys (supported by Identity in .NET 10). Backups and JSON export are revisited at the same time (D61, D78). |
 | IMDb rating source                                   | Later     | OMDb (simple, API key, daily limit) vs. IMDb datasets imported by a backend job.                                                                                                                                            |
