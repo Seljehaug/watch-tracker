@@ -23,6 +23,7 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [InlineData("PUT", "/api/shows/1", ValidShowJson)]
     [InlineData("DELETE", "/api/shows/1", null)]
     [InlineData("POST", "/api/shows/1/next-episode", null)]
+    [InlineData("POST", "/api/shows/1/previous-episode", null)]
     public async Task ShowEndpoints_WithoutALogin_Are401(string method, string path, string? body)
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
@@ -371,6 +372,85 @@ public class ShowEndpointsTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var response = await client.PostAsync(
             $"/api/shows/{otherUsersShow.Id}/next-episode", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ShowModel.MapFrom(otherUsersShow), ShowModel.MapFrom(await FindShowAsync(otherUsersShow.Id)));
+    }
+
+    // D146: back one episode in the same season, and from S01E01 to not started. − undoes a tap,
+    // so the status stays, unlike +.
+    [Theory]
+    [InlineData("watching", 2, 5, 2, 4)]
+    [InlineData("watching", 1, 1, null, null)]
+    [InlineData("want-to-watch", 1, 3, 1, 2)]
+    public async Task PreviousEpisode_GoesBackOneEpisode_AndKeepsTheStatus(
+        string status, int season, int episode, int? previousSeason, int? previousEpisode)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance", status: status, season: season, episode: episode);
+        await AddShowsAsync(show);
+        var before = DateTimeOffset.UtcNow;
+
+        var response = await client.PostAsync($"/api/shows/{show.Id}/previous-episode", null, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var updatedAt = JsonNode.Parse(json)!["updatedAt"]!;
+        Assert.InRange(updatedAt.GetValue<DateTimeOffset>(), ToMicroseconds(before), DateTimeOffset.UtcNow);
+        var lastWatched = previousSeason is null
+            ? ""
+            : $$"""
+                "lastWatched": { "season": {{previousSeason}}, "episode": {{previousEpisode}} },
+                """;
+        AssertJsonEquals($$"""
+            {
+              "id": {{show.Id}},
+              "title": "Severance",
+              "status": "{{status}}",
+              {{lastWatched}}
+              "addedAt": "2026-10-01T18:00:00+00:00",
+              "updatedAt": {{updatedAt.ToJsonString()}}
+            }
+            """, json);
+        AssertJsonEquals($"[{json}]", await client.GetStringAsync("/api/shows", cancellationToken));
+    }
+
+    // Two quick taps or an old list can send − where it can't be used, so it is no error: the
+    // show comes back as it is, with no new updatedAt. E01 of a later season would need the
+    // earlier season's length.
+    [Theory]
+    [InlineData("watching", null, null)]
+    [InlineData("watching", 2, 1)]
+    [InlineData("finished", 2, 6)]
+    [InlineData("dropped", 2, 6)]
+    public async Task PreviousEpisode_WhereItCannotGoBack_ChangesNothing(string status, int? season, int? episode)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await factory.CreateUserAsync();
+        var client = await factory.CreateLoggedInClientAsync(user);
+        var show = NewShow(user, "Severance", status: status, season: season, episode: episode);
+        await AddShowsAsync(show);
+
+        var response = await client.PostAsync($"/api/shows/{show.Id}/previous-episode", null, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(ShowModel.MapFrom(show), ShowModel.MapFrom(await FindShowAsync(show.Id)));
+        AssertJsonEquals(
+            $"[{await response.Content.ReadAsStringAsync(cancellationToken)}]",
+            await client.GetStringAsync("/api/shows", cancellationToken));
+    }
+
+    [Fact]
+    public async Task PreviousEpisode_OnAnotherUsersShow_Is404_AndChangesNothing()
+    {
+        var otherUsersShow = NewShow(await factory.CreateUserAsync(), "The Bear", season: 3, episode: 2);
+        await AddShowsAsync(otherUsersShow);
+        var client = await factory.CreateLoggedInClientAsync();
+
+        var response = await client.PostAsync(
+            $"/api/shows/{otherUsersShow.Id}/previous-episode", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(ShowModel.MapFrom(otherUsersShow), ShowModel.MapFrom(await FindShowAsync(otherUsersShow.Id)));

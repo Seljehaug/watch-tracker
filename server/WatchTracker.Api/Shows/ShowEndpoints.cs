@@ -83,8 +83,26 @@ public static class ShowEndpoints
             return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
         });
 
-        // One more episode: not started becomes S01E01, otherwise the next episode in the
-        // same season, and the show becomes Watching.
+        shows.MapPost("/{id:int}/previous-episode", async Task<Results<Ok<ShowModel>, NotFound>> (
+            int id, ClaimsPrincipal principal, WatchTrackerDbContext db, CancellationToken cancellationToken) =>
+        {
+            var show = await FindUsersShowAsync(db, id, GetUserId(principal), cancellationToken);
+            if (show is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            if (StepToPreviousEpisode(show))
+            {
+                show.UpdatedAt = Now();
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            return TypedResults.Ok(ShowModel.MapFrom(show));
+        });
+
+        // A step that changes nothing sends the show back as it is, so a device with an old list
+        // sees what it is now.
         shows.MapPost("/{id:int}/next-episode", async Task<Results<Ok<ShowModel>, NotFound>> (
             int id, ClaimsPrincipal principal, WatchTrackerDbContext db, CancellationToken cancellationToken) =>
         {
@@ -94,29 +112,68 @@ public static class ShowEndpoints
                 return TypedResults.NotFound();
             }
 
-            // Finished and Dropped don't change. The show is sent back as it is, so a device with
-            // an old list sees what it is now.
-            if (show.Status is not (ShowStatuses.Watching or ShowStatuses.WantToWatch))
+            if (StepToNextEpisode(show))
             {
-                return TypedResults.Ok(ShowModel.MapFrom(show));
+                show.UpdatedAt = Now();
+                await db.SaveChangesAsync(cancellationToken);
             }
-
-            if (show.LastWatchedSeason is null || show.LastWatchedEpisode is null)
-            {
-                show.LastWatchedSeason = 1;
-                show.LastWatchedEpisode = 1;
-            }
-            else
-            {
-                show.LastWatchedEpisode++;
-            }
-            show.Status = ShowStatuses.Watching;
-            show.UpdatedAt = Now();
-            await db.SaveChangesAsync(cancellationToken);
 
             return TypedResults.Ok(ShowModel.MapFrom(show));
         });
     }
+
+    // S01E01 becomes not started, otherwise the episode before in the same season. The status
+    // stays. False when nothing changed.
+    private static bool StepToPreviousEpisode(Show show)
+    {
+        // E01 of a later season would need the earlier season's length, which isn't known.
+        if (!StatusAllowsSteps(show)
+            || show.LastWatchedSeason is null
+            || show.LastWatchedEpisode is null
+            || show is { LastWatchedSeason: > 1, LastWatchedEpisode: 1 })
+        {
+            return false;
+        }
+
+        if (show is { LastWatchedSeason: 1, LastWatchedEpisode: 1 })
+        {
+            show.LastWatchedSeason = null;
+            show.LastWatchedEpisode = null;
+        }
+        else
+        {
+            show.LastWatchedEpisode--;
+        }
+
+        return true;
+    }
+
+    // Not started becomes S01E01, otherwise the next episode in the same season, and the show
+    // becomes Watching. False when nothing changed.
+    private static bool StepToNextEpisode(Show show)
+    {
+        if (!StatusAllowsSteps(show))
+        {
+            return false;
+        }
+
+        if (show.LastWatchedSeason is null || show.LastWatchedEpisode is null)
+        {
+            show.LastWatchedSeason = 1;
+            show.LastWatchedEpisode = 1;
+        }
+        else
+        {
+            show.LastWatchedEpisode++;
+        }
+        show.Status = ShowStatuses.Watching;
+
+        return true;
+    }
+
+    // Finished and Dropped are the user's choice, and a step never changes them.
+    private static bool StatusAllowsSteps(Show show) =>
+        show.Status is ShowStatuses.Watching or ShowStatuses.WantToWatch;
 
     // Null also when the show is someone else's, so the endpoint answers 404.
     private static Task<Show?> FindUsersShowAsync(WatchTrackerDbContext db, int id, string userId, CancellationToken cancellationToken) =>

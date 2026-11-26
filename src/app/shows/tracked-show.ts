@@ -22,12 +22,28 @@ export type ShowId = TrackedShow['id'];
 
 export type ShowPostModel = Omit<TrackedShow, 'id' | 'addedAt' | 'updatedAt'>;
 
+export type EpisodeStep = 'next' | 'previous';
+
+export interface EpisodeStepRequest {
+  showId: ShowId;
+  step: EpisodeStep;
+}
+
+
 export function getNextEpisodeRef(lastWatched?: EpisodeRef): EpisodeRef {
   if (!lastWatched) return { season: 1, episode: 1 };
   return { season: lastWatched.season, episode: lastWatched.episode + 1 };
 }
 
-export function canMarkNextEpisodeAsWatched(show: TrackedShow): boolean {
+// E01 of a later season would need the earlier season's length, which isn't known.
+export function canStepToPreviousEpisode(show: TrackedShow): boolean {
+  if (!statusAllowsSteps(show)) return false;
+  const lastWatched = show.lastWatched;
+  if (!lastWatched) return false;
+  return lastWatched.season === 1 || lastWatched.episode > 1;
+}
+
+export function statusAllowsSteps(show: TrackedShow): boolean {
   const status = show.status;
   return status === 'watching' || status === 'want-to-watch';
 }

@@ -32,8 +32,15 @@ describe('Home', () => {
       heading.textContent?.trim(),
     );
 
-  const nextEpisodeButtons = () =>
-    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+  // A card's + and −, found by the show title at the end of their labels.
+  const plusOf = (title: string) =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      `button[aria-label$="of ${title} as watched"]`,
+    );
+  const minusOf = (title: string) =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      `button[aria-label$="of ${title} as not watched"]`,
+    );
 
   // The store fetches only once someone is logged in, so the login check is answered first.
   function configureLoggedIn(): void {
@@ -81,7 +88,7 @@ describe('Home', () => {
     );
 
   function markNextEpisodeOfOlder(): void {
-    nextEpisodeButtons()[1].click();
+    plusOf('Older')?.click();
     httpTesting
       .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
       .flush(olderAfterNextEpisode);
@@ -90,9 +97,18 @@ describe('Home', () => {
 
   function failNextEpisodeOfOlder(): void {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    nextEpisodeButtons()[1].click();
+    plusOf('Older')?.click();
     httpTesting
       .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+  }
+
+  function failPreviousEpisodeOfOlder(): void {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    minusOf('Older')?.click();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows/1/previous-episode' })
       .flush(null, { status: 500, statusText: 'Internal Server Error' });
     fixture.detectChanges();
   }
@@ -138,7 +154,7 @@ describe('Home', () => {
     markNextEpisodeOfOlder();
 
     expect(titles()).toEqual(['Newer', 'Older']);
-    expect(nextEpisodeButtons()[1].getAttribute('aria-label')).toBe(
+    expect(plusOf('Older')?.getAttribute('aria-label')).toBe(
       'Mark season 1, episode 3 of Older as watched',
     );
   });
@@ -217,6 +233,16 @@ describe('Home', () => {
       "Couldn't mark the next episode of Older as watched.",
     );
     expect(titles()).toEqual(['Newer', 'Older']);
+  });
+
+  it('says which way failed when − cannot be saved', () => {
+    render([older, newer]);
+
+    failPreviousEpisodeOfOlder();
+
+    expect(failureAlert()?.textContent?.trim()).toBe(
+      "Couldn't mark the last episode of Older as not watched.",
+    );
   });
 
   it('still says what failed when the show is gone from the list', () => {

@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { ShowId, TrackedShow } from '../tracked-show';
+import { EpisodeStepRequest, TrackedShow } from '../tracked-show';
 import { ShowCard } from '../show-card/show-card';
 
 @Component({
@@ -16,7 +16,7 @@ import { ShowCard } from '../show-card/show-card';
     <ul class="show-list card-grid" role="list">
       @for (show of shows(); track show.id) {
         <li>
-          <app-show-card [show]="show" (nextEpisodeWatched)="nextEpisodeWatched.emit($event)" />
+          <app-show-card [show]="show" (stepped)="episodeStepped.emit({ showId: show.id, step: $event })"/>
         </li>
       }
     </ul>
@@ -25,5 +25,5 @@ import { ShowCard } from '../show-card/show-card';
 export class ShowList {
   readonly shows = input.required<TrackedShow[]>();
 
-  readonly nextEpisodeWatched = output<ShowId>();
+  readonly episodeStepped = output<EpisodeStepRequest>();
 }

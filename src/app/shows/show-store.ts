@@ -1,5 +1,5 @@
 import { Service, computed, signal, inject, DOCUMENT } from '@angular/core';
-import { ShowId, ShowPostModel, TrackedShow } from './tracked-show';
+import {EpisodeStepRequest, ShowId, ShowPostModel, TrackedShow} from './tracked-show';
 import { ShowApi } from './show-api';
 import {
   BehaviorSubject,
@@ -38,15 +38,15 @@ export class ShowStore {
   readonly initialLoad$ = this.initialLoadSubject.asObservable();
   readonly initialLoad = toSignal(this.initialLoad$, { requireSync: true });
 
-  private readonly _nextEpisodeFailedFor = signal<ShowId | null>(null);
-  readonly nextEpisodeFailedFor = this._nextEpisodeFailedFor.asReadonly();
+  private readonly _failedEpisodeStep = signal<EpisodeStepRequest | null>(null);
+  readonly failedEpisodeStep = this._failedEpisodeStep.asReadonly();
 
   private readonly _refreshHasFailed = signal(false);
   readonly refreshHasFailed = this._refreshHasFailed.asReadonly();
 
   private readonly isFetching = signal(false);
 
-  private readonly nextEpisodeQueue = new Subject<ShowId>();
+  private readonly episodeStepQueue = new Subject<EpisodeStepRequest>();
 
   private readonly loadRequests = new Subject<LoadRequest>();
 
@@ -85,21 +85,26 @@ export class ShowStore {
         },
       });
 
-    this.nextEpisodeQueue
+    this.episodeStepQueue
       .pipe(
-        concatMap((showId) =>
-          this.showApi.markNextEpisodeAsWatched(showId).pipe(
+        concatMap((stepRequest) => {
+          const save$ =
+            stepRequest.step === 'next'
+              ? this.showApi.stepToNextEpisode(stepRequest.showId)
+              : this.showApi.stepToPreviousEpisode(stepRequest.showId);
+
+          return save$.pipe(
             catchError((error: unknown) => {
-              const show = this.getShowById(showId);
-              this._nextEpisodeFailedFor.set(showId);
+              const show = this.getShowById(stepRequest.showId);
+              this._failedEpisodeStep.set(stepRequest);
               console.error(
-                `Could not mark next episode as watched for ${show?.title ?? 'show'} (id: ${showId})`,
+                `Could not step to the ${stepRequest.step} episode of ${show?.title ?? 'show'} (id: ${stepRequest.showId})`,
                 error,
               );
               return EMPTY;
             }),
-          ),
-        ),
+          );
+        }),
         takeUntilDestroyed(),
       )
       .subscribe({
@@ -152,8 +157,8 @@ export class ShowStore {
   private reset(): void {
     this._shows.set([]);
     this.initialLoadSubject.next('loading');
-    this._refreshHasFailed.set(false);
-    this._nextEpisodeFailedFor.set(null);
+    this.clearRefreshFailed();
+    this.clearFailedEpisodeStep();
     this.loadRequests.next('stop');
     this.isFetching.set(false);
   }
@@ -203,13 +208,13 @@ export class ShowStore {
     );
   }
 
-  markNextEpisodeAsWatched(showId: ShowId): void {
-    this.clearNextEpisodeFailed();
-    this.nextEpisodeQueue.next(showId);
+  stepEpisode(stepRequest: EpisodeStepRequest): void {
+    this.clearFailedEpisodeStep();
+    this.episodeStepQueue.next(stepRequest);
   }
 
-  clearNextEpisodeFailed(): void {
-    this._nextEpisodeFailedFor.set(null);
+  clearFailedEpisodeStep(): void {
+    this._failedEpisodeStep.set(null);
   }
 
   clearRefreshFailed(): void {

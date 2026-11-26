@@ -1,25 +1,27 @@
-import { Component, computed, input, output } from '@angular/core';
-import { canMarkNextEpisodeAsWatched, getNextEpisodeRef, ShowId, TrackedShow } from '../tracked-show';
+import {Component, input, output} from '@angular/core';
+import {
+  EpisodeStep,
+  TrackedShow
+} from '../tracked-show';
 import { streamingServiceDisplayName } from '../streaming-service';
-import { SvgIcon } from '../../shared/svg-icon/svg-icon';
 import { DatePipe } from '@angular/common';
 import {RouterLink} from '@angular/router';
+import {EpisodeStepper} from '../episode-stepper/episode-stepper';
 
 @Component({
-  imports: [SvgIcon, DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, EpisodeStepper],
   selector: 'app-show-card',
   styles: `
     :host {
       display: block;
       --thumbnail-width: 3rem;
-      --increment-button-size: var(--touch-target);
       --show-details-separator-size: 3px;
     }
 
     .show-card {
       display: grid;
-      grid-template-columns: var(--thumbnail-width) minmax(0, 1fr) auto;
-      gap: var(--spacing-half);
+      grid-template-columns: var(--thumbnail-width) minmax(0, 1fr);
+      gap: var(--spacing-1);
       align-items: center;
       position: relative;
 
@@ -70,16 +72,13 @@ import {RouterLink} from '@angular/router';
       }
     }
 
-    .show-last-watched {
-      font-size: var(--font-size-medium);
-    }
-
     .show-details {
       display: flex;
       align-items: center;
       gap: var(--spacing-half);
       white-space: nowrap;
       color: var(--color-text-muted);
+      margin-bottom: var(--spacing-half);
     }
 
     .show-details-separator {
@@ -98,18 +97,6 @@ import {RouterLink} from '@angular/router';
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    .show-increment-button {
-      // TODO should have a button component with common styles?
-      width: var(--increment-button-size);
-      aspect-ratio: 1;
-      border-radius: var(--border-radius);
-      border: 1px solid var(--color-accent-border);
-      color: var(--color-accent);
-      background: var(--color-accent-soft);
-      z-index: 1;
-      position: relative;
-    }
   `,
   template: `
     <article class="show-card card">
@@ -125,15 +112,6 @@ import {RouterLink} from '@angular/router';
           </a>
         </h2>
 
-        <p class="show-last-watched">
-          <span class="visually-hidden">
-            {{ lastWatchedSpoken() }}
-          </span>
-          <span class="show-last-watched" [attr.aria-hidden]="true">
-            {{ lastWatchedDisplay() }}
-          </span>
-        </p>
-
         <div class="show-details">
           @if (show().service; as service) {
             <span class="streaming-service">{{ serviceName(service) }}</span>
@@ -141,52 +119,20 @@ import {RouterLink} from '@angular/router';
 
           <div class="show-details-separator"></div>
 
-          <time class="updated-at" [dateTime]="show().updatedAt">{{
-            show().updatedAt | date: 'd MMM'
-          }}</time>
+          <time class="updated-at" [dateTime]="show().updatedAt">
+            {{ show().updatedAt | date: 'd MMM' }}
+          </time>
         </div>
-      </div>
 
-      @if (canMarkNextEpisode(show())) {
-        <button
-          type="button"
-          (click)="nextEpisodeWatched.emit(show().id)"
-          [attr.aria-label]="nextEpisodeLabel()"
-          class="show-increment-button"
-        >
-          <app-svg-icon name="plus" />
-        </button>
-      }
+        <app-episode-stepper [show]="show()" (stepped)="stepped.emit($event)"/>
+      </div>
     </article>
   `,
 })
 export class ShowCard {
-  // Inputs
   readonly show = input.required<TrackedShow>();
 
-  // Outputs
-  readonly nextEpisodeWatched = output<ShowId>();
+  readonly stepped = output<EpisodeStep>();
 
-  // State
-  protected readonly lastWatchedDisplay = computed(() => {
-    const lastWatched = this.show().lastWatched;
-    if (!lastWatched) return 'Not started';
-    return `S${lastWatched.season.toString().padStart(2, '0')} E${lastWatched.episode.toString().padStart(2, '0')}`;
-  });
-
-  // "S02 E05" read aloud says neither what it is nor which season and episode.
-  protected readonly lastWatchedSpoken = computed(() => {
-    const lastWatched = this.show().lastWatched;
-    if (!lastWatched) return 'Not started';
-    return `Last watched: season ${lastWatched.season}, episode ${lastWatched.episode}`;
-  });
-
-  protected readonly nextEpisodeLabel = computed(() => {
-    const next = getNextEpisodeRef(this.show().lastWatched);
-    return `Mark season ${next.season}, episode ${next.episode} of ${this.show().title} as watched`;
-  });
-
-  // Functions for the template
   protected readonly serviceName = streamingServiceDisplayName;
-  protected readonly canMarkNextEpisode = canMarkNextEpisodeAsWatched;
 }

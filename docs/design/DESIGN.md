@@ -275,8 +275,8 @@ fainter, which is allowed, as an inactive control has no contrast requirement.
 - − goes back one episode and sets "updated" to now. From S01 E01 it goes to Not started, and the
   status stays – Watching with no progress also comes from Search (D100). It is disabled on Not
   started and on E01 of a later season, since the earlier season's length is unknown; stepping
-  back across a season is done on the show page. − is saved with `PUT`, one request at a time per
-  show, so quick taps can't overtake each other.
+  back across a season is done on the show page. − is a command to the server (D146), sent
+  through the same queue as +, so quick taps can't overtake each other.
 - Every press counts, and they are sent one at a time in order, so the buttons stay active and
   show no waiting (D120, D122). A press that fails leaves the progress as it was and shows the
   floating error alert (D121, "Error alert").
@@ -557,7 +557,8 @@ the icon and the text (D126). Built as `AlertError`, in the editor, the delete d
 Watching, on the login page and on the account page.
 
 **Floating, for an action on a list** (D121): when the action that failed has no fixed place –
-"Couldn't mark the next episode of Severance as watched." from a card on Watching – the alert
+"Couldn't mark the next episode of Severance as watched." from a card's + on Watching, or
+"Couldn't mark the last episode of Severance as not watched." from its − (D146) – the alert
 floats at the bottom of the window, where the message after adding goes: inside the side gutters
 on phones, centred and at most 28rem wide on wider screens, on `--color-background` since the
 page runs under it. Below the list it would be out of sight, and above it would push the cards

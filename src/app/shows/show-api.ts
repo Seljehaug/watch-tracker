@@ -23,7 +23,11 @@ export class ShowApi {
     return this.http.delete<void>(`/api/shows/${id}`);
   }
 
-  markNextEpisodeAsWatched(id: ShowId): Observable<TrackedShow> {
+  stepToPreviousEpisode(id: ShowId): Observable<TrackedShow> {
+    return this.http.post<TrackedShow>(`/api/shows/${id}/previous-episode`, null);
+  }
+
+  stepToNextEpisode(id: ShowId): Observable<TrackedShow> {
     return this.http.post<TrackedShow>(`/api/shows/${id}/next-episode`, null);
   }
 }

@@ -174,7 +174,7 @@ describe('ShowStore', () => {
       loadShows([aShow(1)]);
       store.load();
       failToLoad();
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
       httpTesting
         .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
         .flush(null, { status: 500, statusText: 'Internal Server Error' });
@@ -184,7 +184,7 @@ describe('ShowStore', () => {
       expect(store.shows()).toEqual([]);
       expect(store.initialLoad()).toBe('loading');
       expect(store.refreshHasFailed()).toBe(false);
-      expect(store.nextEpisodeFailedFor()).toBeNull();
+      expect(store.failedEpisodeStep()).toBeNull();
     });
 
     // A late answer would put the list back for the next login.
@@ -239,9 +239,9 @@ describe('ShowStore', () => {
         },
       ],
       [
-        'marking the next episode',
+        'stepping an episode',
         () => {
-          store.markNextEpisodeAsWatched(1);
+          store.stepEpisode({ showId: 1, step: 'next' });
           httpTesting
             .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
             .flush(aShow(1));
@@ -265,7 +265,7 @@ describe('ShowStore', () => {
       store.load();
       failToLoad();
 
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
       httpTesting.expectOne({ method: 'POST', url: '/api/shows/1/next-episode' }).flush(aShow(1));
 
       httpTesting.expectNone('/api/shows');
@@ -370,35 +370,39 @@ describe('ShowStore', () => {
     });
   });
 
-  describe('markNextEpisodeAsWatched', () => {
+  describe('stepEpisode', () => {
     // No caller subscribes: the card only needs the list to change.
-    it('sends the command itself and puts the show the server returns in the list', () => {
-      loadShows([aShow(2), aShow(1, { lastWatched: { season: 2, episode: 5 } })]);
-      const fromServer = aShow(1, {
-        lastWatched: { season: 2, episode: 6 },
-        updatedAt: '2026-11-16T08:02:44.5+00:00',
-      });
+    it.each([
+      ['next', '/api/shows/1/next-episode', { season: 2, episode: 6 }],
+      ['previous', '/api/shows/1/previous-episode', { season: 2, episode: 4 }],
+    ] as const)(
+      'sends a %s step as its own command and puts the show the server returns in the list',
+      (step, url, lastWatched) => {
+        loadShows([aShow(2), aShow(1, { lastWatched: { season: 2, episode: 5 } })]);
+        const fromServer = aShow(1, { lastWatched, updatedAt: '2026-11-16T08:02:44.5+00:00' });
 
-      store.markNextEpisodeAsWatched(1);
+        store.stepEpisode({ showId: 1, step });
 
-      httpTesting.expectOne({ method: 'POST', url: '/api/shows/1/next-episode' }).flush(fromServer);
-      expect(store.shows()).toEqual([aShow(2), fromServer]);
-    });
+        httpTesting.expectOne({ method: 'POST', url }).flush(fromServer);
+        expect(store.shows()).toEqual([aShow(2), fromServer]);
+      },
+    );
 
-    // Two at once could both read E05 on the server and save E06, and the answers could come
-    // back in either order (D69).
+    // Sent at once, a + and a − could reach the server in either order, and the answers could
+    // come back in either order (D69, D146).
     it('sends quick taps one at a time, each after the answer to the one before', () => {
       loadShows([aShow(1, { lastWatched: { season: 2, episode: 5 } })]);
-      const afterFirst = aShow(1, { lastWatched: { season: 2, episode: 6 } });
-      const afterSecond = aShow(1, { lastWatched: { season: 2, episode: 7 } });
+      const afterNext = aShow(1, { lastWatched: { season: 2, episode: 6 } });
+      const afterPrevious = aShow(1, { lastWatched: { season: 2, episode: 5 } });
 
-      store.markNextEpisodeAsWatched(1);
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
+      store.stepEpisode({ showId: 1, step: 'previous' });
 
-      // expectOne fails when both have been sent.
-      expectNextEpisodeOf(1).flush(afterFirst);
-      expectNextEpisodeOf(1).flush(afterSecond);
-      expect(store.shows()).toEqual([afterSecond]);
+      const first = expectNextEpisodeOf(1);
+      httpTesting.expectNone({ method: 'POST', url: '/api/shows/1/previous-episode' });
+      first.flush(afterNext);
+      expectPreviousEpisodeOf(1).flush(afterPrevious);
+      expect(store.shows()).toEqual([afterPrevious]);
     });
 
     // A retry could count an episode twice: the server may have saved before the answer was lost.
@@ -407,39 +411,40 @@ describe('ShowStore', () => {
       loadShows([aShow(1), aShow(2)]);
       const show2After = aShow(2, { lastWatched: { season: 1, episode: 1 } });
 
-      store.markNextEpisodeAsWatched(1);
-      store.markNextEpisodeAsWatched(2);
+      store.stepEpisode({ showId: 1, step: 'next' });
+      store.stepEpisode({ showId: 2, step: 'next' });
       failNextEpisodeOf(1);
       expectNextEpisodeOf(2).flush(show2After);
       httpTesting.expectNone({ method: 'POST', url: '/api/shows/1/next-episode' });
 
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
       expectNextEpisodeOf(1).flush(aShow(1, { lastWatched: { season: 1, episode: 1 } }));
     });
 
-    it('leaves the show as it was when the command fails, and says which show failed', () => {
+    it('leaves the show as it was when the command fails, and says which show and which way', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
-      loadShows([aShow(1), aShow(2)]);
+      const show2 = aShow(2, { lastWatched: { season: 1, episode: 3 } });
+      loadShows([aShow(1), show2]);
 
-      store.markNextEpisodeAsWatched(2);
-      failNextEpisodeOf(2);
+      store.stepEpisode({ showId: 2, step: 'previous' });
+      expectPreviousEpisodeOf(2).flush(null, { status: 500, statusText: 'Internal Server Error' });
 
-      expect(store.shows()).toEqual([aShow(1), aShow(2)]);
-      expect(store.nextEpisodeFailedFor()).toBe(2);
+      expect(store.shows()).toEqual([aShow(1), show2]);
+      expect(store.failedEpisodeStep()).toEqual({ showId: 2, step: 'previous' });
     });
 
     it('forgets the failure on the next tap, and when it is cleared', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
       loadShows([aShow(1), aShow(2)]);
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
       failNextEpisodeOf(1);
 
-      store.markNextEpisodeAsWatched(2);
-      expect(store.nextEpisodeFailedFor()).toBeNull();
+      store.stepEpisode({ showId: 2, step: 'next' });
+      expect(store.failedEpisodeStep()).toBeNull();
       failNextEpisodeOf(2);
 
-      store.clearNextEpisodeFailed();
-      expect(store.nextEpisodeFailedFor()).toBeNull();
+      store.clearFailedEpisodeStep();
+      expect(store.failedEpisodeStep()).toBeNull();
     });
 
     // The list is loaded again often (D69); the queue must not be subscribed to again with it.
@@ -448,13 +453,17 @@ describe('ShowStore', () => {
       store.load();
       loadShows([aShow(1)]);
 
-      store.markNextEpisodeAsWatched(1);
+      store.stepEpisode({ showId: 1, step: 'next' });
 
       expectNextEpisodeOf(1).flush(aShow(1, { lastWatched: { season: 1, episode: 1 } }));
     });
 
     function expectNextEpisodeOf(id: number) {
       return httpTesting.expectOne({ method: 'POST', url: `/api/shows/${id}/next-episode` });
+    }
+
+    function expectPreviousEpisodeOf(id: number) {
+      return httpTesting.expectOne({ method: 'POST', url: `/api/shows/${id}/previous-episode` });
     }
 
     function failNextEpisodeOf(id: number): void {
