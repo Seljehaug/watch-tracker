@@ -95,6 +95,20 @@ describe('Home', () => {
     fixture.detectChanges();
   }
 
+  // Older is at S01 E01, so − takes it back to Not started.
+  function markPreviousEpisodeOfOlder(): void {
+    minusOf('Older')?.click();
+    httpTesting
+      .expectOne({ method: 'POST', url: '/api/shows/1/previous-episode' })
+      .flush({ ...older, lastWatched: undefined });
+    fixture.detectChanges();
+  }
+
+  const stepAnnouncement = () =>
+    (fixture.nativeElement as HTMLElement)
+      .querySelector('[aria-live="polite"]')
+      ?.textContent?.trim();
+
   function failNextEpisodeOfOlder(): void {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     plusOf('Older')?.click();
@@ -157,6 +171,35 @@ describe('Home', () => {
     expect(plusOf('Older')?.getAttribute('aria-label')).toBe(
       'Mark season 1, episode 3 of Older as watched',
     );
+  });
+
+  // Focus stays on the button, so the new progress is heard only from the live region.
+  it.each([
+    ['+', markNextEpisodeOfOlder, 'Older: last watched season 1, episode 2'],
+    ['− back to the start', markPreviousEpisodeOfOlder, 'Older: not started'],
+  ])('reads out the progress the server answers to %s', (_, step, announcement) => {
+    render([older, newer]);
+
+    step();
+
+    expect(stepAnnouncement()).toBe(announcement);
+  });
+
+  // The list is fetched again each time the app comes back (D123), and nobody tapped.
+  it('reads nothing new when the list is fetched again, though the progress changed elsewhere', () => {
+    render([older, newer]);
+    markNextEpisodeOfOlder();
+
+    TestBed.inject(ShowStore).load();
+    httpTesting
+      .expectOne('/api/shows')
+      .flush([{ ...olderAfterNextEpisode, lastWatched: { season: 1, episode: 5 } }, newer]);
+    fixture.detectChanges();
+
+    expect(plusOf('Older')?.getAttribute('aria-label')).toBe(
+      'Mark season 1, episode 6 of Older as watched',
+    );
+    expect(stepAnnouncement()).toBe('Older: last watched season 1, episode 2');
   });
 
   it('freezes the order when the list arrives after the page opened', () => {

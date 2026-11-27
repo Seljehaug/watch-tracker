@@ -41,6 +41,9 @@ export class ShowStore {
   private readonly _failedEpisodeStep = signal<EpisodeStepRequest | null>(null);
   readonly failedEpisodeStep = this._failedEpisodeStep.asReadonly();
 
+  private readonly _lastSteppedShow = signal<TrackedShow | null>(null);
+  readonly lastSteppedShow = this._lastSteppedShow.asReadonly();
+
   private readonly _refreshHasFailed = signal(false);
   readonly refreshHasFailed = this._refreshHasFailed.asReadonly();
 
@@ -110,6 +113,7 @@ export class ShowStore {
       .subscribe({
         next: (updatedShow) => {
           this.replaceShow(updatedShow);
+          this._lastSteppedShow.set(updatedShow);
         },
       });
 
@@ -159,6 +163,7 @@ export class ShowStore {
     this.initialLoadSubject.next('loading');
     this.clearRefreshFailed();
     this.clearFailedEpisodeStep();
+    this._lastSteppedShow.set(null);
     this.loadRequests.next('stop');
     this.isFetching.set(false);
   }
@@ -210,6 +215,8 @@ export class ShowStore {
 
   stepEpisode(stepRequest: EpisodeStepRequest): void {
     this.clearFailedEpisodeStep();
+    // Emptied, so an answer with the same text as the last one is still read out.
+    this._lastSteppedShow.set(null);
     this.episodeStepQueue.next(stepRequest);
   }
 

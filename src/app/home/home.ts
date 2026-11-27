@@ -9,6 +9,7 @@ import {EpisodeStepRequest, ShowId} from '../shows/tracked-show';
 import { ShowListSkeleton } from '../shows/show-list-skeleton/show-list-skeleton';
 import { AlertError } from '../shared/alert-error/alert-error';
 import {AlertFloating} from '../shared/alert-floating/alert-floating';
+import { toSpokenSeasonAndEpisode } from '../shows/progress-pipe';
 
 @Component({
   selector: 'app-home',
@@ -55,6 +56,9 @@ import {AlertFloating} from '../shared/alert-floating/alert-floating';
         </app-alert-error>
       }
     }
+
+    <!-- Outside the @if, so it is in the DOM before its text changes. -->
+    <p class="visually-hidden" aria-live="polite">{{ episodeStepAnnouncement() }}</p>
   `,
   imports: [ShowList, ShowListEmpty, RouterLink, SvgIcon, PageHeader, ShowListSkeleton, AlertError, AlertFloating],
 })
@@ -92,6 +96,14 @@ export class Home {
     return failedShow
       ? `Couldn't mark the last episode of ${failedShow.title} as not watched.`
       : "Couldn't mark the last episode as not watched.";
+  });
+
+  // From the step's answer, not the list, so fetching the list again is never read out.
+  protected readonly episodeStepAnnouncement = computed(() => {
+    const show = this.showStore.lastSteppedShow();
+    if (show === null) return '';
+    if (!show.lastWatched) return `${show.title}: not started`;
+    return `${show.title}: last watched ${toSpokenSeasonAndEpisode(show.lastWatched)}`;
   });
 
   protected readonly displayLoading = computed(() => this.showStore.initialLoad() === 'loading');

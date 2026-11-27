@@ -170,11 +170,16 @@ describe('ShowStore', () => {
       await loggedOut;
     }
 
-    it("forgets the list and its failures, and waits for the next login's first load", async () => {
+    it("forgets the list, its failures and the last step, and waits for the next login's first load", async () => {
       loadShows([aShow(1)]);
       store.load();
       failToLoad();
+      // Two quick taps: the first is answered, the second fails.
       store.stepEpisode({ showId: 1, step: 'next' });
+      store.stepEpisode({ showId: 1, step: 'next' });
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
+        .flush(aShow(1, { lastWatched: { season: 1, episode: 1 } }));
       httpTesting
         .expectOne({ method: 'POST', url: '/api/shows/1/next-episode' })
         .flush(null, { status: 500, statusText: 'Internal Server Error' });
@@ -185,6 +190,7 @@ describe('ShowStore', () => {
       expect(store.initialLoad()).toBe('loading');
       expect(store.refreshHasFailed()).toBe(false);
       expect(store.failedEpisodeStep()).toBeNull();
+      expect(store.lastSteppedShow()).toBeNull();
     });
 
     // A late answer would put the list back for the next login.
