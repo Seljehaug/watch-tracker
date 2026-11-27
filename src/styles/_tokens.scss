@@ -1,5 +1,7 @@
 // Design tokens – see DESIGN.md §1
 
+@use 'sizes';
+
 :root {
   // Color – dark only for now (D19)
   --color-background: #0e0e10;
@@ -19,13 +21,13 @@
 
   // Typography
   --font-family: 'Inter Variable', system-ui, sans-serif;
-  --font-size-small: 0.875rem;
-  --font-size-medium: 1rem;
+  --font-size-small: #{sizes.$font-size-small};
+  --font-size-medium: #{sizes.$font-size-medium};
   --font-size-big: 1.75rem;
 
   // Spacing
-  --spacing-half: 0.5rem;
-  --spacing-1: 1rem;
+  --spacing-half: #{sizes.$spacing-half};
+  --spacing-1: #{sizes.$spacing-1};
   --spacing-2: 2rem;
 
   --container-max-width: 1280px;
@@ -33,7 +35,7 @@
 
   --border-radius: 0.5rem;
 
-  --touch-target: 2.75rem;
+  --touch-target: #{sizes.$touch-target};
 
   --icon-size-small: 1rem;
   --icon-size-medium: 1.25rem;

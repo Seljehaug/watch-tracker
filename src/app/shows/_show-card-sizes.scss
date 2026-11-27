@@ -1,0 +1,90 @@
+// The show card's sizes and layout. ShowCard and ShowListSkeleton include the layout, so a
+// placeholder has the card's shape; EpisodeStepper takes its value width from here. Sass values,
+// since the container queries need them.
+@use 'sass:math';
+@use '../../styles/sizes';
+
+$title-line-height: 1.25;
+$details-line-height: 1.5;
+
+// The stepper's value has one width in every state, so + stays put (D148).
+$stepper-value-width: 5.25rem;
+$stepper-width: 2 * sizes.$touch-target + $stepper-value-width;
+
+// The text column's height with a two-line title. Every card gets it, so all are as tall (D149).
+$info-min-height: 2 * sizes.$spacing-1 // padding above and below
+  + 2 * $title-line-height * sizes.$font-size-medium // two lines of title
+  + $details-line-height * sizes.$font-size-small // the service and date
+  + 2 * sizes.$spacing-half // the gaps under them
+  + sizes.$touch-target; // the stepper
+
+// The poster's width follows the card's (D150), but stays wide enough beside the stepper on the
+// narrowest card, and no wider than a whole 2:3 poster as tall as the card.
+$thumbnail-min-width: 5rem;
+$thumbnail-max-width: math.div($info-min-height * 2, 3);
+
+// The container queries' limits, inside the card's border. Below this width the stepper doesn't
+// fit beside the narrowest poster, so the poster goes.
+$without-thumbnail-below: $thumbnail-min-width + 2 * sizes.$spacing-1 + $stepper-width;
+
+// From this width the stepper goes to the right of the title, which keeps $title-min-width
+// beside it (D151): the widest poster, the padding, the gap and the stepper.
+$title-min-width: 10rem;
+$stepper-on-right-from: $thumbnail-max-width + 3 * sizes.$spacing-1 + $stepper-width +
+  $title-min-width;
+
+// The poster at the card's edge, and the text column: .show-heading (the title and the meta line)
+// at the top, the stepper or the plain text at the bottom.
+@mixin layout {
+  .show-card {
+    container-type: inline-size;
+    display: flex;
+  }
+
+  .show-thumbnail {
+    flex: none;
+    width: clamp($thumbnail-min-width, 28%, $thumbnail-max-width);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    // The card's radius less its border.
+    border-start-start-radius: calc(var(--border-radius) - 1px);
+    border-end-start-radius: calc(var(--border-radius) - 1px);
+    background: var(--color-placeholder);
+  }
+
+  .show-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-half);
+    padding: var(--spacing-1);
+    min-height: $info-min-height;
+  }
+
+  // Grows, so a one-line title leaves its spare room above the stepper.
+  .show-heading {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-half);
+  }
+
+  @container (width < #{$without-thumbnail-below}) {
+    .show-thumbnail {
+      display: none;
+    }
+  }
+
+  // A wide card – a single column in a window between phone and tablet – puts the stepper to
+  // the right, so the card isn't empty beside it.
+  @container (width >= #{$stepper-on-right-from}) {
+    .show-info {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--spacing-1);
+    }
+  }
+}

@@ -24,7 +24,9 @@
 ## 1. Design tokens
 
 Kept small on purpose (D27): a token is added when the app needs the value, not up front. They are
-CSS custom properties on `:root` in `src/styles/_tokens.scss`. Sizes are in `rem` (1rem = 16px by
+CSS custom properties on `:root` in `src/styles/_tokens.scss`. The few that a container query
+needs – a query can't read a custom property – are Sass values in `src/styles/_sizes.scss`, which
+`_tokens.scss` turns into the custom properties (D152). Sizes are in `rem` (1rem = 16px by
 default), so they follow the user's browser font size. Exceptions in `px`: borders, outlines and
 the content max width, which is tied to the screen rather than the text (D28).
 
@@ -208,9 +210,13 @@ title is "Continue watching", with "6 shows in progress".
 ### Show card
 
 `<article>`, surface background, 1px border, `--border-radius`. Two columns: the poster at the
-card's edge and the text column, which has the padding, `--spacing-1` (D114, D148). In a grid
-row the cards are as tall as the tallest, so the steppers line up. The mockups show the card on
-its own in every state and width ([`screens.html#show-card`](mockups/screens.html#show-card)).
+card's edge and the text column, which has the padding, `--spacing-1` (D114, D148). Every card
+is the same height, with room for a two-line title (D149): on a one-line card the room is above
+the stepper, so the steppers line up down the list as well as across a grid row. The minimum
+height is in `rem`, from the card's own sizes, so it follows the text size; with zoom or a larger
+text size a card can grow, and its grid row with it. The mockups show the card on its own in
+every state and width ([`screens.html#show-card`](mockups/screens.html#show-card)); their
+one-line cards are shorter, from before D149.
 
 The whole card opens the show page (`/shows/:showId`, D101), except the stepper's buttons (D51):
 the title's link has its click area stretched over the card, and the stepper sits above it. The
@@ -218,11 +224,15 @@ link stays in the `<h2>`, so its name is the title – never a link wrapped arou
 would contain the buttons. Keyboard focus on the link draws the focus ring around the whole card,
 not the title; the stepper's buttons keep their own ring.
 
-1. **Poster** – fills the card's left edge, top to bottom (D148), 5rem wide in the mockup: about
-   2:3 beside a one-line title, narrower beside two lines. Its left corners get the card's
-   radius less the border, so they don't poke out over it. `--color-placeholder` with the show's
-   initials in muted until TMDB posters arrive in M3 (D115); a poster then fills it and is
-   cropped a little at the sides (`object-fit: cover`). Decorative, so `aria-hidden`.
+1. **Poster** – fills the card's left edge, top to bottom (D148, D149). Its width follows the
+   card's (D150): 28% of it, at least 5rem, and at most a whole 2:3 poster at the card's height –
+   80px on the narrowest cards (288px, a 320px phone or four desktop columns), 102px on a 412px
+   phone. Wider would crop the poster's top and bottom, where its title usually is. Its left
+   corners get the card's radius less the border, so they don't poke out over it.
+   `--color-placeholder` with the show's initials in muted until TMDB posters arrive in M3
+   (D115); an `<img>` then fills it – `NgOptimizedImage` in `fill` mode, `alt=""` – cropped at
+   the sides with `object-fit: cover` on narrower cards. Not a background image, which can't load
+   lazily, take `srcset` or tell when it fails (D149). Decorative, so `aria-hidden`.
    - **Too narrow:** the card is a container, and when it is too narrow for the stepper beside
      the poster, the poster goes (a container query on the card). With the default text size it
      stays down to a 320px phone; zoom or a larger text size make the card narrower in CSS
@@ -231,8 +241,8 @@ not the title; the stepper's buttons keep their own ring.
    top, the progress at the bottom:
    - Title – an `<h2>` containing a link to `/shows/:id`, 16/600. Up to two lines, then cut with
      an ellipsis (`line-clamp`), so long titles can still be told apart; screen readers get the
-     whole title. The heading lets screen-reader users jump from show to show; it is styled as
-     above, not as a page heading.
+     whole title. Every card has room for the second line (D149). The heading lets screen-reader
+     users jump from show to show; it is styled as above, not as a page heading.
    - Meta line – `Service · relative time`, small and muted.
    - Progress – shown **once** (D35), at the bottom of the column, starting at the text's edge so
      it lines up with the title: inside the stepper (see next), or as plain text in the same
@@ -243,6 +253,13 @@ not the title; the stepper's buttons keep their own ring.
      - Screen readers still need the label, and `S02 E05` read aloud is unclear: put the full
        meaning in visually hidden text ("Last watched: season 2, episode 5") and hide the visible
        value with `aria-hidden="true"`. This needs a global `.visually-hidden` utility class.
+3. **Wide card** (D151) – once the title and the meta line keep 10rem beside the stepper and the
+   widest poster (about 30rem), the stepper, or the plain text, moves to the right of them, and
+   all three are centred in the card's height, so the card isn't empty beside a stepper at its
+   left. Only a single column gets that wide, in a window of about 510–620px; two to four columns
+   give cards of 288–440px. A container query on the card, like the one that drops the poster.
+   The card's sizes, its layout and both limits are in `src/app/shows/_show-card-sizes.scss`,
+   shared with the placeholder cards (D152, D153).
 
 Content per status:
 
@@ -544,9 +561,9 @@ padding; the "Add your first show" button comes with the add form, when `/shows/
 Only for the first load (D112, D124). The title stays; the count under it comes with the list.
 **Loading:** "Loading…" on the line under the title, where the count comes, so nothing moves
 when it does – as "Searching…" holds the count's place on Search. Below it four placeholder cards
-in the list's grid, shaped like the show card: the card's frame, a poster slot of the same size,
-and three bars in `--color-placeholder` where the title, the progress and the meta line go. The
-bars are as tall as the text and spaced like its lines, so a placeholder is as tall as a card.
+in the list's grid, shaped like the show card: the card's frame and height, the poster at the
+edge as wide as the card's, a bar each where the title and the meta line go – as tall as the
+text, where the text sits – and a pill where the stepper goes, all in `--color-placeholder`.
 The cards are `aria-hidden`; "Loading…" is what screen readers get (D113). Library uses them too.
 No pulse yet; one would stand still under `prefers-reduced-motion`.
 **Error:** laid out as the empty state, with the `alert-circle` icon, "Couldn't load your shows",
@@ -671,8 +688,8 @@ Sizes come from a fixed scale (D23) instead of the original mockups' 16–26px v
 
 | Size            | Used for                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
-| **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip, the card stepper's − and + |
-| **medium** 20px | Default: the show page's stepper, select chevron, alert icon next to error messages, close icon on the delete dialog's close button and the error alert's "Dismiss", the bottom navigation, the header's search and account icons, the search result's buttons |
+| **small** 16px  | Beside small text: the check in "In your list" and "Saved", "Add manually", the icons in the first-visit tip |
+| **medium** 20px | Default: the show page's stepper, the card stepper's − and + (D148), select chevron, alert icon next to error messages, close icon on the delete dialog's close button and the error alert's "Dismiss", the bottom navigation, the header's search and account icons, the search result's buttons |
 | **big** 24px    | TV icon in the empty state, search icon in Search's empty state, page-not-found icon on the not-found page |
 
 The logo is not on this scale: it has a size of its own, **logo** (`--logo-size`, 28px), so it

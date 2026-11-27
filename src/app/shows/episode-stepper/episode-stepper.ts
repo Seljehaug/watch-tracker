@@ -6,7 +6,7 @@ import {
   statusAllowsSteps,
   TrackedShow
 } from '../tracked-show';
-import {ProgressPipe} from '../progress-pipe';
+import {ProgressPipe, toSpokenSeasonAndEpisode} from '../progress-pipe';
 import {SvgIcon} from '../../shared/svg-icon/svg-icon';
 
 @Component({
@@ -16,42 +16,28 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
   ],
   selector: 'app-episode-stepper',
   styles: `
-    :host {
-      --pill-height: 2rem;
-      --button-width: 2.25rem;
+    @use '../show-card-sizes' as card;
 
+    :host {
       // Above the title link, which is stretched over the whole card.
       position: relative;
       z-index: 1;
       display: flex;
       align-items: center;
       width: fit-content;
-      height: var(--pill-height);
       border-radius: 999px;
       background: var(--color-text-soft);
     }
 
     .episode-stepper-button {
-      position: relative;
       flex-shrink: 0;
-      width: var(--button-width);
-      height: var(--pill-height);
-      // The pill is smaller than --touch-target; the touch area below makes up for it.
-      min-width: 0;
-      min-height: 0;
+      height: var(--touch-target);
+      min-width: var(--touch-target);
       padding: 0;
       border: none;
       border-radius: 999px;
       color: var(--color-text-muted);
       background: transparent;
-
-      // The invisible touch area, --touch-target square.
-      &::after {
-        content: '';
-        position: absolute;
-        inset: calc((var(--pill-height) - var(--touch-target)) / 2)
-          calc((var(--button-width) - var(--touch-target)) / 2);
-      }
 
       @media (hover: hover) {
         &:hover:not([aria-disabled='true']) {
@@ -72,13 +58,16 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
       color: var(--color-accent);
     }
 
-    // The padding keeps a button's focus ring off the text.
+    // One width in every state, so + stays put when "Not started" becomes "S01 E01", and wide
+    // enough to keep the buttons' focus rings off the text. A rare wider value grows it.
     .progress-text {
-      padding-inline: var(--spacing-half);
+      min-width: card.$stepper-value-width;
+      text-align: center;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
 
       &.not-started {
+        font-size: var(--font-size-small);
         color: var(--color-text-muted);
       }
     }
@@ -91,7 +80,7 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
       [attr.aria-label]="previousEpisodeLabel()"
       [attr.aria-disabled]="!canStepToPrevious() || null"
     >
-      <app-svg-icon name="minus" size="small"></app-svg-icon>
+      <app-svg-icon name="minus"></app-svg-icon>
     </button>
 
     <span class="progress-text" [class.not-started]="!show().lastWatched">
@@ -106,7 +95,7 @@ import {SvgIcon} from '../../shared/svg-icon/svg-icon';
       [attr.aria-label]="nextEpisodeLabel()"
       [attr.aria-disabled]="!canStepToNext() || null"
     >
-      <app-svg-icon name="plus" size="small"></app-svg-icon>
+      <app-svg-icon name="plus"></app-svg-icon>
     </button>
   `,
 })
@@ -124,22 +113,22 @@ export class EpisodeStepper {
     // Not started: − is disabled, but it can still get focus, so it still needs a name.
     if (!lastWatched) return `Mark the last watched episode of ${title} as not watched`;
 
-    return `Mark season ${lastWatched.season}, episode ${lastWatched.episode} of ${title} as not watched`;
+    return `Mark ${toSpokenSeasonAndEpisode(lastWatched)} of ${title} as not watched`;
   });
 
   protected readonly lastWatchedSpoken = computed(() => {
     const lastWatched = this.show().lastWatched;
     if (!lastWatched) return 'Not started';
-    return `Last watched: season ${lastWatched.season}, episode ${lastWatched.episode}`;
+    return `Last watched: ${toSpokenSeasonAndEpisode(lastWatched)}`;
   });
 
   protected readonly nextEpisodeLabel = computed(() => {
     const { title, status, lastWatched } = this.show();
-    const next = getNextEpisodeRef(lastWatched);
+    const next = toSpokenSeasonAndEpisode(getNextEpisodeRef(lastWatched));
     if (status === 'want-to-watch') {
-      return `Start ${title}: mark season ${next.season}, episode ${next.episode} as watched`;
+      return `Start ${title}: mark ${next} as watched`;
     }
-    return `Mark season ${next.season}, episode ${next.episode} of ${title} as watched`;
+    return `Mark ${next} of ${title} as watched`;
   });
 
   stepToPreviousEpisode() {

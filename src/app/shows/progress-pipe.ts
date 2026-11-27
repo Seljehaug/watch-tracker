@@ -18,3 +18,7 @@ export function toProgress(progress: EpisodeRef | undefined): string {
 export function toSeasonAndEpisode(progress: EpisodeRef): string {
   return `S${progress.season.toString().padStart(2, '0')} E${progress.episode.toString().padStart(2, '0')}`;
 }
+
+export function toSpokenSeasonAndEpisode(progress: EpisodeRef): string {
+  return `season ${progress.season}, episode ${progress.episode}`;
+}

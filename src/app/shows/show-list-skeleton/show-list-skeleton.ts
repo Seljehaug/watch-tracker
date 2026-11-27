@@ -4,67 +4,54 @@ import { Component } from '@angular/core';
   imports: [],
   selector: 'app-show-list-skeleton',
   styles: `
+    @use '../show-card-sizes' as card;
+
+    // The card's layout, so a placeholder has its shape.
+    @include card.layout;
+
     :host {
       display: block;
-      // Same as ShowCard's, so a placeholder is as tall as a card.
-      --thumbnail-width: 3rem;
     }
 
     .show-list {
       margin-top: var(--spacing-1);
     }
 
-    .skeleton-card {
-      display: grid;
-      grid-template-columns: var(--thumbnail-width) minmax(0, 1fr);
-      gap: var(--spacing-half);
-      align-items: center;
-    }
-
-    .skeleton-thumbnail,
     .skeleton-line {
+      border-radius: 999px;
       background: var(--color-placeholder);
     }
 
-    .skeleton-thumbnail {
-      aspect-ratio: 2 / 3;
-      border-radius: calc(var(--border-radius) / 2);
-    }
-
-    // As tall as the card's text and spaced like its lines (line height 1.5), so they sit where
-    // the text does.
-    .skeleton-text {
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-half);
-    }
-
-    .skeleton-line {
-      height: var(--font-size-medium);
-      border-radius: 999px;
-    }
-
+    // As tall as the text and centred in its line, so the bars sit where the text does.
     .skeleton-title {
       width: 60%;
-    }
-
-    .skeleton-progress {
-      width: 30%;
+      height: var(--font-size-medium);
+      margin-block: calc((card.$title-line-height - 1) * var(--font-size-medium) / 2);
     }
 
     .skeleton-details {
       width: 45%;
+      height: var(--font-size-small);
+      margin-block: calc((card.$details-line-height - 1) * var(--font-size-small) / 2);
+    }
+
+    // Where the stepper goes, as big as its pill.
+    .skeleton-progress {
+      width: card.$stepper-width;
+      height: var(--touch-target);
     }
   `,
   template: `
     <div class="show-list card-grid" aria-hidden="true">
       @for (_ of skeletonItems; track $index) {
-        <div class="skeleton-card card">
-          <div class="skeleton-thumbnail"></div>
-          <div class="skeleton-text">
-            <div class="skeleton-line skeleton-title"></div>
+        <div class="show-card card">
+          <div class="show-thumbnail"></div>
+          <div class="show-info">
+            <div class="show-heading">
+              <div class="skeleton-line skeleton-title"></div>
+              <div class="skeleton-line skeleton-details"></div>
+            </div>
             <div class="skeleton-line skeleton-progress"></div>
-            <div class="skeleton-line skeleton-details"></div>
           </div>
         </div>
       }

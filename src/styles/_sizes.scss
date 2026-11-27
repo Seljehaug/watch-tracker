@@ -1,0 +1,11 @@
+// The tokens a container query needs, as Sass values, since a query can't read a custom
+// property. _tokens.scss makes the custom properties from them. This file has no CSS output, so a
+// component can @use it.
+
+$font-size-small: 0.875rem;
+$font-size-medium: 1rem;
+
+$spacing-half: 0.5rem;
+$spacing-1: 1rem;
+
+$touch-target: 2.75rem;
