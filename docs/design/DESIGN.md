@@ -202,7 +202,7 @@ links** in `<nav aria-label="Show status">`, one route per status (`/library/wan
 buttons, so the back button works, a reload keeps the tab, and the `<nav>` holds what it is meant
 for. The active link gets `aria-current="page"` (`routerLinkActive` + `ariaCurrentWhenActive`).
 Active: accent background, dark text. Inactive: surface background, border, text colour.
-Height 40px, gap 8px. On phone the row scrolls horizontally (scrollbar hidden); on desktop it
+At least `--touch-target` high, like anything interactive (§1), gap 8px. On phone the row scrolls horizontally (scrollbar hidden); on desktop it
 wraps next to the title. The page title is "Library" on every tab; the subtitle follows the tab:
 "6 shows to watch", "3 shows finished", "1 show dropped" (singular/plural). Watching's page
 title is "Continue watching", with "6 shows in progress".

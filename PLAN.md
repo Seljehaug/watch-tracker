@@ -34,7 +34,8 @@ same list, and a change on one shows on the other. Security headers (D5) went to
 on 2026-11-25 (D143). E2, the manifest and the icons, is done 2026-11-25 (D144): the app is
 installed on the Pixel from Chrome's menu and opens without a browser bar; the service worker
 waits in Later. The card's episode stepper (D114) with the `S02 E05` pipe is done 2026-11-27
-(D145–D154). Next: Library with the status tabs and the navigation (D98, D99), then M3.
+(D145–D154). Next: Library with the status tabs and the navigation (D98, D99), its steps
+agreed 2026-11-27 (D155–D158), then M3.
 The goal is
 the app on several devices (D58), with backend, hosting and order
 decided 2026-11-10 in D60–D78 and the order changed by D88. Search, the show page and the
@@ -931,8 +932,40 @@ Goal: something actually useful – a list of my shows with progress, entered by
       already have X?" is answered by search (M3/M4). Library's lists take Home's states from C1:
       the placeholder cards with "Loading…" while the first load runs, the error with "Try
       again", the floating alert (D112, D113, D124, D126), and the live region for a step
-      (D154). Comes with two components, noted on
-      2026-11-09:
+      (D154). Steps, agreed 2026-11-27 (D155–D158):
+  1. The routes: `/library` redirects to `/library/want-to-watch`, and each status has its own
+     route (`want-to-watch`, `finished`, `dropped`) to a lazy-loaded `Library` page in
+     `src/app/library/`. They go among the logged-in children, before `**`, each tab with its
+     own `title`. An unknown status (`/library/watching`, `/library/foo`) gets the not-found
+     page. The page gets the status as an input and shows only its `PageHeader`, "Library", for
+     now. The comment in `show-status.ts` names `/library/…`. Tests: the redirect, each tab and
+     an unknown status, in `app.routes.spec.ts`.
+  2. The lists in `ShowStore`: the shows of each Library status, newest `updatedAt` first, as
+     `watching` is (D155). The tabs' counts come from there. Tests: the grouping and the order.
+  3. The Library page with Home's states (D112, D113, D124): the placeholder cards and
+     "Loading…" under the title, the error with "Try again" (focus to the `<h1>`), the list
+     frozen when a tab opens and kept when a show's status changes (D156), the subtitle per tab
+     ("6 shows to watch", "3 shows finished", "1 show dropped"), "Nothing here yet." on an
+     empty tab (D158), and `episodeStepped` passed on to `ShowStore.stepEpisode`. Tests: the
+     frozen list, and a + on Want to watch keeping its card.
+  4. The floating alert and the live region as one component, which Home and Library both
+     place (D157). Tests: Home's tests for them move to the component's spec.
+  5. `StatusTabs` (`app-status-tabs`, `shows/`, DESIGN.md "Status tabs on Library"):
+     `<nav aria-label="Show status">` with three `RouterLink`s and their counts,
+     `routerLinkActive` with `ariaCurrentWhenActive="page"`, at least `--touch-target` high,
+     projected into `PageHeader`'s new tabs slot. The row scrolls sideways on a phone, and the
+     counts show once the first load has succeeded.
+  6. The header's links from 48rem (DESIGN.md "App header"): `<nav aria-label="Main">` with
+     Watching and Library after the brand. Watching (`/`) is active only on an exact match, or
+     it would be active on every page. "Add show" stays until M3.
+  7. The bottom navigation below 48rem (DESIGN.md "Bottom navigation (phone)"), in `layout/`:
+     Watching (`tv`) and Library (`library`, a new icon in `SvgIcon`), each an icon with a
+     visible label, at least `--touch-target` high, with `env(safe-area-inset-bottom)` under
+     the bar. Hidden on the login and add pages through route `data`, as the header's links are
+     (D140), and the floating alert sits above it. Search joins it in M3.
+  8. Tests by Claude after each step; this file and DESIGN.md updated at the end.
+
+  Comes with two components, noted on 2026-11-09:
   - `PageHeader` (`app-page-header`, `shared/`): the page's `<h1>`, the muted subtitle ("2 shows
     in progress") and the tabs projected with `<ng-content>`; it knows nothing about shows.
     Name the input `heading`, not `title` – `title` is a global HTML attribute, so a static
@@ -945,6 +978,7 @@ Goal: something actually useful – a list of my shows with progress, entered by
     `Home`. Pull it out – icon, heading (always an `<h2>`) and text as inputs, the action
     projected – so every status tab can show its own ("No finished shows yet"), with the "Add
     your first show" button only where it fits. _Progress:_ done 2026-11-10, used by Home.
+    **Since D158 an empty Library tab says "Nothing here yet." instead.**
 - [x] Show card component, reused across the lists (`ShowCard` + `ShowList`; the status tabs will
       reuse them)
 - [x] Add/edit form with Signal Forms and validation (`/shows/add`, `/shows/:id/edit`): native
@@ -1753,6 +1787,10 @@ reversed, mark it as superseded instead of deleting it.
 | D152 | 2026-11-27 | The show card's sizes live in one Sass file, `src/app/shows/_show-card-sizes.scss`, which `ShowCard`, `EpisodeStepper` and `ShowListSkeleton` load with `@use` (amends D113's copies), asked for by the developer: the line heights, the stepper's value width and whole width, the text column's minimum height, the poster's width and corners, and the two container query limits, computed from the parts. The tokens those limits need – the two smaller font sizes, `--spacing-half`, `--spacing-1` and `--touch-target` – and the `.card` border are Sass values in `src/styles/_sizes.scss`, which has no CSS output; `_tokens.scss` makes the custom properties from them. Comments say what a size means, never its number. **Amended by D153: the file also holds the card's layout as a mixin, and the `.card` border is no longer a Sass value.** | A container query can't read a custom property – tried in headless Chrome: `calc()` works in the condition, `var()` doesn't – so the limits were numbers worked out by hand (18rem and 30rem), with the sum in a comment, and the card's sizes were copied into the placeholders and the stepper's width into both. A changed size would leave a limit, a copy or a comment wrong without a sign. Sass computes the limits when the app is built, so they follow the parts, and each number is written once; D113 meant to share the card's layout once it had settled, and D148–D151 settled it. Accepted: five tokens are written in Sass and turned into custom properties, unlike the others; the limits come out a little off the round numbers (`calc(17.75rem + 2px)` and `calc(30.125rem + 2px)`); the grid's 18rem columns in `.card-grid` stay a number of their own. |
 | D153 | 2026-11-27 | The show card's layout is shared, not copied, and the card is its own container (amends D113 and D152), asked for by the developer after a review of the card's styling. `_show-card-sizes.scss` has a `layout` mixin – the two columns, the poster, the text column with its minimum height, and both container queries – which `ShowCard` and `ShowListSkeleton` include, with the card's class names in both templates; the placeholders keep only their bars. The `<article>` is the container instead of the host (the placeholders' `.skeleton-item` goes), and a flex row: the poster `flex: none` at `clamp(5rem, 28%, …)`, the text column `flex: 1`. The title and the meta line are in `.show-heading`, which grows, so the spare room is above the stepper without `margin-top: auto`, and the wide card (D151) is the text column turned into a row with `align-items: center`. The `.card` border is `1px` in `_base.scss` again, not a Sass value. | The placeholders copied the card's layout and both container queries, so a change to the card needed the same change there; with the rules in one mixin they can't drift apart. A container's width in a query is inside its border, so with the `<article>` as the container the border drops out of both limits, which come out as plain rem values (17.75rem and 30.125rem). A container query can't style the container itself, so the columns are flex: the narrow query only hides the poster, and with the heading in one element the wide layout is two declarations instead of four grid placements. Measured in headless Chrome on cards of 280–590px with a root font of 16, 20 and 24px: the same sizes and positions as before, the poster at most 0.6px narrower on 288–300px cards (28% is now inside the border). Kept: the Sass values for the limits (D152 – the narrow one has 2px to spare on a 288px card), D150's poster width, D151's centred wide layout (a `flex-wrap` version needed no wide query but put the stepper at the bottom right) and `height: 100%` on the host and the article (a grid row still stretches its neighbours when a user's text spacing makes a card taller). Accepted: one more `div` in the card and the placeholders, and the card's `1px` border written twice, in `.card` and in the poster's corners. |
 | D154 | 2026-11-27 | The live region for the card's steps (D114) is Home's, fed by the store, asked for by the developer after Claude's proposal. `ShowStore` keeps the show as the server answered the last step, `lastSteppedShow` (read-only outside, `null` until then), set in the queue's `next`; the next tap and a logout set it back to `null`, and a fetch never touches it. Home makes the text in a `computed` from that answer – "Severance: last watched season 2, episode 6", or "Severance: not started" – and shows it in a `.visually-hidden` `<p aria-live="polite">` last in its template, outside the `@if`s. The card and the list stay presentational (D147). | Only the queue's `next` knows that the answer to a press has come. The stepper sees only a new `show` input, and every fetch gives every card a new object: a "pressed" flag in the stepper would read a fetch out after a failed press, and the old value when a fetch on its way came first. The mirror of `failedEpisodeStep` (D121): state in the store, the text in the page that calls it. From the answer, not the show looked up in the list, so a fetch that brings progress changed elsewhere doesn't change the text and isn't read out. In the DOM from the page's first render, since a region inserted with its text is often not read; coming back to Home inserts it with the old text, which isn't read either. Set back to `null` on a tap, so an answer with the same text as the last one – a stale list – is still read, as `NumberStepper` empties its region on a key. Forgotten at a logout, as the next login may be someone else's. A region in the stepper, with "an answer came" passed down through Home, `ShowList` and `ShowCard`, would be a lot of plumbing for one text. Accepted: Library needs its own region, as it needs its own alert. |
+| D155 | 2026-11-27 | The order on Library's tabs: newest `updatedAt` first on all three, as on Watching, chosen by the developer. The store keeps each status's list sorted, as it does `watching`; freezing it is the page's job (D36). | One rule for every list, and one sort in the store. On Finished and Dropped the last update is about when the show was finished or dropped. `addedAt` would match Want to watch's meta line ("Added 2 weeks ago"), but a show moved back to Want to watch would land where it was first added. Alphabetical is easy to search, but Search answers "do I already have X?" (M3). |
+| D156 | 2026-11-27 | A Library tab keeps the cards it had when it was opened (D36), also when a show's status changes, chosen by the developer. A + on a Want to watch card makes the show Watching (D34), and its card stays on the tab, with its new progress, until the tab is opened again. Each tab freezes its own list when it opens; the page looks the frozen ids up among all the shows, not the tab's list, so only a deleted show leaves, and a show that gets the tab's status later comes first, as on Home (D111). The counts on the tabs and under the title follow the store. | A card leaving the tab would move the cards below it up under the thumb, and a quick second tap would start the next show instead of marking S01 E02 of the same one – the reason for D36. Accepted: right after a +, the count is one lower than the cards shown, until the tab is opened again. |
+| D157 | 2026-11-27 | The floating alert (D121, D126) and the live region for a step (D154) are one component in `shows/`, placed by both Home and Library, chosen by the developer (amends D154's "Library needs its own region"). It reads `ShowStore` itself and has no inputs; "Dismiss" clears both failures and moves focus to `main h1` with `preventScroll`, as `App` finds the page's heading. The card and the list stay presentational (D147). | Two pages with the same three `computed`s and the same markup would drift apart, as the card's copied layout did (D153). The state is already in the store, so the component needs nothing from the page but a place. |
+| D158 | 2026-11-27 | An empty Library tab says "Nothing here yet." in muted text, as DESIGN.md and the mockups have it, chosen by the developer – not `ShowListEmpty` with a heading per status, as the note of 2026-11-09 had it. Watching keeps its empty state with the icon and the button. | The tab and its count already say which list is empty, and there is nothing to do there but switch tabs; the empty state with a button is for a user with no shows at all. |
 
 ## 7. Open questions
 
