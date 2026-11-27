@@ -207,8 +207,10 @@ title is "Continue watching", with "6 shows in progress".
 
 ### Show card
 
-`<article>`, surface background, 1px border, `--border-radius`, padding `--spacing-1`. Two
-columns: the poster slot and the text column (D114).
+`<article>`, surface background, 1px border, `--border-radius`. Two columns: the poster at the
+card's edge and the text column, which has the padding, `--spacing-1` (D114, D148). In a grid
+row the cards are as tall as the tallest, so the steppers line up. The mockups show the card on
+its own in every state and width ([`screens.html#show-card`](mockups/screens.html#show-card)).
 
 The whole card opens the show page (`/shows/:showId`, D101), except the stepper's buttons (D51):
 the title's link has its click area stretched over the card, and the stepper sits above it. The
@@ -216,18 +218,26 @@ link stays in the `<h2>`, so its name is the title – never a link wrapped arou
 would contain the buttons. Keyboard focus on the link draws the focus ring around the whole card,
 not the title; the stepper's buttons keep their own ring.
 
-1. **Poster slot** – 2:3 and as tall as the text column (4×6rem in the mockup),
-   `--color-placeholder`, show initials in muted. Placeholder until TMDB posters arrive in M3
-   (D115) – keep the slot so nothing else moves. Decorative, so `aria-hidden`.
+1. **Poster** – fills the card's left edge, top to bottom (D148), 5rem wide in the mockup: about
+   2:3 beside a one-line title, narrower beside two lines. Its left corners get the card's
+   radius less the border, so they don't poke out over it. `--color-placeholder` with the show's
+   initials in muted until TMDB posters arrive in M3 (D115); a poster then fills it and is
+   cropped a little at the sides (`object-fit: cover`). Decorative, so `aria-hidden`.
+   - **Too narrow:** the card is a container, and when it is too narrow for the stepper beside
+     the poster, the poster goes (a container query on the card). With the default text size it
+     stays down to a 320px phone; zoom or a larger text size make the card narrower in CSS
+     pixels, and then the title and the stepper matter more than a sliver of picture.
 2. **Text column** (`min-width: 0`, ellipsis on overflow) – the title and the meta line at the
    top, the progress at the bottom:
-   - Title – an `<h2>` containing a link to `/shows/:id`, 16/600. The heading lets
-     screen-reader users jump from show to show; it is styled as above, not as a page heading.
+   - Title – an `<h2>` containing a link to `/shows/:id`, 16/600. Up to two lines, then cut with
+     an ellipsis (`line-clamp`), so long titles can still be told apart; screen readers get the
+     whole title. The heading lets screen-reader users jump from show to show; it is styled as
+     above, not as a page heading.
    - Meta line – `Service · relative time`, small and muted.
    - Progress – shown **once** (D35), at the bottom of the column, starting at the text's edge so
      it lines up with the title: inside the stepper (see next), or as plain text in the same
-     place on cards without one. Tabular, regular weight in the text colour, so the title stays
-     the strongest element on the card.
+     place, as tall as the stepper, on cards without one. Tabular, regular weight in the text
+     colour, so the title stays the strongest element on the card.
      - No visible label ("Last watched", "Ended at"): every card in a list would repeat it, and
        the page title / tab already says what the number means.
      - Screen readers still need the label, and `S02 E05` read aloud is unclear: put the full
@@ -251,14 +261,16 @@ can only mean "next" – a plus standing alone means "add", as in Search (D100) 
 control as the show page's steppers, only quieter.
 
 **Quiet, because every card repeats it.** One pill with no border: `--color-text-soft` behind, −
-in `--color-text-muted`, + in `--color-accent` (the only colour on the card), small icons, the
-value in the text colour. The card has no text field, so the 3:1 border rule for form controls
-(§1.1) doesn't apply: the icons identify the buttons, and they keep 3:1. In the mockup the pill is
-32px high and each button 36px wide.
+in `--color-text-muted`, + in `--color-accent` (the only colour on the card), the value in the
+text colour. The card has no text field, so the 3:1 border rule for form controls (§1.1) doesn't
+apply: the icons identify the buttons, and they keep 3:1. It is quiet in colour, not in size.
 
-**Touch area:** each button is at least `--touch-target` square even though the pill is smaller –
-the extra area is invisible. Keep the two buttons far enough apart that their areas don't
-overlap.
+**Touch area:** each button is as big as its touch area, at least `--touch-target` square, so the
+pill is `--touch-target` high (D148): what you see is what you can tap. An invisible area around a
+smaller button was too easy to miss on the phone, and a miss lands on the card's link and opens
+the show. The value between the buttons has one width in every state – "Not started" (small,
+muted) as well as `S02 E05` – so + doesn't move after the first tap on a new show. The pill is
+about 172px wide; the poster gives way before the pill does (see "Show card").
 
 **Keyboard and screen readers:** both buttons are in the Tab order – unlike `NumberStepper`, the
 card has no input to take the arrow keys. Each needs a full `aria-label`, as the icons say nothing
@@ -702,6 +714,8 @@ Screen range (D28): the layout **must work from 320px** wide with no horizontal 
 [`mockups/screens.html`](mockups/screens.html) shows every screen and its states, at phone
 (390px) and desktop (1280px) width, and Watching at tablet width (768px) too:
 
+- the show card on its own: every state at 390 and 320px, a 280px card that drops the poster,
+  and a row of the desktop grid (D148)
 - Watching, also empty, plus a sketch of the M4 sections
 - Library
 - Search: first visit, before typing, loading, results, after adding, no results, error, and the

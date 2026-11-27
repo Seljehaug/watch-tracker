@@ -65,6 +65,8 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
 .frame.wide + figcaption, figure:has(.wide) figcaption { max-width: none; }
 .frame { position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; outline: 1px solid #3f3f46; background: var(--color-background); color: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-medium); line-height: 1.5; }
 .frame.phone { width: 390px; height: 844px; }
+.frame.phone-320 { width: 320px; }
+.frame.phone-zoomed { width: 280px; }
 .frame.tablet { width: 768px; height: 1024px; }
 .frame.desktop { width: 1280px; height: 800px; }
 .frame.full { height: auto; }
@@ -148,23 +150,27 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
 /* Cards */
 .cards { display: flex; flex-direction: column; gap: var(--spacing-half); }
 .wide .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr)); gap: var(--spacing-1); }
-.card { position: relative; display: flex; gap: 0.75rem; padding: var(--spacing-1); border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
+/* The show card (D114, D148): the poster at the card's edge, as tall as the card. The card is a
+   container, so a card too narrow for the pill beside the poster drops the poster: the pill
+   (172px) + the text's padding (32px) + the poster (80px) is 17.75rem, measured inside the border. */
+.card { position: relative; container-type: inline-size; display: flex; border-radius: var(--border-radius); border: 1px solid var(--color-divider); background: var(--color-surface); }
 .card-title a::after, .result-title a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .poster { flex: none; display: grid; place-items: center; width: 2.875rem; height: 4rem; border-radius: 0.5rem; background: var(--mock-raised); color: var(--color-text-muted); font-size: var(--font-size-small); font-weight: 700; }
-.card .poster { width: 4rem; height: 6rem; border-radius: 0.25rem; }
-.card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--spacing-half); }
+.card .poster { align-self: stretch; width: 5rem; height: auto; border-radius: calc(var(--border-radius) - 1px) 0 0 calc(var(--border-radius) - 1px); }
+@container (width < 17.75rem) { .card .poster { display: none; } }
+.card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--spacing-half); padding: var(--spacing-1); }
 .card-head { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; line-height: 1.25; }
-.card-title { font-size: var(--font-size-medium); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.progress { display: flex; align-items: center; min-height: 2rem; font-variant-numeric: tabular-nums; }
+.card-title { font-size: var(--font-size-medium); font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.progress { display: flex; align-items: center; min-height: var(--touch-target); font-variant-numeric: tabular-nums; }
 .meta { font-size: var(--font-size-small); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* The episode stepper (D114): a quiet pill, smaller than the buttons' touch areas */
-.card-stepper { position: relative; z-index: 1; align-self: flex-start; display: inline-flex; align-items: center; height: 2rem; border-radius: 999px; background: var(--color-text-soft); }
-.card-stepper button { position: relative; display: grid; place-items: center; width: 2.25rem; height: 2rem; border-radius: 999px; color: var(--color-text-muted); }
-.card-stepper button::after { content: ""; position: absolute; inset: -0.375rem -0.25rem; }
+/* The episode stepper (D114, D148): a quiet pill, its buttons as big as their touch area */
+.card-stepper { position: relative; z-index: 1; align-self: flex-start; display: inline-flex; align-items: center; height: var(--touch-target); border-radius: 999px; background: var(--color-text-soft); }
+.card-stepper button { display: grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border-radius: 999px; color: var(--color-text-muted); }
 .card-stepper .next { color: var(--color-accent); }
 .card-stepper [aria-disabled="true"] { opacity: 0.4; cursor: default; }
-.card-stepper-value { min-width: 4.25rem; padding: 0 0.125rem; text-align: center; font-variant-numeric: tabular-nums; }
-.card-stepper-value.not-started { min-width: 5.75rem; color: var(--color-text-muted); }
+/* One width for every value, so + stays put when "Not started" becomes "S01 E01" */
+.card-stepper-value { min-width: 5.25rem; padding: 0 0.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+.card-stepper-value.not-started { font-size: var(--font-size-small); color: var(--color-text-muted); }
 
 /* Search */
 .count-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-1); }
@@ -311,12 +317,12 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
   <p>
     <strong>The look is provisional (D103).</strong> What these screens decide is the structure, the states
     and the behaviour: navigation (D98), Watching and Library (D99), search (D100), the show page
-    (D101–D102) and the show card's stepper (D114). Colours, type, spacing and the treatment of images get a proper design pass later, and
+    (D101–D102) and the show card with its stepper (D114, D148). Colours, type, spacing and the treatment of images get a proper design pass later, and
     much of it may change. Show titles, years and streaming services are sample data, and the grey
     rectangles stand in for TMDB's posters and backdrops.
   </p>
   <nav aria-label="Screens">
-    <div><b>Lists</b><a href="#watching">Watching</a><a href="#watching-empty">Watching, empty</a><a href="#up-next">Watching in M4</a><a href="#library">Library</a></div>
+    <div><b>Lists</b><a href="#show-card">Show card</a><a href="#watching">Watching</a><a href="#watching-empty">Watching, empty</a><a href="#up-next">Watching in M4</a><a href="#library">Library</a></div>
     <div><b>Search</b><a href="#search-first">First visit</a><a href="#search-idle">Before typing</a><a href="#search-loading">Loading</a><a href="#search-results">Results</a><a href="#search-added">After adding</a><a href="#search-none">No results</a><a href="#search-error">Error</a><a href="#search-field">The field opening</a></div>
     <div><b>Show page</b><a href="#show">In your list</a><a href="#show-saving">Saving and errors</a><a href="#show-new">Not in your list</a><a href="#show-manual">Added manually</a><a href="#delete">Delete dialog</a></div>
     <div><b>Other</b><a href="#add">Add manually</a><a href="#account">Account</a><a href="#login">Log in</a><a href="#not-found">Not found</a></div>
@@ -326,9 +332,15 @@ figcaption { margin-bottom: 8px; font-size: 0.875rem; color: #a1a1aa; max-width:
 <main>
   <p class="viewer-group">Lists</p>
 
+  <section class="screen" id="show-card">
+    <h2>Show card</h2>
+    <p>The card on its own, in every state (D114, D148). The poster fills the card's left edge and is as tall as the card – initials until TMDB's posters come in M3 (D115). The title gets two lines before it is cut, and the meta line is small and muted. At the bottom, where the text starts, the stepper: one quiet pill, − · progress · +, with each button as big as its 44px touch area, and the value at one width, so + stays put when "Not started" becomes "S01 E01". Finished and Dropped show the progress as plain text in the pill's place, as tall as the pill. The card is a container: narrower than the pill beside the poster needs – a 320px phone with zoom or larger text – it drops the poster, which is decorative. The whole card opens the show page, except the stepper's buttons (D51).</p>
+    <div class="sizes" data-screen="show-card"></div>
+  </section>
+
   <section class="screen" id="watching">
     <h2>Watching (Home, <code>/</code>)</h2>
-    <p>Only the shows being watched, most recently updated first, in the order they had when the page opened (D36). The stepper at the bottom of each card – − · progress · + in one quiet pill – marks the next episode or goes back one (D114); the poster slot is as tall as the text, and its images come in M3 (D115). The status tabs are on Library now (D99). Phone: the header holds the brand and the account icon, and the bottom navigation – Watching · Library · Search, router links with <code>aria-current="page"</code> – sits at the bottom (D98). From 48rem (tablet and desktop) there is no bottom navigation: the header has the links, the search field on the right and the account icon. The whole card opens the show page (D101), except the stepper's buttons.</p>
+    <p>Only the shows being watched, most recently updated first, in the order they had when the page opened (D36). The stepper at the bottom of each card – − · progress · + in one quiet pill – marks the next episode or goes back one (D114); the poster fills the card's left edge (D148), and its images come in M3 (D115). The status tabs are on Library now (D99). Phone: the header holds the brand and the account icon, and the bottom navigation – Watching · Library · Search, router links with <code>aria-current="page"</code> – sits at the bottom (D98). From 48rem (tablet and desktop) there is no bottom navigation: the header has the links, the search field on the right and the account icon. The whole card opens the show page (D101), except the stepper's buttons.</p>
     <div class="sizes" data-screen="watching"></div>
   </section>
 
@@ -467,6 +479,10 @@ const SIZES = {
   desktop: { className: 'desktop wide', label: 'Desktop · 1280 × 800' },
   desktopFull: { className: 'desktop wide full', label: 'Desktop · 1280 wide, the whole page' },
   desktopHeader: { className: 'desktop wide full', label: 'Desktop · the header' },
+  cardPhone: { className: 'phone full', label: 'Phone · 390 wide' },
+  cardPhone320: { className: 'phone-320 full', label: 'Phone · 320 wide' },
+  cardPhoneZoomed: { className: 'phone-zoomed full', label: 'Phone · 280 wide' },
+  cardDesktop: { className: 'desktop wide full', label: 'Desktop · 1280 wide, four columns' },
 };
 const isPhone = (size) => size.startsWith('phone');
 
@@ -605,9 +621,9 @@ function screen(size, uid, { nav = null, account = false, query = '', focused = 
 function cardStepper(value, { valueClass = '', back, backDisabled = false, next }) {
   return `
     <div class="card-stepper">
-      <button type="button" aria-label="${back}"${backDisabled ? ' aria-disabled="true"' : ''}>${icon('minus', 'small')}</button>
+      <button type="button" aria-label="${back}"${backDisabled ? ' aria-disabled="true"' : ''}>${icon('minus')}</button>
       <span class="card-stepper-value ${valueClass}">${value}</span>
-      <button type="button" class="next" aria-label="${next}">${icon('plus', 'small')}</button>
+      <button type="button" class="next" aria-label="${next}">${icon('plus')}</button>
     </div>`;
 }
 
@@ -646,6 +662,20 @@ function card(show, { status = 'watching', level = 2 } = {}) {
         ${bottom}
       </div>
     </article>`;
+}
+
+// ---------- The show card on its own ----------
+const CARD_STATES = [
+  [{ title: 'Severance', service: 'Apple TV+', season: 2, episode: 7, ago: 'Yesterday' }, 'watching'],
+  [{ title: 'The Marvelous Mrs. Maisel', service: 'Prime Video', season: 5, episode: 9, ago: '3 days ago' }, 'watching'],
+  [{ title: 'Pluribus', service: 'Apple TV+', meta: 'Added yesterday' }, 'want'],
+  [{ title: 'Fleabag', service: 'Prime Video', season: 2, episode: 6, meta: 'Finished in March' }, 'finished'],
+  [{ title: 'Lost', service: 'Disney+', season: 1, episode: 4, meta: 'Dropped last year' }, 'dropped'],
+];
+
+function cardStates(count = CARD_STATES.length) {
+  const cards = CARD_STATES.slice(0, count).map(([show, status]) => card(show, { status })).join('');
+  return `<div class="page container"><div class="cards">${cards}</div></div>`;
 }
 
 // ---------- Watching ----------
@@ -1136,6 +1166,12 @@ function notFound(size, uid) {
 
 // ---------- Which frames each section shows: [size, caption, render] ----------
 const SCREENS = {
+  'show-card': [
+    ['cardPhone', 'Watching, a long title, Want to watch, Finished, Dropped', () => cardStates()],
+    ['cardPhone320', 'the narrowest phone: the pill just fits beside the poster', () => cardStates()],
+    ['cardPhoneZoomed', '320 with zoom or larger text: too narrow for the pill beside the poster, the card drops it', () => cardStates()],
+    ['cardDesktop', 'the cards in a row are as tall as the tallest, so the pills line up', () => cardStates(4)],
+  ],
   watching: [
     ['phone', '', (s, u) => watching(s, u)],
     ['tablet', 'header navigation from 48rem', (s, u) => watching(s, u)],
